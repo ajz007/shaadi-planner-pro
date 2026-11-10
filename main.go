@@ -185,6 +185,13 @@ func (d *demo) routes(assets http.FileSystem, sandbox bool) *http.ServeMux {
 	mux := http.NewServeMux()
 	files := http.FileServer(assets)
 	mux.Handle("GET /", files)
+	for _, path := range []string{"/privacy", "/terms", "/contact"} {
+		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Robots-Tag", "noindex")
+			r.URL.Path = "/"
+			files.ServeHTTP(w, r)
+		})
+	}
 	mux.HandleFunc("POST /api/workbook-snapshot", workbookSnapshot)
 	if sandbox {
 		mux.Handle("GET /r/{token}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
