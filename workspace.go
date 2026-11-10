@@ -31,6 +31,9 @@ var workspaceGuestMigration string
 //go:embed migrations/005_live_transport.sql
 var workspaceTransportMigration string
 
+//go:embed migrations/006_repair_arrival_times.sql
+var workspaceArrivalRepairMigration string
+
 var (
 	errWorkspaceNotFound = errors.New("record not found or access denied")
 	errWorkspaceConflict = errors.New("record changed or no longer available")
@@ -65,7 +68,9 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 	if _, err := tx.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS workspace_migrations (version integer PRIMARY KEY)"); err != nil {
 		return err
 	}
-	for i, migration := range []string{initialWorkspaceMigration, workspaceSessionMigration, workspaceImportMigration, workspaceGuestMigration, workspaceTransportMigration} {
+	migrations := []string{initialWorkspaceMigration, workspaceSessionMigration, workspaceImportMigration,
+		workspaceGuestMigration, workspaceTransportMigration, workspaceArrivalRepairMigration}
+	for i, migration := range migrations {
 		version := i + 1
 		var applied bool
 		if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM workspace_migrations WHERE version = $1)", version).Scan(&applied); err != nil {
@@ -299,6 +304,26 @@ func (s *workspaceStore) setTaskDone(ctx context.Context, wedding, actor, task s
 		err = scanWorkspace(s.db.QueryRowContext(ctx, `
 			SELECT t.revision FROM wedding_tasks t JOIN wedding_memberships m ON m.wedding_id = t.wedding_id AND m.account_id = $2
 			WHERE t.wedding_id = $1 AND t.id = $3 AND (m.role <> 'family' OR m.person_id = t.assignee_id)`,
+			wedding, actor, task), &next)
+		if err == nil {
+			return next, errWorkspaceConflict
+		}
+	}
+	return next, err
+}
+
+func (s *workspaceStore) reassignTask(ctx context.Context, wedding, actor, task string, revision int, assignee *string) (int, error) {
+	var next int
+	err := scanWorkspace(s.db.QueryRowContext(ctx, `
+		UPDATE wedding_tasks t SET assignee_id = $5, claimed_by = NULL, claimed_at = NULL, revision = t.revision + 1
+		FROM wedding_memberships m
+		WHERE t.wedding_id = $1 AND t.id = $3 AND t.revision = $4 AND m.wedding_id = t.wedding_id
+		AND m.account_id = $2 AND m.role IN ('owner', 'co-organizer')
+		RETURNING t.revision`, wedding, actor, task, revision, assignee), &next)
+	if errors.Is(err, errWorkspaceNotFound) {
+		err = scanWorkspace(s.db.QueryRowContext(ctx, `
+			SELECT t.revision FROM wedding_tasks t JOIN wedding_memberships m ON m.wedding_id = t.wedding_id
+			WHERE t.wedding_id = $1 AND m.account_id = $2 AND t.id = $3 AND m.role IN ('owner', 'co-organizer')`,
 			wedding, actor, task), &next)
 		if err == nil {
 			return next, errWorkspaceConflict

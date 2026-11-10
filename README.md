@@ -57,6 +57,8 @@ The existing browser demo runs with `go run .`. To enable **Private workspace**,
 
 The owner creates a wedding, adds a planning person and a function, and assigns the person a task. The owner can also create an unassigned claimable task. Generate an invite code linked to the existing person and share it privately. The family member signs in separately, joins with that code, sees their existing assignment and can claim an open task. Use separate browser profiles to try both roles. The sample planner and RSVP sandbox remain separate from the signed-in records.
 
+If an imported task used your name as an Excel label, open **People → Family Responsibilities**, choose **Reassign**, and select your signed-in planning name marked **(me)**. The task then appears under **My tasks**.
+
 ### Import an existing wedding
 
 In **Private workspace**, select **Upload my workbook**, choose the filled English v1.3.1 `.xlsx` and confirm the wedding time zone. Review the detected records and totals, or fix the indicated sheet and row and upload again. **Create wedding from workbook** saves a new wedding in one transaction. Retrying the same confirmation returns that wedding.
@@ -73,7 +75,7 @@ On **Guest List** and **Transportation**, the two layouts keep the current filte
 
 For local testing without Google credentials, create a separate loopback database named `shaadi_local`, set `SHAADI_DATABASE_URL`, set `SHAADI_LOCAL_TEST_LOGIN=1`, and start the app with `go run .`. The sign-in screen offers local test accounts. Use sample data and separate browser profiles for different roles. Local test sign-in rejects remote database hosts and cannot be combined with Google credentials.
 
-The importer accepts the English v1.3.1 layout in files up to 2 MB. The upload itself is read in memory. Private review data expires after 30 minutes and is cleared when confirmed. Subsequent imports purge expired reviews. A confirmation can be retried for seven days.
+The importer accepts the English v1.3.1 layout in files up to 2 MB. The upload itself is read in memory. Private review data expires after 30 minutes and is cleared when confirmed. The running workspace sweeps expired previews on startup and once a minute. A confirmation can be retried for seven days.
 
 The PostgreSQL HTTP integration test uses a simulated sign-in provider. For coverage against the original filled and blank workbooks, also set `SHAADI_TEST_WORKBOOK_PACKAGE` to the English v1.3.1 launch ZIP before running `go test -v ./...`. The launch files stay outside Git. Actual Google sign-in requires the registered OAuth credentials above.
 

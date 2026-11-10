@@ -281,7 +281,7 @@ func excelDate(value string) (string, bool) {
 }
 
 func excelClock(value string) (string, bool) {
-	for _, format := range []string{"15:04", "15:04:05", "3:04 PM"} {
+	for _, format := range []string{"15:04", "15:04:05", "3:04 PM", "3:04PM"} {
 		if clock, err := time.Parse(format, strings.ToUpper(value)); err == nil {
 			return clock.Format("15:04"), true
 		}
@@ -402,6 +402,13 @@ func validateImportedWorkbook(plan *importedWorkbook) []importIssue {
 					report(section.Name, row.Number, "Enter a guest name and a unique Guest ID.")
 				}
 				guests[key] = v[0]
+				if v[12] != "" {
+					if clock, ok := excelClock(v[12]); ok {
+						v[12] = clock
+					} else {
+						report(section.Name, row.Number, "Arrival Time is not a valid Excel time. Enter a time or clear the cell.")
+					}
+				}
 			case "Functions & Events":
 				clock, ok := excelClock(v[3])
 				id := strings.ToLower(v[0])

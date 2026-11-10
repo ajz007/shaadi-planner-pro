@@ -370,7 +370,7 @@ func (a *workspaceHTTP) action(w http.ResponseWriter, r *http.Request, actor str
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
-	case "claim", "complete":
+	case "claim", "complete", "reassign":
 		a.taskAction(w, r, actor, wedding)
 	default:
 		workspaceFailure(w, errWorkspaceNotFound)
@@ -382,6 +382,7 @@ func (a *workspaceHTTP) taskAction(w http.ResponseWriter, r *http.Request, actor
 		Task     string
 		Revision int
 		Done     *bool
+		Assignee *string
 	}
 	if !readJSON(w, r, &input) {
 		return
@@ -403,11 +404,25 @@ func (a *workspaceHTTP) taskAction(w http.ResponseWriter, r *http.Request, actor
 		reply(w, http.StatusOK, map[string]string{"assignee": assignee})
 		return
 	}
-	if input.Done == nil || input.Revision < 1 {
+	if input.Revision < 1 {
 		workspaceFailure(w, errWorkspaceInput)
 		return
 	}
-	revision, err := a.store.setTaskDone(r.Context(), wedding, actor, input.Task, input.Revision, *input.Done)
+	var revision int
+	var err error
+	if r.PathValue("action") == "reassign" {
+		if input.Assignee != nil && !workspaceUUID.MatchString(*input.Assignee) {
+			workspaceFailure(w, errWorkspaceInput)
+			return
+		}
+		revision, err = a.store.reassignTask(r.Context(), wedding, actor, input.Task, input.Revision, input.Assignee)
+	} else {
+		if input.Done == nil {
+			workspaceFailure(w, errWorkspaceInput)
+			return
+		}
+		revision, err = a.store.setTaskDone(r.Context(), wedding, actor, input.Task, input.Revision, *input.Done)
+	}
 	if err != nil {
 		workspaceFailure(w, err)
 		return

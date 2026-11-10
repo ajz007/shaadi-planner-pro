@@ -170,6 +170,7 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 		path := "/api/workspace/weddings/" + importedWedding
 		rec := request("GET", path, "", "", owner, 200)
 		var imported struct {
+			Wedding   weddingSummary      `json:"wedding"`
 			Functions []workspaceFunction `json:"functions"`
 			Tasks     []workspaceTask     `json:"tasks"`
 			People    []workspacePerson   `json:"people"`
@@ -207,6 +208,33 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 			t.Fatal("member could not see the imported assignment")
 		}
 		request("GET", path+"/imported-sections", "", "", brotherSession, 404)
+		var reassignedTask workspaceTask
+		for _, task := range imported.Tasks {
+			if task.Title == "Pack bridal jewellery" {
+				reassignedTask = task
+			}
+		}
+		if reassignedTask.ID == "" {
+			t.Fatal("missing imported task to reassign")
+		}
+		reassignBody := `{"task":"` + reassignedTask.ID + `","revision":1,"assignee":"` + imported.Wedding.PersonID + `"}`
+		request("POST", path+"/reassign", reassignBody, origin, brotherSession, 404)
+		request("POST", path+"/reassign", reassignBody, origin, owner, 200)
+		request("POST", path+"/reassign", reassignBody, origin, owner, 409)
+		reassigned := request("GET", path, "", "", owner, 200)
+		var reassignedPlan struct{ Tasks []workspaceTask }
+		if err := json.Unmarshal(reassigned.Body.Bytes(), &reassignedPlan); err != nil {
+			t.Fatal(err)
+		}
+		var ownerAssigned bool
+		for _, task := range reassignedPlan.Tasks {
+			if task.ID == reassignedTask.ID && task.Assignee != nil && *task.Assignee == imported.Wedding.PersonID {
+				ownerAssigned = true
+			}
+		}
+		if !ownerAssigned {
+			t.Fatal("reassigned task did not appear under the owner's planning ID")
+		}
 		pickupList := func() []savedPickup {
 			t.Helper()
 			response := request("GET", path+"/transportation", "", "", owner, 200)
@@ -320,6 +348,39 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 		}
 		if !foundTransport {
 			t.Fatal("downloaded workbook did not contain the saved transportation changes")
+		}
+		// Simulate an older import with numeric and AM/PM values, including an
+		// explicitly cleared arrival. Reapply the repair to the saved records.
+		if _, err := store.db.ExecContext(ctx, `UPDATE wedding_imported_sections SET payload =
+			jsonb_set(jsonb_set(jsonb_set(payload, '{rows,2,values,12}', '"0.3541666666666666"'),
+			'{rows,3,values,12}', '"8:30 AM"'), '{rows,4,values,12}', '"0.5555555555555555"')
+			WHERE wedding_id = $1 AND section_name = 'Guest List'`, importedWedding); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.db.ExecContext(ctx, `UPDATE wedding_guests SET arrival_time = NULL, revision =
+			CASE WHEN workbook_id = 'G004' THEN 2 ELSE 1 END
+			WHERE wedding_id = $1 AND workbook_id IN ('G003','G004','G005')`, importedWedding); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.db.ExecContext(ctx, `UPDATE wedding_pickup_passengers l SET arrival_time = '13:19'
+			FROM wedding_guests g WHERE l.guest_id = g.id AND g.wedding_id = $1 AND g.workbook_id = 'G005'`, importedWedding); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.db.ExecContext(ctx, workspaceArrivalRepairMigration); err != nil {
+			t.Fatal(err)
+		}
+		var repaired, cleared, baseline string
+		if err := store.db.QueryRowContext(ctx, `SELECT
+			COALESCE((SELECT to_char(arrival_time, 'HH24:MI') FROM wedding_guests WHERE wedding_id = $1 AND workbook_id = 'G003'), ''),
+			COALESCE((SELECT to_char(arrival_time, 'HH24:MI') FROM wedding_guests WHERE wedding_id = $1 AND workbook_id = 'G004'), ''),
+			(SELECT l.arrival_time FROM wedding_pickup_passengers l JOIN wedding_guests g ON g.id = l.guest_id
+			 JOIN wedding_pickups p ON p.id = l.pickup_id
+			 WHERE g.wedding_id = $1 AND g.workbook_id = 'G005' AND p.workbook_row IS NOT NULL)`, importedWedding).
+			Scan(&repaired, &cleared, &baseline); err != nil {
+			t.Fatal(err)
+		}
+		if repaired != "08:30" || cleared != "" || baseline != "13:20" {
+			t.Fatalf("migration did not preserve the correct arrivals: %q %q %q", repaired, cleared, baseline)
 		}
 	}
 }

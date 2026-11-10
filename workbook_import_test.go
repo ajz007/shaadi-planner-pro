@@ -85,3 +85,21 @@ func TestWorkbookValidationReportsDuplicateAndMissingGuest(t *testing.T) {
 		t.Fatalf("wrong row-level issues: %+v", issues)
 	}
 }
+
+func TestGuestArrivalTimeValidation(t *testing.T) {
+	rows := []importRow{}
+	for i, value := range []string{"0.3541666666666666", "8:30am", "afternoon"} {
+		guest := make([]string, 21)
+		guest[0], guest[1], guest[12] = []string{"G001", "G002", "G003"}[i], "Guest", value
+		rows = append(rows, importRow{Number: i + 5, Values: guest})
+	}
+	plan := importedWorkbook{Sections: []importSection{
+		{Name: "Settings", Rows: []importRow{{Number: 5, Values: []string{"Wedding Name", "Wedding"}}, {Number: 6, Values: []string{"Wedding Date", "2027-02-15"}}}},
+		{Name: "Guest List", Rows: rows},
+	}}
+	issues := validateImportedWorkbook(&plan)
+	if len(issues) != 1 || issues[0].Sheet != "Guest List" || issues[0].Row != 7 ||
+		rows[0].Values[12] != "08:30" || rows[1].Values[12] != "08:30" {
+		t.Fatalf("incorrect arrival normalization or validation: %+v", issues)
+	}
+}

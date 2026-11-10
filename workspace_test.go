@@ -52,6 +52,23 @@ func TestWorkspaceFamilyWorkflow(t *testing.T) {
 			}
 		}
 	}()
+	active, err := store.saveImportPreview(ctx, owner, importedWorkbook{Name: "Active preview"})
+	requireWorkspaceID(t, active, err)
+	expired, err := store.saveImportPreview(ctx, owner, importedWorkbook{Name: "Expired preview"})
+	requireWorkspaceID(t, expired, err)
+	if _, err := store.db.ExecContext(ctx, "UPDATE workspace_import_previews SET expires_at = now() - interval '1 second' WHERE token_hash = $1", inviteHash(expired)); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.purgeExpiredImportPreviews(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var kept, deleted bool
+	if err := store.db.QueryRowContext(ctx, `SELECT
+		EXISTS (SELECT 1 FROM workspace_import_previews WHERE token_hash = $1),
+		NOT EXISTS (SELECT 1 FROM workspace_import_previews WHERE token_hash = $2)`, inviteHash(active), inviteHash(expired)).
+		Scan(&kept, &deleted); err != nil || !kept || !deleted {
+		t.Fatalf("preview cleanup failed: %v, active retained=%t, expired deleted=%t", err, kept, deleted)
+	}
 	wedding, err = store.createWedding(ctx, owner, "Sample wedding", "2027-02-15", "Asia/Kolkata")
 	requireWorkspaceID(t, wedding, err)
 	otherWedding, err = store.createWedding(ctx, outsider, "Other wedding", "2027-02-16", "Asia/Kolkata")

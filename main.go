@@ -96,6 +96,9 @@ func main() {
 	}
 	if workspace != nil {
 		defer workspace.store.db.Close()
+		maintenance, stop := context.WithCancel(context.Background())
+		defer stop()
+		go workspace.store.maintainImportPreviews(maintenance)
 	}
 	mux := newDemo().routes(http.Dir("web/dist"))
 	workspace.register(mux)

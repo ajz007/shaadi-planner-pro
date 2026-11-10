@@ -179,16 +179,31 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
     const action = (task: Task) => <button disabled={busy} className="focus-secondary" onClick={() => void update(claim ? 'claim' : 'complete', {
       task: task.id, ...(claim ? {} : { revision: task.revision, done: !task.done }),
     })}>{claim ? 'I’ll do it' : task.done ? 'Reopen' : 'Mark done'}</button>
+    const reassign = (task: Task) => organizer && <details className="focus-completed">
+      <summary>Reassign<span className="focus-sr-only"> {task.title}</span></summary>
+      <form key={task.revision} onSubmit={event => {
+        event.preventDefault()
+        const data = new FormData(event.currentTarget)
+        void update('reassign', { task: task.id, revision: task.revision, assignee: field(data, 'assignee') || null })
+      }}>
+        <label className="focus-field">Assign to<select name="assignee" defaultValue={task.assignee ?? ''} disabled={busy}>
+          <option value="">Unassigned</option>{people.map(person => <option key={person.id} value={person.id}>
+            {person.name}{person.id === wedding.personId ? ' (me)' : ''}
+          </option>)}
+        </select></label>
+        <button disabled={busy} className="focus-secondary">Save assignee</button>
+      </form>
+    </details>
     return <section className="focus-card">
       <div className="focus-heading"><h2>{title}</h2><span className="focus-chip">{items.filter(task => !task.done).length} open</span></div>
       {items.length === 0 && <p>No tasks here yet.</p>}
       {workbookView && items.length > 0 ? <div className="table-scroll" tabIndex={0} role="region" aria-label={title + ' table'}>
         <table className="imported-records"><thead><tr><th>Task</th><th>Due</th><th>Assignee</th><th>Action</th></tr></thead>
-          <tbody>{items.map(task => <tr key={task.id}><td>{task.title}</td><td>{task.due}</td><td>{personName(task.assignee)}</td><td>{action(task)}</td></tr>)}</tbody>
+          <tbody>{items.map(task => <tr key={task.id}><td>{task.title}</td><td>{task.due}</td><td>{personName(task.assignee)}</td><td>{action(task)}{reassign(task)}</td></tr>)}</tbody>
         </table>
       </div> : items.map(task => <div className="focus-item" key={task.id}>
         <span><strong>{task.title}</strong><small>{[task.done ? 'Done' : '', task.due ? 'Due ' + task.due : '', functionName(task.function), organizer && !claim ? personName(task.assignee) : ''].filter(Boolean).join(' · ')}</small></span>
-        {action(task)}
+        <div>{action(task)}{reassign(task)}</div>
       </div>)}
     </section>
   }

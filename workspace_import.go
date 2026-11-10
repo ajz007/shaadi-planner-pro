@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -16,9 +17,6 @@ func (s *workspaceStore) saveImportPreview(ctx context.Context, actor string, pl
 	if err != nil {
 		return "", err
 	}
-	if _, err := s.db.ExecContext(ctx, "DELETE FROM workspace_import_previews WHERE expires_at <= now()"); err != nil {
-		return "", err
-	}
 	token := workspaceSecret()
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO workspace_import_previews (token_hash, account_id, payload, expires_at)
@@ -27,6 +25,29 @@ func (s *workspaceStore) saveImportPreview(ctx context.Context, actor string, pl
 		return "", err
 	}
 	return token, nil
+}
+
+func (s *workspaceStore) purgeExpiredImportPreviews(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM workspace_import_previews WHERE expires_at <= now()")
+	return err
+}
+
+func (s *workspaceStore) maintainImportPreviews(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		cleanup, cancel := context.WithTimeout(ctx, 10*time.Second)
+		err := s.purgeExpiredImportPreviews(cleanup)
+		cancel()
+		if err != nil && ctx.Err() == nil {
+			log.Printf("Could not clean up expired workbook previews: %T", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 func (s *workspaceStore) confirmImport(ctx context.Context, actor, token string) (string, error) {
@@ -101,7 +122,10 @@ func writeImportedSections(ctx context.Context, tx *sql.Tx, wedding string, plan
 			v := row.Values
 			switch section.Name {
 			case "Guest List":
-				clock, _ := excelClock(v[12])
+				clock, valid := excelClock(v[12])
+				if v[12] != "" && !valid {
+					return errWorkspaceInput
+				}
 				_, err = tx.ExecContext(ctx, `
 					INSERT INTO wedding_guests (wedding_id, workbook_id, name, wedding_rsvp, household, side,
 						arrival_date, arrival_time, arrival_mode, transport_required)
