@@ -1,9 +1,8 @@
-package main
+package workspace
 
 import (
 	"archive/zip"
 	"bytes"
-	_ "embed"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -16,15 +15,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ajz007/shaadi-planner-pro/web"
 )
 
 const workbookUploadLimit = 2 << 20
 const workbookExpandedLimit = 24 << 20
-
-// The published English sample supplies the column contract for v1.3.1.
-//
-//go:embed web/src/workbook-demo.json
-var englishWorkbookContract []byte
 
 type importedWorkbook struct {
 	Name     string          `json:"name"`
@@ -352,7 +348,7 @@ func parseEnglishWorkbook(content []byte, zone string) (importedWorkbook, []impo
 			Columns []string `json:"columns"`
 		} `json:"tables"`
 	}
-	if err := json.Unmarshal(englishWorkbookContract, &headerContract); err != nil {
+	if err := json.Unmarshal(web.WorkbookContract, &headerContract); err != nil {
 		return result, nil, err
 	}
 	issues := []importIssue{}

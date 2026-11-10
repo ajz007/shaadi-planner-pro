@@ -1,4 +1,4 @@
-package main
+package workspace
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
 
 type guestArrival struct {
@@ -137,7 +139,7 @@ func (a *workspaceHTTP) pickups(w http.ResponseWriter, r *http.Request, actor st
 		workspaceFailure(w, err)
 		return
 	}
-	reply(w, http.StatusOK, pickups)
+	httpx.Reply(w, http.StatusOK, pickups)
 }
 
 func (a *workspaceHTTP) savePickup(w http.ResponseWriter, r *http.Request, actor string) {
@@ -147,16 +149,16 @@ func (a *workspaceHTTP) savePickup(w http.ResponseWriter, r *http.Request, actor
 		return
 	}
 	var input pickupInput
-	if !readJSON(w, r, &input) {
+	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
 	if !input.valid(id) {
-		fail(w, http.StatusUnprocessableEntity, "Enter the pickup date, time, route and at least one guest.")
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Enter the pickup date, time, route and at least one guest.")
 		return
 	}
 	saved, err := a.store.savePickup(r.Context(), wedding, actor, id, input)
 	if errors.Is(err, errWorkspaceConflict) {
-		fail(w, http.StatusConflict, "The pickup or a passenger’s guest record changed. Refresh the plan and review the latest details.")
+		httpx.Fail(w, http.StatusConflict, "The pickup or a passenger’s guest record changed. Refresh the plan and review the latest details.")
 		return
 	}
 	if err != nil {
@@ -167,7 +169,7 @@ func (a *workspaceHTTP) savePickup(w http.ResponseWriter, r *http.Request, actor
 	if id == "" {
 		status = http.StatusCreated
 	}
-	reply(w, status, map[string]string{"id": saved})
+	httpx.Reply(w, status, map[string]string{"id": saved})
 }
 
 func (s *workspaceStore) savePickup(ctx context.Context, wedding, actor, id string, p pickupInput) (string, error) {

@@ -163,10 +163,12 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
   const workspacePage = /^workspace(?:\/([0-9a-f-]{36})(?:\/([a-z-]+))?)?$/i.exec(page)
   if (workspacePage || page === 'workspace/setup') {
     const key = workspacePage?.[2] ?? ''
-    const section = key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history' : focusSection(key)
+    const section = key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history'
+      : key === 'invitations' ? 'Invitations' : focusSection(key)
     const query = new URLSearchParams(params)
     const layout = query.get('layout')
     return <Workspace weddingID={workspacePage?.[1]} section={section} guestSearch={filter} setup={page === 'workspace/setup'}
+      inviteCode={page === 'workspace/setup' ? query.get('invite') ?? '' : ''}
       layout={layout === 'workbook' || layout === 'cards' ? layout : undefined} loginFailed={query.get('login') === 'failed'} />
   }
 

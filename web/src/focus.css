@@ -42,6 +42,9 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .focus-nav-links { position: absolute; z-index: 2; top: calc(100% + .35rem); left: 0; width: max-content; max-width: min(14rem, calc(100vw - 2rem)); padding: .3rem; background: #fffefa; border: 1px solid #c8d2c5; border-radius: .6rem; box-shadow: 0 .35rem 1rem #1f33251f; }
 .focus-nav-links a { display: block; border-radius: .35rem; padding: .55rem .65rem; color: #294c3c; }
 .focus-nav-links a:hover { background: #f0f2e6; }
+.workbook-tabs { display: flex; gap: .3rem; overflow-x: auto; margin-bottom: 1rem; padding: .25rem; }
+.workbook-tabs a { flex: 0 0 auto; padding: .45rem .65rem; border: 1px solid #c8d2c5; border-radius: .4rem; color: #294c3c; background: #fffefa; }
+.workbook-tabs [aria-current] { background: #deeadc; font-weight: 700; }
 .focus-page-intro { margin-bottom: .85rem; }
 .focus-summary { display: flex; flex-wrap: wrap; gap: .65rem; margin: 0 0 .85rem; }
 .focus-summary div { flex: 1 1 9rem; border-radius: .7rem; padding: .7rem 1rem; background: #e9efdf; }

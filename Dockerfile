@@ -12,10 +12,11 @@ FROM golang:1.24-bookworm AS backend
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
-COPY *.go ./
-COPY migrations/ ./migrations/
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY web/assets.go ./web/assets.go
 COPY web/src/workbook-demo.json ./web/src/workbook-demo.json
-RUN CGO_ENABLED=0 go build -trimpath -o /shaadi-planner .
+RUN CGO_ENABLED=0 go build -trimpath -o /shaadi-planner ./cmd/shaadi-planner
 
 FROM debian:bookworm-slim
 WORKDIR /app

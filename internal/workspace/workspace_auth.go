@@ -1,4 +1,4 @@
-package main
+package workspace
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 	"golang.org/x/oauth2"
 )
 
@@ -124,14 +125,14 @@ func (a *workspaceHTTP) finishLogin(w http.ResponseWriter, r *http.Request) {
 func (a *workspaceHTTP) openSession(w http.ResponseWriter, r *http.Request, identity workspaceIdentity) bool {
 	account, err := a.store.syncAccount(r.Context(), identity.subject, identity.name)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, "Could not open your workspace.")
+		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
 		return false
 	}
 	token := workspaceSecret()
 	// Rotate an existing session and remove expired records as part of sign-in.
 	tx, err := a.store.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, "Could not open your workspace.")
+		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
 		return false
 	}
 	defer tx.Rollback()
@@ -140,12 +141,12 @@ func (a *workspaceHTTP) openSession(w http.ResponseWriter, r *http.Request, iden
 		previous = current.Value
 	}
 	if _, err := tx.ExecContext(r.Context(), "DELETE FROM workspace_sessions WHERE expires_at <= now() OR token_hash = $1", inviteHash(previous)); err != nil {
-		fail(w, http.StatusInternalServerError, "Could not open your workspace.")
+		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
 		return false
 	}
 	if _, err := tx.ExecContext(r.Context(), "INSERT INTO workspace_sessions (token_hash, account_id, expires_at) VALUES ($1, $2, $3)",
 		inviteHash(token), account, time.Now().Add(workspaceSessionAge)); err != nil || tx.Commit() != nil {
-		fail(w, http.StatusInternalServerError, "Could not open your workspace.")
+		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
 		return false
 	}
 	a.cookie(w, workspaceSessionCookie, token, "/", int(workspaceSessionAge.Seconds()))
@@ -154,11 +155,11 @@ func (a *workspaceHTTP) openSession(w http.ResponseWriter, r *http.Request, iden
 
 func (a *workspaceHTTP) localSignIn(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Origin") != a.origin || "http://"+r.Host != a.origin {
-		fail(w, http.StatusForbidden, "Open the local workspace from its configured address.")
+		httpx.Fail(w, http.StatusForbidden, "Open the local workspace from its configured address.")
 		return
 	}
 	var input struct{ Account string }
-	if !readJSON(w, r, &input) {
+	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
 	names := map[string]string{"owner": "Test owner", "family": "Test family member", "cousin": "Test cousin"}
@@ -187,7 +188,7 @@ func (a *workspaceHTTP) session(ctx context.Context, r *http.Request) (account, 
 func (a *workspaceHTTP) logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(workspaceSessionCookie); err == nil {
 		if _, err := a.store.db.ExecContext(r.Context(), "DELETE FROM workspace_sessions WHERE token_hash = $1", inviteHash(cookie.Value)); err != nil {
-			fail(w, http.StatusInternalServerError, "Could not sign out. Try again.")
+			httpx.Fail(w, http.StatusInternalServerError, "Could not sign out. Try again.")
 			return
 		}
 	}

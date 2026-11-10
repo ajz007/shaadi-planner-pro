@@ -1,4 +1,4 @@
-package main
+package workspace
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
 
 func (s *workspaceStore) saveImportPreview(ctx context.Context, actor string, plan importedWorkbook) (string, error) {
@@ -174,21 +176,21 @@ func (a *workspaceHTTP) importPreview(w http.ResponseWriter, r *http.Request, ac
 		zone = "Asia/Kolkata"
 	}
 	if _, err := time.LoadLocation(zone); err != nil || zone == "Local" {
-		fail(w, http.StatusUnprocessableEntity, "Choose a valid IANA wedding time zone.")
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Choose a valid IANA wedding time zone.")
 		return
 	}
 	content, err := io.ReadAll(http.MaxBytesReader(w, r.Body, workbookUploadLimit))
 	if err != nil {
-		fail(w, http.StatusBadRequest, "Choose an .xlsx file smaller than 2 MB.")
+		httpx.Fail(w, http.StatusBadRequest, "Choose an .xlsx file smaller than 2 MB.")
 		return
 	}
 	plan, issues, err := parseEnglishWorkbook(content, zone)
 	if err != nil {
-		fail(w, http.StatusUnprocessableEntity, fmt.Sprintf("Workbook could not be imported: %s.", err))
+		httpx.Fail(w, http.StatusUnprocessableEntity, fmt.Sprintf("Workbook could not be imported: %s.", err))
 		return
 	}
 	if len(issues) > 0 {
-		reply(w, http.StatusUnprocessableEntity, map[string]any{
+		httpx.Reply(w, http.StatusUnprocessableEntity, map[string]any{
 			"error": "Fix these workbook rows before creating a wedding.", "issues": issues[:min(len(issues), 100)], "issueCount": len(issues),
 		})
 		return
@@ -206,7 +208,7 @@ func (a *workspaceHTTP) importPreview(w http.ResponseWriter, r *http.Request, ac
 	for _, section := range plan.Sections {
 		counts = append(counts, count{section.Name, len(section.Rows)})
 	}
-	reply(w, http.StatusOK, map[string]any{
+	httpx.Reply(w, http.StatusOK, map[string]any{
 		"token": token, "name": plan.Name, "date": plan.Date, "timeZone": zone,
 		"counts": counts, "totals": importedTotals(plan.Sections),
 	})
@@ -214,7 +216,7 @@ func (a *workspaceHTTP) importPreview(w http.ResponseWriter, r *http.Request, ac
 
 func (a *workspaceHTTP) importConfirm(w http.ResponseWriter, r *http.Request, actor string) {
 	var input struct{ Token string }
-	if !readJSON(w, r, &input) {
+	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
 	if len(input.Token) != 43 {
@@ -250,5 +252,5 @@ func (a *workspaceHTTP) importedSections(w http.ResponseWriter, r *http.Request,
 		workspaceFailure(w, err)
 		return
 	}
-	reply(w, http.StatusOK, map[string]any{"sections": sections, "totals": importedTotals(sections)})
+	httpx.Reply(w, http.StatusOK, map[string]any{"sections": sections, "totals": importedTotals(sections)})
 }

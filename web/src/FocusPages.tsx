@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePlan } from './PlanData'
 import { AddPlanEntry, PrintSection } from './PlanActions'
 
@@ -89,12 +89,38 @@ function chronological(value: string) {
 export function FocusNavigation({ section, hrefFor = focusLink, canSee, home = '#focus' }: {
   section?: string; hrefFor?: (name: string) => string; canSee?: (name: string) => boolean; home?: string
 }) {
+  const nav = useRef<HTMLElement>(null)
+  useEffect(() => {
+    function dismiss(event: PointerEvent) {
+      nav.current?.querySelectorAll('details[open]').forEach(menu => {
+        if (event.target instanceof Node && !menu.contains(event.target)) menu.removeAttribute('open')
+      })
+    }
+    function escape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      const menu = nav.current?.querySelector('details[open]')
+      if (!menu) return
+      menu.removeAttribute('open')
+      menu.querySelector('summary')?.focus()
+    }
+    document.addEventListener('pointerdown', dismiss)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [])
   const groups = focusGroups.map(group => ({ ...group, pages: group.pages.filter(name => !canSee || canSee(name)) }))
     .filter(group => group.pages.length)
-  return <nav className="focus-nav" aria-label={canSee ? 'Wedding planning pages' : 'Alternate planning pages'}>
+  return <nav ref={nav} className="focus-nav" aria-label={canSee ? 'Wedding planning pages' : 'Alternate planning pages'}>
     <a href={home} aria-current={section ? undefined : 'page'}>Overview</a>
     {groups.map(group => <details key={group.name}>
-      <summary>{group.name}</summary>
+      <summary onClick={event => {
+        const current = event.currentTarget.parentElement
+        nav.current?.querySelectorAll('details[open]').forEach(menu => {
+          if (menu !== current) menu.removeAttribute('open')
+        })
+      }}>{group.name}</summary>
       <div className="focus-nav-links">{group.pages.map(name => <a key={name} href={hrefFor(name)} aria-current={name === section ? 'page' : undefined}
         onClick={event => event.currentTarget.closest('details')?.removeAttribute('open')}>{name}</a>)}</div>
     </details>)}

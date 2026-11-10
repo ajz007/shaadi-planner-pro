@@ -1,4 +1,4 @@
-package main
+package workspace
 
 import (
 	"database/sql"
@@ -9,6 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ajz007/shaadi-planner-pro/internal/workbook"
+	"github.com/ajz007/shaadi-planner-pro/web"
 )
 
 var snapshotAmounts = regexp.MustCompile(`^(Occupancy \(Auto\)|Budget|Actual Paid|Quote|Negotiated Price|Contract Value|Paid|Expected Guests|Qty|Unit Cost|Passenger Count \(Auto\))$`)
@@ -109,7 +112,7 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 			Columns []string
 		}
 	}
-	if err := json.Unmarshal(englishWorkbookContract, &contract); err != nil {
+	if err := json.Unmarshal(web.WorkbookContract, &contract); err != nil {
 		workspaceFailure(w, err)
 		return
 	}
@@ -248,7 +251,7 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		}
 	}
 	totals := importedTotals(sectionList)
-	sheets := []snapshotSheet{{Name: "Dashboard", Rows: [][]any{
+	sheets := []workbook.Sheet{{Name: "Dashboard", Rows: [][]any{
 		{"Metric", "Value"}, {"Wedding", name}, {"Guests", float64(totals.Guests)}, {"Confirmed guests", float64(totals.Confirmed)},
 		{"Rooms", float64(totals.Rooms)}, {"Functions", float64(len(functions))}, {"Open tasks", float64(openTasks)},
 		{"Pickups", float64(len(pickups))},
@@ -267,7 +270,7 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		for i, label := range columns {
 			header[i] = label
 		}
-		sheet := snapshotSheet{Name: section.Name, Rows: [][]any{header}}
+		sheet := workbook.Sheet{Name: section.Name, Rows: [][]any{header}}
 		for _, row := range section.Rows {
 			cells := make([]any, len(row.Values))
 			for i, value := range row.Values {
@@ -285,7 +288,7 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		}
 		sheets = append(sheets, sheet)
 	}
-	content, err := createWorkbook(sheets)
+	content, err := workbook.Create(sheets)
 	if err != nil {
 		workspaceFailure(w, err)
 		return

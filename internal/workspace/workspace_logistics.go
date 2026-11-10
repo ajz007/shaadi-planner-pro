@@ -1,4 +1,4 @@
-package main
+package workspace
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
 
 const (
@@ -131,7 +133,7 @@ func (a *workspaceHTTP) logistics(w http.ResponseWriter, r *http.Request, actor 
 	for i := range records {
 		records[i].Values = logisticsValues(records[i], byGuest, phones)
 	}
-	reply(w, http.StatusOK, records)
+	httpx.Reply(w, http.StatusOK, records)
 }
 
 func (s *workspaceStore) requireOrganizer(ctx context.Context, wedding, actor string) error {
@@ -202,7 +204,7 @@ func (a *workspaceHTTP) saveLogistics(w http.ResponseWriter, r *http.Request, ac
 		return
 	}
 	var input logisticsInput
-	if !readJSON(w, r, &input) {
+	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
 	if id != "new" && input.Revision < 1 || id == "new" && input.Remove {
@@ -219,7 +221,7 @@ func (a *workspaceHTTP) saveLogistics(w http.ResponseWriter, r *http.Request, ac
 	}
 	row, valid := input.row(section)
 	if !valid {
-		fail(w, http.StatusUnprocessableEntity, "Check the required fields, dates and guest selections. Select each guest only once per room.")
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Check the required fields, dates and guest selections. Select each guest only once per room.")
 		return
 	}
 	guests, err := listLiveGuests(ctx, a.store.db, wedding, actor)
@@ -233,7 +235,7 @@ func (a *workspaceHTTP) saveLogistics(w http.ResponseWriter, r *http.Request, ac
 	}
 	for _, guest := range row.Guests {
 		if !known[guest] {
-			fail(w, http.StatusUnprocessableEntity, "Choose guests from this wedding’s Guest List.")
+			httpx.Fail(w, http.StatusUnprocessableEntity, "Choose guests from this wedding’s Guest List.")
 			return
 		}
 	}
@@ -269,5 +271,5 @@ func finishLogisticsSave(w http.ResponseWriter, id string, create bool, err erro
 	if create {
 		status = http.StatusCreated
 	}
-	reply(w, status, map[string]string{"id": id})
+	httpx.Reply(w, status, map[string]string{"id": id})
 }

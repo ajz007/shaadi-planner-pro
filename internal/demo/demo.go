@@ -1,26 +1,22 @@
-package main
+package demo
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/csv"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"mime"
 	"net/http"
-	"net/url"
-	"os"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 	"unicode/utf8"
+
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
 
 var functions = []string{"Sangeet", "Reception"}
@@ -70,176 +66,19 @@ func newDemo() *demo {
 	}
 }
 
-func main() {
-	if len(os.Args) > 1 {
-		if len(os.Args) != 2 || os.Args[1] != "migrate-workspace" {
-			log.Fatal("Usage: go run . [migrate-workspace]")
-		}
-		connection := os.Getenv("SHAADI_DATABASE_URL")
-		if connection == "" {
-			log.Fatal("Set SHAADI_DATABASE_URL to the workspace database.")
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		store, err := openWorkspace(ctx, connection)
-		if err != nil {
-			log.Fatalf("Workspace migration failed: %T", err)
-		}
-		store.db.Close()
-		log.Print("Workspace database is up to date.")
-		return
-	}
-	address, publicOrigin, err := serverSettings(os.Getenv("PORT"), os.Getenv("SHAADI_WORKSPACE_ORIGIN"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	if publicOrigin != "" {
-		if _, err := os.Stat("web/dist/index.html"); err != nil {
-			log.Fatal("Build the frontend before starting the hosted planner.")
-		}
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	workspace, err := configuredWorkspace(ctx, publicOrigin)
-	cancel()
-	if err != nil {
-		log.Fatalf("Shared workspace configuration failed: %v", err)
-	}
-	if workspace != nil {
-		defer workspace.store.db.Close()
-		maintenance, stop := context.WithCancel(context.Background())
-		defer stop()
-		go workspace.store.maintainImportPreviews(maintenance)
-	}
-	mux := newDemo().routes(http.Dir("web/dist"), publicOrigin == "")
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
+func Register(mux *http.ServeMux) {
+	d := newDemo()
+	mux.HandleFunc("GET /api/wedding", d.wedding)
+	mux.HandleFunc("GET /api/sample.csv", func(w http.ResponseWriter, _ *http.Request) {
+		writeCSVHeaders(w, "sample-guests.csv")
+		fmt.Fprint(w, sampleCSV)
 	})
-	handler := localOnly(http.Handler(mux))
-	if publicOrigin != "" {
-		handler = hostedOnly(publicOrigin, mux)
-	}
-	workspace.register(mux)
-	server := &http.Server{
-		Addr: address, Handler: handler,
-		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
-		WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second,
-	}
-	log.Printf("Shaadi Planner listening on %s", address)
-	log.Fatal(server.ListenAndServe())
+	mux.HandleFunc("POST /api/import", d.importGuests)
+	mux.HandleFunc("GET /api/headcounts.csv", d.headcounts)
+	mux.HandleFunc("GET /api/rsvp/{token}", d.guestRSVP)
+	mux.HandleFunc("PUT /api/rsvp/{token}", d.saveRSVP)
+	mux.HandleFunc("PUT /api/responses", d.saveRSVP)
 }
-
-func serverSettings(port, origin string) (address, publicOrigin string, err error) {
-	if port == "" {
-		return "127.0.0.1:8080", "", nil
-	}
-	number, err := strconv.Atoi(port)
-	if err != nil || number < 1 || number > 65535 || strconv.Itoa(number) != port {
-		return "", "", errors.New("PORT must be a number between 1 and 65535")
-	}
-	parsed, err := url.Parse(origin)
-	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" ||
-		parsed.Host != parsed.Hostname() || !strings.Contains(parsed.Host, ".") ||
-		origin != "https://"+parsed.Host {
-		return "", "", errors.New("set SHAADI_WORKSPACE_ORIGIN to the HTTPS public origin without a path or port")
-	}
-	return ":" + port, origin, nil
-}
-
-func hostedOnly(origin string, next http.Handler) http.Handler {
-	host := strings.TrimPrefix(origin, "https://")
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Railway terminates TLS. Use the configured origin and the request
-		// authority rather than deriving either from forwarded headers.
-		probe := r.Host == "healthcheck.railway.app" && r.Method == http.MethodGet && r.URL.Path == "/healthz"
-		if r.Host != host && !probe {
-			http.Error(w, "Use the configured planner address.", http.StatusForbidden)
-			return
-		}
-		if source := r.Header.Get("Origin"); source != "" && source != origin {
-			http.Error(w, "Request origin does not match the planner.", http.StatusForbidden)
-			return
-		}
-		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		next.ServeHTTP(w, r)
-	})
-}
-
-func localOnly(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Host != "127.0.0.1:8080" && r.Host != "localhost:8080" {
-			http.Error(w, "Use the local demo address.", http.StatusForbidden)
-			return
-		}
-		if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host {
-			http.Error(w, "Request origin does not match the demo.", http.StatusForbidden)
-			return
-		}
-		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (d *demo) routes(assets http.FileSystem, sandbox bool) *http.ServeMux {
-	mux := http.NewServeMux()
-	files := http.FileServer(assets)
-	mux.Handle("GET /", files)
-	for _, path := range []string{"/privacy", "/terms", "/contact"} {
-		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("X-Robots-Tag", "noindex")
-			r.URL.Path = "/"
-			files.ServeHTTP(w, r)
-		})
-	}
-	mux.HandleFunc("POST /api/workbook-snapshot", workbookSnapshot)
-	if sandbox {
-		mux.Handle("GET /r/{token}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.URL.Path = "/"
-			files.ServeHTTP(w, r)
-		}))
-		mux.HandleFunc("GET /api/wedding", d.wedding)
-		mux.HandleFunc("GET /api/sample.csv", func(w http.ResponseWriter, _ *http.Request) {
-			writeCSVHeaders(w, "sample-guests.csv")
-			fmt.Fprint(w, sampleCSV)
-		})
-		mux.HandleFunc("POST /api/import", d.importGuests)
-		mux.HandleFunc("GET /api/headcounts.csv", d.headcounts)
-		mux.HandleFunc("GET /api/rsvp/{token}", d.guestRSVP)
-		mux.HandleFunc("PUT /api/rsvp/{token}", d.saveRSVP)
-		mux.HandleFunc("PUT /api/responses", d.saveRSVP)
-	}
-	return mux
-}
-
-func readJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if mediaType != "application/json" {
-		fail(w, http.StatusUnsupportedMediaType, "Expected a JSON request.")
-		return false
-	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10))
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(target) != nil || decoder.Decode(new(any)) != io.EOF {
-		fail(w, http.StatusBadRequest, "Invalid request or request too large.")
-		return false
-	}
-	return true
-}
-
-func reply(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Print("could not write JSON response")
-	}
-}
-
-func fail(w http.ResponseWriter, status int, message string) {
-	reply(w, status, map[string]string{"error": message})
-}
-
 func parseGuests(content string) ([]guest, error) {
 	if !utf8.ValidString(content) {
 		return nil, errors.New("save the guest list as UTF-8 CSV")
@@ -305,12 +144,12 @@ func (d *demo) importGuests(w http.ResponseWriter, r *http.Request) {
 		CSV     string `json:"csv"`
 		Confirm bool   `json:"confirm"`
 	}
-	if !readJSON(w, r, &request) {
+	if !httpx.ReadJSON(w, r, &request) {
 		return
 	}
 	guests, err := parseGuests(request.CSV)
 	if err != nil {
-		fail(w, http.StatusUnprocessableEntity, err.Error())
+		httpx.Fail(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 	d.mu.Lock()
@@ -324,18 +163,18 @@ func (d *demo) importGuests(w http.ResponseWriter, r *http.Request) {
 		}
 		if existing.Name != entry.Name || existing.Household != entry.Household ||
 			!slices.Equal(existing.Functions, entry.Functions) {
-			fail(w, http.StatusConflict, "Existing guest "+entry.ID+" differs from the import. The demo only adds new guests.")
+			httpx.Fail(w, http.StatusConflict, "Existing guest "+entry.ID+" differs from the import. The demo only adds new guests.")
 			return
 		}
 	}
 	if len(d.guests)+len(added) > 500 {
-		fail(w, http.StatusUnprocessableEntity, "The demo supports up to 500 guests.")
+		httpx.Fail(w, http.StatusUnprocessableEntity, "The demo supports up to 500 guests.")
 		return
 	}
 	if request.Confirm {
 		d.addGuests(added)
 	}
-	reply(w, http.StatusOK, map[string]any{
+	httpx.Reply(w, http.StatusOK, map[string]any{
 		"guests": guests, "newGuests": len(added), "unchanged": len(guests) - len(added),
 	})
 }
@@ -423,7 +262,7 @@ func (d *demo) counts() []count {
 func (d *demo) wedding(w http.ResponseWriter, _ *http.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	reply(w, http.StatusOK, map[string]any{"groups": d.groups(), "counts": d.counts()})
+	httpx.Reply(w, http.StatusOK, map[string]any{"groups": d.groups(), "counts": d.counts()})
 }
 
 func (d *demo) guestRSVP(w http.ResponseWriter, r *http.Request) {
@@ -432,11 +271,11 @@ func (d *demo) guestRSVP(w http.ResponseWriter, r *http.Request) {
 	for _, entry := range d.groups() {
 		if entry.Token == r.PathValue("token") {
 			entry.Token = ""
-			reply(w, http.StatusOK, entry)
+			httpx.Reply(w, http.StatusOK, entry)
 			return
 		}
 	}
-	fail(w, http.StatusNotFound, "This RSVP link is unavailable.")
+	httpx.Fail(w, http.StatusNotFound, "This RSVP link is unavailable.")
 }
 
 func (d *demo) saveRSVP(w http.ResponseWriter, r *http.Request) {
@@ -446,11 +285,11 @@ func (d *demo) saveRSVP(w http.ResponseWriter, r *http.Request) {
 		Status   string `json:"status"`
 		Revision *int   `json:"revision"`
 	}
-	if !readJSON(w, r, &request) {
+	if !httpx.ReadJSON(w, r, &request) {
 		return
 	}
 	if request.Revision == nil || !slices.Contains([]string{"pending", "accepted", "declined"}, request.Status) {
-		fail(w, http.StatusUnprocessableEntity, "Choose a valid response and include its revision.")
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Choose a valid response and include its revision.")
 		return
 	}
 	d.mu.Lock()
@@ -459,11 +298,11 @@ func (d *demo) saveRSVP(w http.ResponseWriter, r *http.Request) {
 	entry, exists := d.invitations[key]
 	token := r.PathValue("token")
 	if !exists || (token != "" && token != d.tokens[groupKey(d.guests[entry.GuestID])]) {
-		fail(w, http.StatusNotFound, "This invitation is unavailable.")
+		httpx.Fail(w, http.StatusNotFound, "This invitation is unavailable.")
 		return
 	}
 	if entry.Revision != *request.Revision {
-		fail(w, http.StatusConflict, "This RSVP changed. Refresh to see the latest response.")
+		httpx.Fail(w, http.StatusConflict, "This RSVP changed. Refresh to see the latest response.")
 		return
 	}
 	if entry.Status != request.Status {
@@ -471,7 +310,7 @@ func (d *demo) saveRSVP(w http.ResponseWriter, r *http.Request) {
 		entry.Revision++
 		d.invitations[key] = entry
 	}
-	reply(w, http.StatusOK, entry)
+	httpx.Reply(w, http.StatusOK, entry)
 }
 
 func writeCSVHeaders(w http.ResponseWriter, filename string) {

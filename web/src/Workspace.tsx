@@ -3,7 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { ImportedPlanningRecords, useImportedPlanningRecords, WorkspaceImport } from './WorkspaceImport'
 import { WorkspaceGuests } from './WorkspaceGuests'
 import type { Guest } from './WorkspaceGuests'
-import { FocusNavigation, focusLink, PlanningSection } from './FocusPages'
+import { FocusNavigation, focusGroups, focusLink, PlanningSection } from './FocusPages'
 import { ScheduleChart, scheduleEntries } from './ScheduleBoard'
 import { WorkspaceTransport } from './WorkspaceTransport'
 import { WorkspaceLogistics } from './WorkspaceLogistics'
@@ -15,6 +15,7 @@ type WeddingFunction = { id: string; name: string; venue: string; startsAt: stri
 type Task = { id: string; title: string; assignee: string | null; function: string | null; due: string | null; claimable: boolean; done: boolean; revision: number }
 type Plan = { wedding: Wedding; people: Person[]; functions: WeddingFunction[]; tasks: Task[] }
 const root = '/api/workspace'
+const pendingInviteKey = 'shaadi-pending-invite'
 
 const weddingPage = (id: string, section?: string, workbook = false) => '#workspace/' + id +
   (section ? '/' + (section === 'Import history' ? 'import-history' : focusLink(section).slice(7)) : '') + (workbook ? '?layout=workbook' : '')
@@ -98,6 +99,7 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
   layoutQuery.set('layout', nextLayout)
   const layoutTarget = route + '?' + layoutQuery.toString()
   const owner = wedding.role === 'owner'
+  const inviteURL = invite ? window.location.origin + '/#workspace/setup?invite=' + encodeURIComponent(invite) : ''
   const imported = useImportedPlanningRecords(wedding.id, owner)
   const [guests, setGuests] = useState<Guest[]>()
   useEffect(() => {
@@ -195,6 +197,7 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
       <div><p className="focus-kicker">{section ?? (organizer ? 'WEDDING OVERVIEW' : 'MY WEDDING TASKS')}</p>
         <h1>{wedding.name}</h1><p>{wedding.date} · {wedding.timeZone}</p></div>
       <div className="focus-actions">
+        {owner && <a className="focus-secondary" href={href('Invitations')}>Invite family</a>}
         {organizer && <a className="focus-secondary" href={layoutTarget} onClick={event => {
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
           event.preventDefault()
@@ -206,6 +209,11 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
       </div>
     </header>
     <FocusNavigation section={section} hrefFor={href} home={href()} canSee={canSee} />
+    {workbookView && <nav className="workbook-tabs" aria-label="Workbook sheets">
+      <a href={href()} aria-current={overview ? 'page' : undefined}>Dashboard</a>
+      {focusGroups.flatMap(group => group.pages).filter(page => page !== 'Schedule Board' && canSee(page))
+        .map(page => <a key={page} href={href(page)} aria-current={section === page ? 'page' : undefined}>{page}</a>)}
+    </nav>}
     {feedback && <p role="alert">{feedback}</p>}
     {section && !canSee(section) ? <p role="status">This page is unavailable for your role. <a href={href()}>Return to overview</a>.</p>
       : section === 'Guest List' ? <WorkspaceGuests key={guestSearch} wedding={wedding} initialSearch={guestSearch} workbookView={workbookView} />
@@ -214,7 +222,7 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
         wedding={wedding} people={people} workbookView={workbookView} request={workspaceRequest} guestHref={href('Guest List')} />
       : section === 'Schedule Board' ? <ScheduleChart actual={scheduleEntries(functionRows, timeline)} weddingName={wedding.name} />
       : section === 'Import history' ? <><p><a href={href('Settings')}>← Wedding settings</a></p><ImportedPlanningRecords {...imported} /></>
-      : section && !showTasks && !showFunctions && section !== 'Settings' ? <>
+      : section && !showTasks && !showFunctions && section !== 'Settings' && section !== 'Invitations' ? <>
         <h2>{section}</h2>
         {imported.error ? <p role="alert">{imported.error}</p>
           : !imported.data ? <p role="status">Loading planning records…</p>
@@ -224,7 +232,20 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
               weddingName={wedding.name} hrefFor={href} workbookView={workbookView} />
           </> : <p>No {section.toLowerCase()} records have been imported for this wedding.</p>}
       </> : <>
-    {organizer && overview && <>
+    {workbookView && overview && <section className="focus-card">
+      <h2>Wedding workbook</h2>
+      <p>Choose a sheet to see the wedding records in a table.</p>
+      <div className="table-scroll"><table className="imported-records">
+        <thead><tr><th scope="col">Sheet</th><th scope="col">Summary</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><a href={href('Guest List')}>Guest List</a></th><td>{guests ? guests.length + ' guests' : 'Open sheet'}</td></tr>
+          <tr><th scope="row"><a href={href('Functions & Events')}>Functions &amp; Events</a></th><td>{functions.length} scheduled</td></tr>
+          <tr><th scope="row"><a href={href('Family Responsibilities')}>Family Responsibilities</a></th><td>{tasks.filter(task => !task.done).length} open tasks</td></tr>
+          {owner && <tr><th scope="row"><a href={href('Budget vs Actual')}>Budget vs Actual</a></th><td>{imported.data ? displayMoney(imported.data.totals.paidPaise) + ' paid' : 'Open sheet'}</td></tr>}
+        </tbody>
+      </table></div>
+    </section>}
+    {organizer && overview && !workbookView && <>
       <div className="focus-summary wedding-overview-metrics">
         <a className="focus-card" href={href('Guest List')}><strong>Guests</strong><span>{guests ? guests.length + ' guests · ' + guests.filter(guest => guest.rsvp === 'Confirmed').length + ' confirmed' : 'Open Guest List'}</span></a>
         <a className="focus-card" href={href('Functions & Events')}><strong>Functions</strong><span>{functions.length} scheduled</span></a>
@@ -262,10 +283,10 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
       </section>}
       {section === 'Settings' && <section className="focus-card">
         {activeSection ? <PlanningSection section="Settings" table={{ columns: activeSection.columns, rows: sectionRows(activeSection) }}
-          weddingName={wedding.name} /> : <><h2>Wedding settings</h2><p>{wedding.name} · {wedding.date} · {wedding.timeZone}</p></>}
-        {owner && <a href={href('Import history')}>Import history →</a>}
+          weddingName={wedding.name} workbookView={workbookView} /> : <><h2>Wedding settings</h2><p>{wedding.name} · {wedding.date} · {wedding.timeZone}</p></>}
+        {owner && <div className="focus-actions"><a href={href('Import history')}>Import history →</a><a href={href('Invitations')}>Invite family →</a></div>}
       </section>}
-      {organizer && section === 'Settings' &&
+      {organizer && (section === 'Settings' || section === 'Invitations') &&
         <WorkspaceForm title="Add a planning person" label="Add person" onSave={data => mutate('people', { name: field(data, 'name') })}>
           <p>Add a name now and invite the person when you’re ready.</p>
           <TextField name="name" label="Planning name" />
@@ -291,19 +312,30 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
           <TextField name="due" label="Due date" type="date" required={false} />
           <label><input name="claimable" type="checkbox" /> Let a family member claim this unassigned task</label>
         </WorkspaceForm>}
-      {owner && section === 'Settings' && <>
-        <WorkspaceForm title="Invite someone" label="Create invite code" onSave={async data => {
+      {owner && section === 'Invitations' && <>
+        <WorkspaceForm title="Invite someone" label="Create invite link" onSave={async data => {
           const result = await workspaceRequest<{ token: string }>(path + '/invite', { person: field(data, 'person'), role: field(data, 'role') })
           setInvite(result.token)
+          setFeedback('')
         }}>
+          <p>Choose an existing planning person to keep their assigned tasks. If they’re new, add them first.</p>
           <label className="focus-field">Link to planning person<select name="person" required>
             <option value="">Choose a person</option>{people.filter(person => person.id !== wedding.personId).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
           </select></label>
           <label className="focus-field">Role<select name="role"><option value="family">Family member</option><option value="co-organizer">Co-organizer</option></select></label>
         </WorkspaceForm>
         {invite && <section className="focus-card">
-          <h2>Share the invite code</h2><p>Send it privately to the intended person. They sign in and paste it into Join a wedding. It expires in 24 hours.</p>
+          <h2>Share the invite link</h2><p>Send it privately to the intended person. The link can be used once and expires in 24 hours.</p>
+          <label className="focus-field">Invite link<input readOnly value={inviteURL} onFocus={event => event.target.select()} /></label>
           <label className="focus-field">Invite code<input readOnly value={invite} onFocus={event => event.target.select()} /></label>
+          <button className="focus-secondary" onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(inviteURL)
+              setFeedback('Invite link copied.')
+            } catch {
+              setFeedback('Select the invite link field to copy it manually.')
+            }
+          }}>Copy invite link</button>
           <button className="focus-secondary" disabled={busy} onClick={() => void workspaceRequest(path + '/revoke', { token: invite })
             .then(() => setInvite('')).catch(error => setFeedback(errorText(error)))}>Revoke invite</button>
         </section>}
@@ -313,8 +345,8 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
   </>
 }
 
-export function Workspace({ loginFailed, weddingID, section, layout, guestSearch, setup }: {
-  loginFailed: boolean; weddingID?: string; section?: string; layout?: WeddingLayout; guestSearch: string; setup: boolean
+export function Workspace({ loginFailed, weddingID, section, layout, guestSearch, setup, inviteCode }: {
+  loginFailed: boolean; weddingID?: string; section?: string; layout?: WeddingLayout; guestSearch: string; setup: boolean; inviteCode: string
 }) {
   const [session, setSession] = useState<Session>()
   const [weddings, setWeddings] = useState<Wedding[]>([])
@@ -322,6 +354,15 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
   const [error, setError] = useState('')
   const [planError, setPlanError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [savedInvite, setSavedInvite] = useState(() => {
+    try { return sessionStorage.getItem(pendingInviteKey) ?? '' } catch { return '' }
+  })
+  const pendingInvite = inviteCode || savedInvite
+
+  function clearInvite() {
+    setSavedInvite('')
+    try { sessionStorage.removeItem(pendingInviteKey) } catch { /* Storage may be disabled. */ }
+  }
 
   useEffect(() => {
     workspaceRequest<Session>('/session').then(async session => {
@@ -378,8 +419,10 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
               .then(result => { if (!result.ok) throw new Error('Could not open the test account.'); window.location.reload() })
               .catch(error => { setError(errorText(error)); setBusy(false) })
           }}>{label}</button>)}</div>
-      </> : <><p>Use your Google account to create a wedding or accept a family invite.</p>
-        <a className="focus-secondary" href="/auth/google/start">Continue with Google</a></>}
+      </> : <><p>{pendingInvite ? 'Sign in with Google to accept your wedding invitation.' : 'Use your Google account to create a wedding or accept a family invite.'}</p>
+        <a className="focus-secondary" href="/auth/google/start" onClick={() => {
+          if (pendingInvite) try { sessionStorage.setItem(pendingInviteKey, pendingInvite) } catch { /* Reopen the link after sign-in. */ }
+        }}>Continue with Google</a></>}
     </section>}
     {session?.name && <>
       <div className="focus-heading workspace-topline">
@@ -387,7 +430,14 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
         <span>Signed in as {session.name} · <button className="focus-secondary" disabled={busy}
           onClick={() => void workspaceRequest('/logout', {}).then(() => window.location.assign('/')).catch(error => setError(errorText(error)))}>Sign out</button></span>
       </div>
-      {weddingID ? <>
+      {!weddingID && pendingInvite ? <WorkspaceForm title="Wedding invitation" label="Accept invitation" onSave={async () => {
+        const result = await workspaceRequest<{ id: string }>('/join', { token: pendingInvite })
+        clearInvite()
+        await refreshList(result.id)
+      }}>
+        <p>Accept to join this wedding with the Google account shown above.</p>
+        <a href="#workspace" onClick={clearInvite}>Back to My weddings</a>
+      </WorkspaceForm> : weddingID ? <>
         {plan?.wedding.id === weddingID
           ? <WeddingWorkspace key={weddingID} plan={plan} section={section} layout={layout}
             guestSearch={guestSearch} refresh={() => refreshPlan(weddingID)} />

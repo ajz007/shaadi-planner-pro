@@ -1,4 +1,4 @@
-package main
+package workbook
 
 import (
 	"archive/zip"
@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
 
 const spreadsheetNS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -16,48 +18,48 @@ const documentRelNS = "http://schemas.openxmlformats.org/officeDocument/2006/rel
 const packageRelNS = "http://schemas.openxmlformats.org/package/2006/relationships"
 const contentNS = "http://schemas.openxmlformats.org/package/2006/content-types"
 
-type snapshotSheet struct {
+type Sheet struct {
 	Name string  `json:"name"`
 	Rows [][]any `json:"rows"`
 }
 
-func workbookSnapshot(w http.ResponseWriter, r *http.Request) {
+func SnapshotHandler(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Sheets []snapshotSheet `json:"sheets"`
+		Sheets []Sheet `json:"sheets"`
 	}
-	if !readJSON(w, r, &request) {
+	if !httpx.ReadJSON(w, r, &request) {
 		return
 	}
 	if len(request.Sheets) == 0 || len(request.Sheets) > 24 {
-		fail(w, http.StatusBadRequest, "Invalid number of workbook sheets.")
+		httpx.Fail(w, http.StatusBadRequest, "Invalid number of workbook sheets.")
 		return
 	}
 	names := make(map[string]bool)
 	for _, sheet := range request.Sheets {
 		key := strings.ToLower(sheet.Name)
 		if sheet.Name == "" || utf8.RuneCountInString(sheet.Name) > 31 || strings.ContainsAny(sheet.Name, ":\\/?*[]") || names[key] || len(sheet.Rows) > 1000 {
-			fail(w, http.StatusBadRequest, "Invalid workbook sheet.")
+			httpx.Fail(w, http.StatusBadRequest, "Invalid workbook sheet.")
 			return
 		}
 		names[key] = true
 		for _, row := range sheet.Rows {
 			if len(row) > 40 {
-				fail(w, http.StatusBadRequest, "Too many worksheet columns.")
+				httpx.Fail(w, http.StatusBadRequest, "Too many worksheet columns.")
 				return
 			}
 			for _, cell := range row {
 				switch cell.(type) {
 				case string, float64, nil:
 				default:
-					fail(w, http.StatusBadRequest, "Invalid worksheet cell.")
+					httpx.Fail(w, http.StatusBadRequest, "Invalid worksheet cell.")
 					return
 				}
 			}
 		}
 	}
-	content, err := createWorkbook(request.Sheets)
+	content, err := Create(request.Sheets)
 	if err != nil {
-		fail(w, http.StatusInternalServerError, "Could not create the workbook.")
+		httpx.Fail(w, http.StatusInternalServerError, "Could not create the workbook.")
 		return
 	}
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -66,7 +68,7 @@ func workbookSnapshot(w http.ResponseWriter, r *http.Request) {
 	w.Write(content)
 }
 
-func createWorkbook(sheets []snapshotSheet) ([]byte, error) {
+func Create(sheets []Sheet) ([]byte, error) {
 	var buffer bytes.Buffer
 	archive := zip.NewWriter(&buffer)
 	write := func(path, body string) error {

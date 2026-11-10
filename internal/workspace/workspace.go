@@ -1,4 +1,4 @@
-package main
+package workspace
 
 import (
 	"context"
@@ -333,4 +333,12 @@ func (s *workspaceStore) reassignTask(ctx context.Context, wedding, actor, task 
 		}
 	}
 	return next, err
+}
+
+func Migrate(ctx context.Context, connection string) error {
+	store, err := openWorkspace(ctx, connection)
+	if err != nil {
+		return err
+	}
+	return store.db.Close()
 }

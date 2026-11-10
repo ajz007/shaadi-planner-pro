@@ -1,13 +1,14 @@
-package main
+package workspace
 
 import (
 	"context"
 	"database/sql"
-
 	"net/http"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
 
 type liveGuest struct {
@@ -70,7 +71,7 @@ func (a *workspaceHTTP) guests(w http.ResponseWriter, r *http.Request, actor str
 	for i := range guests {
 		guests[i].Links = links[guests[i].WorkbookID]
 	}
-	reply(w, http.StatusOK, guests)
+	httpx.Reply(w, http.StatusOK, guests)
 }
 
 func (a *workspaceHTTP) guestPlanLinks(ctx context.Context, wedding, actor string) (map[string][]guestPlanLink, error) {
@@ -148,7 +149,7 @@ func (a *workspaceHTTP) saveGuest(w http.ResponseWriter, r *http.Request, actor 
 		return
 	}
 	var guest liveGuest
-	if !readJSON(w, r, &guest) {
+	if !httpx.ReadJSON(w, r, &guest) {
 		return
 	}
 	if !guest.valid() || (id != "" && guest.Revision < 1) || guest.ID != "" || guest.WorkbookID != "" || guest.Links != nil {
@@ -191,5 +192,5 @@ func (a *workspaceHTTP) saveGuest(w http.ResponseWriter, r *http.Request, actor 
 		workspaceFailure(w, err)
 		return
 	}
-	reply(w, http.StatusOK, map[string]int{"revision": revision})
+	httpx.Reply(w, http.StatusOK, map[string]int{"revision": revision})
 }
