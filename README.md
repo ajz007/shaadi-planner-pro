@@ -47,7 +47,13 @@ Open **RSVP sandbox** from the planner navigation.
 
 Phone and vehicle numbers are hidden on screen. The sample workspace and its edits belong to the current browser. Shared login and PostgreSQL storage are a later milestone. The organizer sandbox is separate and accessible to anyone using the local address. Use fictional data only. Its RSVP links work on this computer, and sandbox data and links reset on restart.
 
-The next milestone adds PostgreSQL, organizer sign-in, and editable wedding settings, functions and family tasks. Live guest communications follow once the private wedding access model and guest workflows are in place.
+## Shared workspace backend
+
+The PostgreSQL foundation stores wedding owners, planning people, memberships, invitations, functions and tasks. Planning people can be assigned work before they join. The data layer checks wedding membership, protects task updates with revisions, and assigns a claimable task to one member at a time.
+
+Set `SHAADI_DATABASE_URL` to a development PostgreSQL database and run `go run . migrate-workspace` to apply the migrations. Use a separate database for integration tests. Set `SHAADI_TEST_DATABASE_URL` to that database and run `go test -v ./...` to exercise invitations, access checks, and simultaneous claims. The PostgreSQL integration test is skipped if the test URL is absent.
+
+The existing browser demo runs with `go run .` and uses its sample workspace. The next backend step is verified sign-in and authenticated workspace endpoints. These will connect the existing screens to shared records.
 
 To refresh the preview data from the English launch ZIP, run `python import_demo.py "path/to/launch-package.zip"` and rebuild the web app.
 
