@@ -65,6 +65,8 @@ Functions and assigned tasks appear in the live schedule and checklist. An impor
 
 Use **Guest List** to add guests and edit saved names, households, RSVP and travel details. Filter by arrival date, transport requirement, mode, wedding side or RSVP. **Print filtered guests** prints the current list without phone numbers. The owner can download a current Excel snapshot built from the saved records, including updated guest arrivals, functions and tasks. It also includes the imported records for sections still awaiting live editors.
 
+**My weddings** opens the selected wedding's overview. Inside the wedding, use **People**, **Schedule**, **Money**, and **Details** to navigate. Imported sections appear on their own read-only pages until their editors are available. The owner can check the original file values under **Details → Settings → Import history**. **Workbook view** uses tables for the same wedding records where available. Invitations are under **Details → Settings**.
+
 For local testing without Google credentials, create a separate loopback database named `shaadi_local`, set `SHAADI_DATABASE_URL`, set `SHAADI_LOCAL_TEST_LOGIN=1`, and start the app with `go run .`. The sign-in screen offers local test accounts. Use sample data and separate browser profiles for different roles. Local test sign-in rejects remote database hosts and cannot be combined with Google credentials.
 
 The importer accepts the English v1.3.1 layout in files up to 2 MB. The upload itself is read in memory. Private review data expires after 30 minutes and is cleared when confirmed. Subsequent imports purge expired reviews. A confirmation can be retried for seven days.

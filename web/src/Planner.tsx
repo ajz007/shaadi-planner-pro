@@ -159,9 +159,14 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
   const settings = Object.fromEntries(table('Settings').rows)
 
   if (page === 'focus' || page.startsWith('focus/')) return <FocusPlanner section={focusSection(page.slice(6))} filter={filter} />
-  const workspacePage = /^workspace(?:\/([0-9a-f-]{36})(\/guests)?)?$/i.exec(page)
-  if (workspacePage) return <Workspace weddingID={workspacePage[1]} guestView={Boolean(workspacePage[2])}
-    loginFailed={new URLSearchParams(params).get('login') === 'failed'} />
+  const workspacePage = /^workspace(?:\/([0-9a-f-]{36})(?:\/([a-z-]+))?)?$/i.exec(page)
+  if (workspacePage || page === 'workspace/setup') {
+    const key = workspacePage?.[2] ?? ''
+    const section = key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history' : focusSection(key)
+    const query = new URLSearchParams(params)
+    return <Workspace weddingID={workspacePage?.[1]} section={section} guestSearch={filter} setup={page === 'workspace/setup'}
+      workbookView={query.get('layout') === 'workbook'} loginFailed={query.get('login') === 'failed'} />
+  }
 
   return <div className="planner">
     <aside className="planner-sidebar" aria-label="Wedding planner">

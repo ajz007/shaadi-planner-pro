@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
-type ImportTotals = { guests: number; confirmed: number; rooms: number; plannedPaise: number; paidPaise: number; vendorDuePaise: number }
+export type ImportTotals = { guests: number; confirmed: number; rooms: number; plannedPaise: number; paidPaise: number; vendorDuePaise: number }
 type Preview = {
   token: string; name: string; date: string; timeZone: string
   counts: { section: string; count: number }[]; totals: ImportTotals
 }
 type Issue = { sheet: string; row: number; message: string }
-type ImportedSection = { name: string; columns: string[]; rows: { number: number; values: string[] }[] }
+export type ImportedSection = { name: string; columns: string[]; rows: { number: number; values: string[]; guestLinks?: Record<number, string> }[] }
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
 
 function ImportSummary({ totals }: { totals: ImportTotals }) {
@@ -103,11 +103,11 @@ export function WorkspaceImport({ onCreated }: { onCreated: (id: string) => Prom
   </section>
 }
 
-export function ImportedPlanningRecords({ wedding, guestListURL }: { wedding: string; guestListURL: string }) {
+export function useImportedPlanningRecords(wedding: string, enabled: boolean) {
   const [data, setData] = useState<{ sections: ImportedSection[]; totals: ImportTotals }>()
-  const [selected, setSelected] = useState('')
   const [error, setError] = useState('')
   useEffect(() => {
+    if (!enabled) return
     const controller = new AbortController()
     fetch('/api/workspace/weddings/' + wedding + '/imported-sections', { signal: controller.signal })
       .then(async result => {
@@ -116,16 +116,21 @@ export function ImportedPlanningRecords({ wedding, guestListURL }: { wedding: st
       })
       .catch(error => { if (!controller.signal.aborted) setError(error.message) })
     return () => controller.abort()
-  }, [wedding])
+  }, [wedding, enabled])
+  return { data, error }
+}
+
+export function ImportedPlanningRecords({ data, error }: { data?: { sections: ImportedSection[]; totals: ImportTotals }; error: string }) {
+  const [selected, setSelected] = useState('')
   if (error) return <p role="alert">{error}</p>
-  if (!data?.sections.length) return null
+  if (!data) return <p role="status">Loading import history…</p>
+  if (!data.sections.length) return <p>No Excel workbook was imported for this wedding.</p>
   const section = data.sections.find(section => section.name === selected)
   const shown = section?.columns.flatMap((column, index) =>
     !column.endsWith('(Auto)') || column === 'Guest ID (Auto)' || column === 'Function ID (Auto)' ? [{ column, index }] : []) ?? []
   return <section className="focus-card">
-    <h2>Imported planning records</h2>
+    <h2>Import history</h2>
     <p>These are the records as they were imported from Excel. The live schedule and checklist show later edits.</p>
-    <p><a className="focus-secondary" href={guestListURL}>Open live Guest List →</a></p>
     <ImportSummary totals={data.totals} />
     <label className="focus-field">Imported section<select value={selected} onChange={event => setSelected(event.target.value)}>
       <option value="">Choose a section</option>{data.sections.map(section =>

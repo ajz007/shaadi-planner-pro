@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { PrintSection } from './PlanActions'
 
-type Guest = {
+export type Guest = {
   id: string; workbookId: string; name: string; household: string; side: string; rsvp: string;
   arrivalDate: string; arrivalTime: string; arrivalMode: string; transportRequired: string; revision: number
   links?: { section: string; label: string; detail: string }[]
@@ -22,11 +22,13 @@ function localDay(zone: string) {
   return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type)?.value).join('-')
 }
 
-export function WorkspaceGuests({ wedding }: { wedding: { id: string; name: string; timeZone: string } }) {
+export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = false }: {
+  wedding: { id: string; name: string; timeZone: string }; initialSearch?: string; workbookView?: boolean
+}) {
   const [guests, setGuests] = useState<Guest[]>()
   const [editing, setEditing] = useState<Guest | 'new'>()
   const [filters, setFilters] = useState<Partial<Record<typeof guestFilters[number]['field'], string>>>({})
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -131,7 +133,18 @@ export function WorkspaceGuests({ wedding }: { wedding: { id: string; name: stri
       {(query || Object.values(filters).some(Boolean)) && <button className="focus-secondary" onClick={() => { setSearch(''); setFilters({}) }}>Clear filters</button>}
     </div>
     <p role="status">{guests ? filtered.length + ' of ' + guests.length + ' guests' : 'Loading guests…'}</p>
-    <div className="focus-record-grid">{filtered.map(guest => <article className="focus-card" key={guest.id}>
+    {workbookView ? <div className="table-scroll" tabIndex={0} role="region" aria-label="Guest List table">
+      <table className="imported-records"><thead><tr>{['Guest', 'Household', 'Side', 'RSVP', 'Arrival date', 'Time', 'Mode', 'Transport', 'Edit']
+        .map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+        <tbody>{filtered.map(guest => <tr key={guest.id}>
+          {[guest.name, guest.household, guest.side, guest.rsvp, shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode, guest.transportRequired]
+            .map((value, index) => <td key={index}>{value}</td>)}
+          <td><button className="focus-secondary" aria-label={'Edit ' + guest.name} disabled={busy} onClick={() => {
+            setEditing(guest); setError(''); setMessage(''); document.getElementById('workspace-guest-editor')?.scrollIntoView()
+          }}>Edit</button></td>
+        </tr>)}</tbody>
+      </table>
+    </div> : <div className="focus-record-grid">{filtered.map(guest => <article className="focus-card" key={guest.id}>
       <div className="focus-heading"><h3>{guest.name}</h3>{guest.rsvp && <span className="focus-chip">{guest.rsvp}</span>}</div>
       <p>{[guest.household, guest.side].filter(Boolean).join(' · ')}</p>
       <p>{[shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode].filter(Boolean).join(' · ') || 'Arrival not recorded'}</p>
@@ -145,6 +158,6 @@ export function WorkspaceGuests({ wedding }: { wedding: { id: string; name: stri
         setEditing(guest); setError(''); setMessage('')
         document.getElementById('workspace-guest-editor')?.scrollIntoView()
       }}>Edit guest</button>
-    </article>)}</div>
+    </article>)}</div>}
   </section>
 }
