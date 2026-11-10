@@ -31,26 +31,52 @@ const showDate = (date: string) => dayLabel.format(new Date(date + 'T00:00:00Z')
 const start = (entry: ScheduleEntry) => startOf(entry.date) + Number(entry.time.slice(0, 2)) * 60 + Number(entry.time.slice(3))
 const hourLabel = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 
+export function scheduleEntries(functions: string[][], timeline: string[][]): ScheduleEntry[] {
+  return [
+    ...functions.map(([id, name, date, time, place, , , owner, , , duration, required]): ScheduleEntry =>
+      ({ id, name, date, time: clock(time), place, owner, source: 'Function', duration: Number(duration) || null, required: requiredPeople(required) })),
+    ...timeline.map(([date, time, place, name, owner, , , , duration, , required], index): ScheduleEntry =>
+      ({ id: 'run-' + index, name, date, time: clock(time), place, owner, source: 'Run sheet', duration: Number.parseInt(duration, 10) || null, required: requiredPeople(required) })),
+  ].filter(entry => entry.time && /^\d{4}-\d{2}-\d{2}$/.test(entry.date))
+}
+
 export function ScheduleBoard() {
   const { rows, setRows } = usePlan()
-  const actual: ScheduleEntry[] = [
-    ...rows('Functions & Events').map(([id, name, date, time, place, , , owner, , , duration, required]): ScheduleEntry =>
-      ({ id, name, date, time: clock(time), place, owner, source: 'Function', duration: Number(duration) || null, required: requiredPeople(required) })),
-    ...rows('Wedding Timeline').map(([date, time, place, name, owner, , , , duration, , required], index): ScheduleEntry =>
-      ({ id: 'run-' + index, name, date, time: clock(time), place, owner, source: 'Run sheet', duration: Number.parseInt(duration, 10) || null, required: requiredPeople(required) })),
-  ]
+  return <ScheduleChart actual={scheduleEntries(rows('Functions & Events'), rows('Wedding Timeline'))} saveEntry={entry => {
+    const section = entry.source === 'Function' ? 'Functions & Events' : 'Wedding Timeline'
+    setRows(section, current => current.map((row, i) => {
+      if (entry.id !== (entry.source === 'Function' ? row[0] : 'run-' + i)) return row
+      const copy = [...row]
+      if (entry.source === 'Function') {
+        copy[3] = entry.time
+        copy[10] = entry.duration === null ? '' : String(entry.duration)
+        copy[11] = entry.required === null ? '' : JSON.stringify(entry.required)
+      } else {
+        copy[1] = entry.time
+        copy[8] = entry.duration === null ? '' : entry.duration + ' min'
+        copy[10] = entry.required === null ? '' : JSON.stringify(entry.required)
+      }
+      return copy
+    }))
+  }} />
+}
+
+export function ScheduleChart({ actual, weddingName, saveEntry }: {
+  actual: ScheduleEntry[]; weddingName?: string; saveEntry?: (entry: ScheduleEntry) => void
+}) {
   const [scenario, setScenario] = useState<ScheduleEntry[]>()
   const entries = scenario ?? actual
   const people = [...new Set(['Aarav', 'Meera', ...entries.map(entry => entry.owner).filter(Boolean)])].sort()
-  const [date, setDate] = useState('2027-02-14')
+  const [selectedDate, setDate] = useState(saveEntry ? '2027-02-14' : '')
   const [selected, setSelected] = useState<string>()
   const [draft, setDraft] = useState<ScheduleEntry>()
   const editor = useRef<HTMLElement>(null)
-  const day = startOf(date)
   const days = [...new Set([...entries.map(entry => entry.date), ...entries.flatMap(entry => {
     if (entry.duration === null || start(entry) + entry.duration <= startOf(entry.date) + dayMinutes) return []
     return [new Date((startOf(entry.date) + dayMinutes) * 60_000).toISOString().slice(0, 10)]
   })])].sort()
+  const date = days.includes(selectedDate) ? selectedDate : days[0] || '2027-02-14'
+  const day = startOf(date)
   const visible = entries.filter(entry => entry.date === date ||
     (entry.duration !== null && start(entry) < day && start(entry) + entry.duration > day))
     .sort((a, b) => start(a) - start(b))
@@ -83,22 +109,10 @@ export function ScheduleBoard() {
       setScenario(scenario.map(item => item.id === entry.id ? entry : item))
       return
     }
-    const section = entry.source === 'Function' ? 'Functions & Events' : 'Wedding Timeline'
-    setRows(section, current => current.map((row, i) => {
-      if (entry.id !== (entry.source === 'Function' ? row[0] : 'run-' + i)) return row
-      const copy = [...row]
-      if (entry.source === 'Function') {
-        copy[3] = entry.time
-        copy[10] = entry.duration === null ? '' : String(entry.duration)
-        copy[11] = entry.required === null ? '' : JSON.stringify(entry.required)
-      } else {
-        copy[1] = entry.time
-        copy[8] = entry.duration === null ? '' : entry.duration + ' min'
-        copy[10] = entry.required === null ? '' : JSON.stringify(entry.required)
-      }
-      return copy
-    }))
+    saveEntry?.(entry)
   }
+
+  if (!days.length) return <p>No functions or activities with a scheduled date and time yet.</p>
 
   return <div className="schedule-board">
     <section className="focus-card">
@@ -110,9 +124,9 @@ export function ScheduleBoard() {
           setSelected(undefined)
         }}>{days.map(value => <option key={value} value={value}>{showDate(value)}</option>)}</select></label>
       </div>
-      <p>Functions and run-sheet activities share one time axis. Select any row to try a new time or review who must be there.</p>
+      <p>Functions and run-sheet activities share one time axis.{saveEntry ? ' Select a row to try a new time or review who must be there.' : ' This view shows saved times and imported durations.'}</p>
       {scenario && <p className="focus-note"><strong>Example scenario.</strong> Changes here stay separate from the current plan.</p>}
-      <PrintSection title="Schedule Board" filters={showDate(date) + (scenario ? ' · Example scenario' : '')}
+      <PrintSection title="Schedule Board" weddingName={weddingName} filters={showDate(date) + (scenario ? ' · Example scenario' : '')}
         columns={['Event', 'Source', 'Start', 'Duration', 'Venue', 'Required people']}
         records={visible.map(entry => [entry.name, entry.source, entry.date === date ? entry.time : 'Continues after midnight',
           entry.duration === null ? 'Unknown' : entry.duration + ' min', entry.place,
@@ -126,7 +140,8 @@ export function ScheduleBoard() {
             const offset = Math.max(left, start(entry) - day)
             const end = Math.min(right, start(entry) - day + (entry.duration ?? 0))
             const clash = conflicts.some(pair => pair.a.id === entry.id || pair.b.id === entry.id)
-            return <button key={entry.id} className="schedule-row" aria-pressed={selected === entry.id} onClick={() => edit(entry)}>
+            const Row = saveEntry ? 'button' : 'div'
+            return <Row key={entry.id} className="schedule-row" aria-pressed={saveEntry ? selected === entry.id : undefined} onClick={saveEntry ? () => edit(entry) : undefined}>
               <span className="schedule-name"><strong>{entry.name}</strong>
                 <small>{entry.source} · {entry.date === date ? entry.time : 'Continues after midnight'}</small>
                 <small>{entry.duration === null ? 'Duration missing' : `${entry.duration} min`} · {entry.place}</small></span>
@@ -135,23 +150,23 @@ export function ScheduleBoard() {
                 <i className={'schedule-block ' + (entry.duration === null ? 'schedule-point' : '') + (clash ? ' schedule-clash' : '')}
                   style={{ left: scale(offset), width: entry.duration === null ? undefined : ((end - offset) / (right - left) * 100) + '%' }} />
               </span>
-            </button>
+            </Row>
           })}
         </div>
       </div>
-      <button className="focus-secondary schedule-example" onClick={() => {
+      {saveEntry && <button className="focus-secondary schedule-example" onClick={() => {
         setDate('2027-02-14')
         setScenario(actual.map(entry => entry.id === 'F002' ? { ...entry, time: '19:00', duration: 120, required: ['Aarav'] }
           : entry.id === 'run-2' ? { ...entry, time: '19:00', duration: 60, required: ['Aarav'] } : entry))
         setDraft(undefined)
         setSelected(undefined)
-      }}>Try an example conflict</button>
+      }}>Try an example conflict</button>}
       {scenario && <button className="focus-secondary schedule-example" onClick={() => {
         setScenario(undefined); setDate('2027-02-14'); setDraft(undefined); setSelected(undefined)
       }}>Back to current plan</button>}
     </section>
 
-    <div className="schedule-panels">
+    <div className={saveEntry ? 'schedule-panels' : undefined}>
       <section className="focus-card">
         <h2>Overlap check</h2>
         <p role="status"><strong>{conflicts.length} confirmed people {conflicts.length === 1 ? 'conflict' : 'conflicts'}</strong> · {incomplete} {incomplete === 1 ? 'entry needs' : 'entries need'} duration or attendance details</p>
@@ -160,11 +175,11 @@ export function ScheduleBoard() {
         {pairs.map(({ a, b, from, to, shared, unchecked }) => <div className="schedule-pair" key={a.id + ':' + b.id}>
           <strong>{shared.length ? shared.join(', ') + ' needed in both' : unchecked ? 'Parallel · attendance needs review' : 'Parallel · no shared required people'}</strong>
           <p>{a.name} + {b.name} · {hourLabel(from)}–{hourLabel(to)}</p>
-          <button className="focus-secondary" onClick={() => edit(b)}>Review {b.name}</button>
+          {saveEntry && <button className="focus-secondary" onClick={() => edit(b)}>Review {b.name}</button>}
         </div>)}
       </section>
 
-      <section className="focus-card" ref={editor}>
+      {saveEntry && <section className="focus-card" ref={editor}>
         <h2>Review an event</h2>
         {!draft ? <p>Select a row in the timeline to add a duration or choose who is required.</p> : <form onSubmit={event => {
           event.preventDefault()
@@ -196,8 +211,8 @@ export function ScheduleBoard() {
             setDraft(undefined); setSelected(undefined)
           }}>Cancel</button></div>
         </form>}
-      </section>
+      </section>}
     </div>
-    <p className="focus-note">Sample data only. The board compares time and required people. Venue capacity, travel buffers and dependencies need separate checks.</p>
+    <p className="focus-note">{saveEntry && 'Sample data only. '}The board compares time and required people. Venue capacity, travel buffers and dependencies need separate checks.</p>
   </div>
 }

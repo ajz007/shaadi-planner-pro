@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/csv"
 	"encoding/hex"
@@ -11,6 +12,7 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -67,9 +69,41 @@ func newDemo() *demo {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		if len(os.Args) != 2 || os.Args[1] != "migrate-workspace" {
+			log.Fatal("Usage: go run . [migrate-workspace]")
+		}
+		connection := os.Getenv("SHAADI_DATABASE_URL")
+		if connection == "" {
+			log.Fatal("Set SHAADI_DATABASE_URL to the workspace database.")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		store, err := openWorkspace(ctx, connection)
+		if err != nil {
+			log.Fatalf("Workspace migration failed: %T", err)
+		}
+		store.db.Close()
+		log.Print("Workspace database is up to date.")
+		return
+	}
 	const address = "127.0.0.1:8080"
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	workspace, err := configuredWorkspace(ctx)
+	cancel()
+	if err != nil {
+		log.Fatalf("Shared workspace configuration failed: %T", err)
+	}
+	if workspace != nil {
+		defer workspace.store.db.Close()
+		maintenance, stop := context.WithCancel(context.Background())
+		defer stop()
+		go workspace.store.maintainImportPreviews(maintenance)
+	}
+	mux := newDemo().routes(http.Dir("web/dist"))
+	workspace.register(mux)
 	server := &http.Server{
-		Addr: address, Handler: localOnly(newDemo().routes(http.Dir("web/dist"))),
+		Addr: address, Handler: localOnly(mux),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
 		WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second,
 	}
@@ -93,7 +127,7 @@ func localOnly(next http.Handler) http.Handler {
 	})
 }
 
-func (d *demo) routes(assets http.FileSystem) http.Handler {
+func (d *demo) routes(assets http.FileSystem) *http.ServeMux {
 	mux := http.NewServeMux()
 	files := http.FileServer(assets)
 	mux.Handle("GET /", files)

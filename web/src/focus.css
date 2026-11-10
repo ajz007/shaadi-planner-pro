@@ -56,6 +56,27 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .focus-record-details dt { font-size: .82rem; color: #485e53; }
 .focus-record-details dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
 .focus-task-page { max-width: 48rem; }
+.workspace-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.workspace-fields button { margin-top: .65rem; }
+.workspace-fields select { min-height: 2.75rem; border: 1px solid #acb7a5; border-radius: .5rem; background: #fffefa; color: inherit; padding: .55rem; }
+.workspace-topline { margin-bottom: .8rem; }
+.workspace-topline > span { margin-left: auto; }
+.wedding-hero { padding: clamp(1rem, 3vw, 2rem); }
+.wedding-hero h1 { font-size: clamp(2rem, 5vw, 3.7rem); }
+.wedding-overview-metrics a { flex: 1 1 12rem; text-decoration: none; }
+.wedding-overview-metrics a span { display: block; }
+.transport-panel { margin-top: 1rem; }
+.transport-passengers { max-height: 19rem; overflow: auto; padding: 0 .5rem; border: 1px solid #dce4d8; border-radius: .5rem; }
+.transport-passengers label { cursor: pointer; }
+.transport-passengers input { width: 1.25rem; height: 1.25rem; }
+.pickup-review { background: #ffedc9; color: #694900; }
+.transport-filters { padding-inline: 0; }
+.transport-review-filter { display: flex; align-items: center; min-height: 2.75rem; gap: .35rem; }
+.workspace-sheet { border-collapse: separate; border-spacing: 0; }
+.workspace-sheet th:first-child { position: sticky; left: 0; z-index: 1; min-width: 8rem; background: #fffefa; box-shadow: 1px 0 #dce4d8; }
+.workspace-sheet td small { display: block; }
+.imported-records { border-collapse: collapse; text-align: left; font-size: .85rem; }
+.imported-records th, .imported-records td { border-bottom: 1px solid #dce4d8; padding: .5rem .7rem; vertical-align: top; min-width: 6rem; }
 .focus-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (max-width: 740px) {

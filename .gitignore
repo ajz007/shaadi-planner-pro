@@ -3,3 +3,6 @@
 /web/public/*.xlsx
 /web/public/*.zip
 *.exe
+.env
+.env.*
+/.local/

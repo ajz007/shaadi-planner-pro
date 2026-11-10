@@ -3,6 +3,7 @@ import workbook from './workbook-demo.json'
 import { BlankSetup, SetupOptions, WorkbookSetup } from './Onboarding'
 import { FocusPlanner } from './FocusPlanner'
 import { focusSection } from './FocusPages'
+import { Workspace } from './Workspace'
 import { PlanProvider, usePlan } from './PlanData'
 import { PrintSection } from './PlanActions'
 import './planner.css'
@@ -141,10 +142,10 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
   const [route, setRoute] = useState(window.location.hash)
   const [menuOpen, setMenuOpen] = useState(false)
   useEffect(() => {
-    function navigate() {
+    function navigate(event: HashChangeEvent) {
       setRoute(window.location.hash)
       setMenuOpen(false)
-      window.scrollTo(0, 0)
+      if (new URL(event.oldURL).hash.split('?')[0] !== window.location.hash.split('?')[0]) window.scrollTo(0, 0)
     }
     window.addEventListener('hashchange', navigate)
     return () => window.removeEventListener('hashchange', navigate)
@@ -158,6 +159,15 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
   const settings = Object.fromEntries(table('Settings').rows)
 
   if (page === 'focus' || page.startsWith('focus/')) return <FocusPlanner section={focusSection(page.slice(6))} filter={filter} />
+  const workspacePage = /^workspace(?:\/([0-9a-f-]{36})(?:\/([a-z-]+))?)?$/i.exec(page)
+  if (workspacePage || page === 'workspace/setup') {
+    const key = workspacePage?.[2] ?? ''
+    const section = key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history' : focusSection(key)
+    const query = new URLSearchParams(params)
+    const layout = query.get('layout')
+    return <Workspace weddingID={workspacePage?.[1]} section={section} guestSearch={filter} setup={page === 'workspace/setup'}
+      layout={layout === 'workbook' || layout === 'cards' ? layout : undefined} loginFailed={query.get('login') === 'failed'} />
+  }
 
   return <div className="planner">
     <aside className="planner-sidebar" aria-label="Wedding planner">
@@ -172,7 +182,7 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
           <p>{group.label}</p>
           {group.sections.map(name => <a href={sectionLink(name)} key={name} aria-current={!sandbox && (setup ? name === 'Start Here' : section === name) ? 'page' : undefined}>{name}</a>)}
         </div>)}
-        <div className="nav-group"><p>Preview tools</p><a href="#rsvp-sandbox" aria-current={sandbox ? 'page' : undefined}>RSVP sandbox</a></div>
+        <div className="nav-group"><p>Workspaces</p><a href="#workspace">Private workspace</a><a href="#rsvp-sandbox" aria-current={sandbox ? 'page' : undefined}>RSVP sandbox</a></div>
       </nav>
     </aside>
     {sandbox ? <div className="planner-sandbox">{rsvpDemo}</div> : <main className="planner-content">

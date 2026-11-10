@@ -145,6 +145,7 @@ export function FocusPlanner({ section, filter }: { section?: string; filter: st
       <div><p className="focus-kicker">SHAADI PLANNER PRO / ALTERNATE CONCEPT</p>
         <h1>{section ?? 'Aarav & Meera'}</h1><p>{section && 'Aarav & Meera · '}15 Feb 2027 · Varanasi</p></div>
       <div className="focus-actions">
+        {!section && <a className="focus-secondary" href="#workspace">Private workspace</a>}
         {!section && <button onClick={() => {
           composer.current?.scrollIntoView({ block: 'start' })
           composer.current?.querySelector('textarea')?.focus({ preventScroll: true })

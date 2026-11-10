@@ -47,7 +47,39 @@ Open **RSVP sandbox** from the planner navigation.
 
 Phone and vehicle numbers are hidden on screen. The sample workspace and its edits belong to the current browser. Shared login and PostgreSQL storage are a later milestone. The organizer sandbox is separate and accessible to anyone using the local address. Use fictional data only. Its RSVP links work on this computer, and sandbox data and links reset on restart.
 
-The next milestone adds PostgreSQL, organizer sign-in, and editable wedding settings, functions and family tasks. Live guest communications follow once the private wedding access model and guest workflows are in place.
+## Shared workspace backend
+
+The PostgreSQL foundation stores wedding owners, planning people, memberships, invitations, functions and tasks. Planning people can be assigned work before they join. The data layer checks wedding membership, protects task updates with revisions, and assigns a claimable task to one member at a time.
+
+Set `SHAADI_DATABASE_URL` to a development PostgreSQL database and run `go run . migrate-workspace` to apply the migrations. Use a separate database for integration tests. Set `SHAADI_TEST_DATABASE_URL` to that database and run `go test -v ./...` to exercise invitations, access checks, and simultaneous claims. The PostgreSQL integration test is skipped if the test URL is absent.
+
+The existing browser demo runs with `go run .`. To enable **Private workspace**, register a Google OAuth web client with redirect URI `http://localhost:8080/auth/google/callback`. Set `SHAADI_DATABASE_URL`, `SHAADI_GOOGLE_CLIENT_ID`, and `SHAADI_GOOGLE_CLIENT_SECRET` in the process environment. Start Go and open `http://localhost:8080/#workspace`. Keep OAuth credentials outside Git. The app is loopback-only for this milestone. To use `127.0.0.1` locally, set `SHAADI_WORKSPACE_ORIGIN` and register its exact callback URI with Google.
+
+The owner creates a wedding, adds a planning person and a function, and assigns the person a task. The owner can also create an unassigned claimable task. Generate an invite code linked to the existing person and share it privately. The family member signs in separately, joins with that code, sees their existing assignment and can claim an open task. Use separate browser profiles to try both roles. The sample planner and RSVP sandbox remain separate from the signed-in records.
+
+If an imported task used your name as an Excel label, open **People → Family Responsibilities**, choose **Reassign**, and select your signed-in planning name marked **(me)**. The task then appears under **My tasks**.
+
+### Import an existing wedding
+
+In **Private workspace**, select **Upload my workbook**, choose the filled English v1.3.1 `.xlsx` and confirm the wedding time zone. Review the detected records and totals, or fix the indicated sheet and row and upload again. **Create wedding from workbook** saves a new wedding in one transaction. Retrying the same confirmation returns that wedding.
+
+Functions and assigned tasks appear in the live schedule and checklist. An imported owner name such as Brother becomes a planning person the wedding owner can invite later. The original guest IDs, wedding-level RSVP values, and links from rooms, transport and follow-ups are retained. The owner can browse the other workbook tabs under **Imported planning records**. These records are read-only until their shared editing screens are added. Summary figures are calculated from the imported rows. Template formulas, cached calculated outputs, and unused rows are excluded.
+
+Use **Guest List** to add guests and edit saved names, households, RSVP and travel details. Filter by arrival date, transport requirement, mode, wedding side or RSVP. **Print filtered guests** prints the current list without phone numbers. The owner can download a current Excel snapshot built from the saved records, including updated guest arrivals, functions and tasks. It also includes the imported records for sections still awaiting live editors.
+
+**My weddings** opens the selected wedding's overview. Inside the wedding, use **People**, **Schedule**, **Money**, and **Details** to navigate. Imported sections appear on their own read-only pages until their editors are available. The owner can check the original file values under **Details → Settings → Import history**. **Workbook view** uses tables for the same wedding records where available. Invitations are under **Details → Settings**.
+
+In **Schedule → Transportation**, filter by date and pick a household from **Guests still needing transport**, or add a pickup and choose passengers individually. Imported pickups keep their existing passenger links. Each pickup stores the arrival details last reviewed by an organizer. A subsequent guest arrival or transport change flags the pickup **Needs review** with the old and new details. Save the reviewed pickup to acknowledge those details. **Print pickup plan** uses the selected date and the owner's current Excel snapshot includes the saved routes, passenger lists and review flags.
+
+In **Schedule → Accommodation**, add rooms, assign guests, and check occupancy. In **People → RSVP Follow-up**, choose a household contact from Guest List and record the next action, follow-up date and last contact. The guest’s current RSVP appears automatically. Both pages can print their filtered records, and the owner’s Excel snapshot includes the live edits.
+
+On **Guest List** and **Transportation**, the two layouts keep the current filters, sort order, and open edit form when you switch. The workbook tables pin the guest name or pickup route while scrolling across columns. Transportation can show only pickups needing review, and workbook rows open the arrival changes before you edit. The browser remembers each organizer's layout choice for that wedding.
+
+For local testing without Google credentials, create a separate loopback database named `shaadi_local`, set `SHAADI_DATABASE_URL`, set `SHAADI_LOCAL_TEST_LOGIN=1`, and start the app with `go run .`. The sign-in screen offers local test accounts. Use sample data and separate browser profiles for different roles. Local test sign-in rejects remote database hosts and cannot be combined with Google credentials.
+
+The importer accepts the English v1.3.1 layout in files up to 2 MB. The upload itself is read in memory. Private review data expires after 30 minutes and is cleared when confirmed. The running workspace sweeps expired previews on startup and once a minute. A confirmation can be retried for seven days.
+
+The PostgreSQL HTTP integration test uses a simulated sign-in provider. For coverage against the original filled and blank workbooks, also set `SHAADI_TEST_WORKBOOK_PACKAGE` to the English v1.3.1 launch ZIP before running `go test -v ./...`. The launch files stay outside Git. Actual Google sign-in requires the registered OAuth credentials above.
 
 To refresh the preview data from the English launch ZIP, run `python import_demo.py "path/to/launch-package.zip"` and rebuild the web app.
 

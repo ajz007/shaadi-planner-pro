@@ -87,13 +87,13 @@ export function AddPlanEntry({ section }: { section: string }) {
   </div>
 }
 
-export function PrintSection({ title, columns, records, filters }: {
-  title: string; columns: string[]; records: string[][]; filters?: string
+export function PrintSection({ title, columns, records, filters, buttonLabel, weddingName = 'Aarav & Meera Wedding' }: {
+  title: string; columns: string[]; records: string[][]; filters?: string; buttonLabel?: string; weddingName?: string
 }) {
   return <>
-    <button className="focus-secondary section-print-button" onClick={() => window.print()}>Print {title === 'Guest List' ? 'filtered guests' : 'this section'}</button>
+    <button className="focus-secondary section-print-button" onClick={() => window.print()}>{buttonLabel ?? (title === 'Guest List' ? 'Print filtered guests' : 'Print this section')}</button>
     <section className="section-print" aria-hidden="true">
-      <h1>{title}</h1><p>Aarav & Meera Wedding · {records.length} {records.length === 1 ? 'entry' : 'entries'}</p>
+      <h1>{title}</h1><p>{weddingName} · {records.length} {records.length === 1 ? 'entry' : 'entries'}</p>
       {filters && <p>{filters}</p>}
       <table><thead><tr>{columns.map(column => <th key={column}>{column}</th>)}</tr></thead>
         <tbody>{records.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody>

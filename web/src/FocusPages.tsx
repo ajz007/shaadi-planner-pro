@@ -86,12 +86,16 @@ function chronological(value: string) {
   return String(hours).padStart(2, '0') + ':' + time[2]
 }
 
-export function FocusNavigation({ section }: { section?: string }) {
-  return <nav className="focus-nav" aria-label="Alternate planning pages">
-    <a href="#focus" aria-current={section ? undefined : 'page'}>Overview</a>
-    {focusGroups.map(group => <details key={group.name}>
+export function FocusNavigation({ section, hrefFor = focusLink, canSee, home = '#focus' }: {
+  section?: string; hrefFor?: (name: string) => string; canSee?: (name: string) => boolean; home?: string
+}) {
+  const groups = focusGroups.map(group => ({ ...group, pages: group.pages.filter(name => !canSee || canSee(name)) }))
+    .filter(group => group.pages.length)
+  return <nav className="focus-nav" aria-label={canSee ? 'Wedding planning pages' : 'Alternate planning pages'}>
+    <a href={home} aria-current={section ? undefined : 'page'}>Overview</a>
+    {groups.map(group => <details key={group.name}>
       <summary>{group.name}</summary>
-      <div className="focus-nav-links">{group.pages.map(name => <a key={name} href={focusLink(name)} aria-current={name === section ? 'page' : undefined}
+      <div className="focus-nav-links">{group.pages.map(name => <a key={name} href={hrefFor(name)} aria-current={name === section ? 'page' : undefined}
         onClick={event => event.currentTarget.closest('details')?.removeAttribute('open')}>{name}</a>)}</div>
     </details>)}
   </nav>
@@ -99,13 +103,20 @@ export function FocusNavigation({ section }: { section?: string }) {
 
 export function FocusPage({ section, initialFilter }: { section: string; initialFilter: string }) {
   const table = usePlan().tables.find(table => table.name === section)!
+  return <PlanningSection section={section} table={table} initialFilter={initialFilter} />
+}
+
+export function PlanningSection({ section, table, initialFilter = '', weddingName, hrefFor = focusLink, workbookView = false }: {
+  section: string; table: { columns: string[]; rows: string[][] }; initialFilter?: string
+  weddingName?: string; hrefFor?: (name: string) => string; workbookView?: boolean
+}) {
   const [search, setSearch] = useState(initialFilter)
   const [status, setStatus] = useState('')
   const [guestCriteria, setGuestCriteria] = useState<Record<number, string>>({})
 
   if (section === 'Settings') return <section className="focus-card">
-    <h2>Wedding details</h2><p>The details used across this sample wedding.</p>
-    <PrintSection title={section} columns={table.columns} records={table.rows.filter(([label]) => label !== 'Days Until Wedding').map(([label, value]) => [label, format(value, 'Value', label)])} />
+    <h2>Wedding details</h2>
+    <PrintSection title={section} weddingName={weddingName} columns={table.columns} records={table.rows.filter(([label]) => label !== 'Days Until Wedding').map(([label, value]) => [label, format(value, 'Value', label)])} />
     <dl className="focus-record-details">{table.rows.filter(([label]) => label !== 'Days Until Wedding').map(([label, value]) =>
       <div key={label}><dt>{label}</dt><dd>{format(value, 'Value', label)}</dd></div>)}</dl>
   </section>
@@ -134,12 +145,12 @@ export function FocusPage({ section, initialFilter }: { section: string; initial
   return <>
     <p className="focus-page-intro">{layout.intro}</p>
     <div className="focus-actions">
-      {['Functions & Events', 'Wedding Timeline', 'Vendor Comparison', 'Vendor Payments'].includes(section) && <AddPlanEntry section={section} />}
-      <PrintSection title={section} columns={printColumns.map(i => table.columns[i])}
+      {!weddingName && ['Functions & Events', 'Wedding Timeline', 'Vendor Comparison', 'Vendor Payments'].includes(section) && <AddPlanEntry section={section} />}
+      <PrintSection title={section} weddingName={weddingName} columns={printColumns.map(i => table.columns[i])}
         records={records.map(row => printColumns.map(i => format(row[i], table.columns[i], row[0])))} filters={printFilters} />
     </div>
     {(section === 'Functions & Events' || section === 'Wedding Timeline') &&
-      <p><a className="focus-secondary" href={focusLink('Schedule Board')}>View overlaps and required people →</a></p>}
+      <p><a className="focus-secondary" href={hrefFor('Schedule Board')}>View overlaps and required people →</a></p>}
     {layout.summary && <dl className="focus-summary">{layout.summary(table.rows).map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
     <div className="focus-card focus-filters">
       <label className="focus-field">Find an entry<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>
@@ -163,7 +174,12 @@ export function FocusPage({ section, initialFilter }: { section: string; initial
       <span className="focus-note" role="status">{records.length} of {table.rows.length} entries</span>
     </div>
     {records.length === 0 && <p className="focus-note">No entries match. Try another search or status.</p>}
-    <div className="focus-record-grid">{records.map(row => {
+    {workbookView ? <div className="focus-card table-scroll" tabIndex={0} role="region" aria-label={section + ' table'}>
+      <table className="imported-records"><thead><tr>{table.columns.map(column => <th key={column} scope="col">{column}</th>)}</tr></thead>
+        <tbody>{records.map(row => <tr key={table.rows.indexOf(row)}>{table.columns.map((column, i) =>
+          <td key={column}>{format(row[i], column, row[0])}</td>)}</tr>)}</tbody>
+      </table>
+    </div> : <div className="focus-record-grid">{records.map(row => {
       const heading = layout.title.map(i => row[i]).join(section === 'Transportation' ? ' → ' : ' · ')
       const details = table.columns.flatMap((column, i) =>
         !layout.title.includes(i) && !layout.glance.includes(i) && i !== statusColumn && row[i] ? [{ column, i }] : [])
@@ -173,12 +189,12 @@ export function FocusPage({ section, initialFilter }: { section: string; initial
           <div key={i}><dt>{table.columns[i].replace(/ \(auto\)/gi, '')}</dt><dd>{format(row[i], table.columns[i], row[0])}</dd></div>)}</dl>
         {details.length > 0 && <details className="focus-completed"><summary>Details<span className="focus-sr-only"> for {heading}</span></summary>
           <dl className="focus-record-details">{details.map(({ column, i }) => {
-            const guest = section !== 'Guest List' && /^(G\d+) \| /.exec(row[i])
+            const guest = /^(Primary Guest|Guest [234])$/.test(column) && /^([^|]+) \| /.exec(row[i])
             return <div key={i}><dt>{column.replace(/ \(auto\)/gi, '')}</dt><dd>{guest
-              ? <a href={focusLink('Guest List') + '?guest=' + guest[1]}>{row[i]}</a> : format(row[i], column, row[0])}</dd></div>
+              ? <a href={hrefFor('Guest List') + (hrefFor('Guest List').includes('?') ? '&' : '?') + 'guest=' + encodeURIComponent(guest[1].trim())}>{row[i]}</a> : format(row[i], column, row[0])}</dd></div>
           })}</dl>
         </details>}
       </article>
-    })}</div>
+    })}</div>}
   </>
 }
