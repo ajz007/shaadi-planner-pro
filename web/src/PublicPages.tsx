@@ -57,6 +57,7 @@ export function PublicInfoPage({ path }: { path: keyof typeof publicPages }) {
       <h2>Information used by the planner</h2>
       <p>Google sign-in provides basic account information. The planner uses your Google account identifier and display name to create your account and show your name in the workspace. A session cookie keeps you signed in.</p>
       <p>When you upload a workbook or enter wedding details, the planner processes the information you provide. This can include guest names, phone numbers, RSVPs, travel details, room assignments, tasks, and budget records.</p>
+      <p>If you use microphone dictation, your browser may send audio to its speech recognition service. The planner receives the resulting text and saves it when you submit the form. You can type instead.</p>
       <h2>Who can see wedding information</h2>
       <p>Access depends on the role an organizer grants within the wedding. Owners and co-organizers can work with guest and logistics records. Family members have limited access to their wedding’s planning tools. Owners can download an Excel snapshot, and organizers can print planning lists. Copies can be shared with people outside the planner.</p>
       <h2>Imports and retention</h2>

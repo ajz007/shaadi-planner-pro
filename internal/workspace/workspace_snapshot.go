@@ -68,6 +68,11 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		workspaceFailure(w, err)
 		return
 	}
+	finance, err := listFinance(ctx, tx, wedding, actor)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
 	type savedFunction struct {
 		ID, WorkbookID, Name, Venue, Owner string
 		Start                              time.Time
@@ -169,6 +174,20 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 			return result
 		})
 	}
+	liveSection("Vendor Comparison", func(_ importSection) []importRow {
+		rows := make([]importRow, 0, len(finance.Vendors))
+		for _, vendor := range finance.Vendors {
+			rows = append(rows, importRow{Values: vendor.Values})
+		}
+		return rows
+	})
+	liveSection("Vendor Payments", func(_ importSection) []importRow {
+		rows := make([]importRow, 0, len(finance.Contracts))
+		for _, contract := range finance.Contracts {
+			rows = append(rows, importRow{Values: contract.Values})
+		}
+		return rows
+	})
 	liveSection("Transportation", func(section importSection) []importRow {
 		result := make([]importRow, 0, len(pickups))
 		for _, pickup := range pickups {
@@ -287,6 +306,26 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 			sheet.Rows = append(sheet.Rows, cells)
 		}
 		sheets = append(sheets, sheet)
+	}
+	if len(finance.Contracts) > 0 {
+		ledger := workbook.Sheet{Name: "Payment Ledger", Rows: [][]any{
+			{"Vendor", "Category", "Contract ID", "Date", "Amount (INR)", "Method", "Status", "Notes"},
+		}}
+		for _, contract := range finance.Contracts {
+			if contract.OpeningPaid != 0 {
+				ledger.Rows = append(ledger.Rows, []any{contract.Values[1], contract.Values[0], contract.ID, "",
+					float64(contract.OpeningPaid) / 100, contract.Values[8], "Imported opening balance", ""})
+			}
+			for _, payment := range contract.Payments {
+				status := "Recorded"
+				if payment.Voided {
+					status = "Voided"
+				}
+				ledger.Rows = append(ledger.Rows, []any{contract.Values[1], contract.Values[0], contract.ID, payment.Date,
+					float64(payment.Amount) / 100, payment.Method, status, payment.Notes})
+			}
+		}
+		sheets = append(sheets, ledger)
 	}
 	content, err := workbook.Create(sheets)
 	if err != nil {

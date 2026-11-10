@@ -75,6 +75,10 @@ In **Schedule → Accommodation**, add rooms, assign guests, and check occupancy
 
 On **Guest List** and **Transportation**, the two layouts keep the current filters, sort order, and open edit form when you switch. The workbook tables pin the guest name or pickup route while scrolling across columns. Transportation can show only pickups needing review, and workbook rows open the arrival changes before you edit. The browser remembers each organizer's layout choice for that wedding.
 
+In **Money → Vendor Comparison**, wedding owners can add and edit vendor quotes. In **Vendor Payments**, choose a saved vendor to create a contract, then record each payment separately. Imported paid amounts are opening balances. Voided payments stay visible in history and are excluded from the paid total. The Excel snapshot includes the live vendor and contract sheets plus the Payment Ledger. Budget category actuals remain separate from vendor payments.
+
+Editable text fields and search in the private planner offer a microphone on browsers that support speech recognition. Review the text before saving. The browser may use an online recognition service, and typing remains available.
+
 For local testing without Google credentials, create a separate loopback database named `shaadi_local`, set `SHAADI_DATABASE_URL`, set `SHAADI_LOCAL_TEST_LOGIN=1`, and start the app with `go run ./cmd/shaadi-planner`. The sign-in screen offers local test accounts. Use sample data and separate browser profiles for different roles. Local test sign-in rejects remote database hosts and cannot be combined with Google credentials.
 
 The importer accepts the English v1.3.1 layout in files up to 2 MB. The upload itself is read in memory. Private review data expires after 30 minutes and is cleared when confirmed. The running workspace sweeps expired previews on startup and once a minute. A confirmation can be retried for seven days.

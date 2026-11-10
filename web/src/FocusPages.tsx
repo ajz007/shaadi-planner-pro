@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { VoiceField, VoiceNotice } from './VoiceField'
 import { usePlan } from './PlanData'
 import { AddPlanEntry, PrintSection } from './PlanActions'
 
@@ -179,7 +180,7 @@ export function PlanningSection({ section, table, initialFilter = '', weddingNam
       <p><a className="focus-secondary" href={hrefFor('Schedule Board')}>View overlaps and required people →</a></p>}
     {layout.summary && <dl className="focus-summary">{layout.summary(table.rows).map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
     <div className="focus-card focus-filters">
-      <label className="focus-field">Find an entry<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>
+      <div><VoiceField label="Find an entry" value={search} onValueChange={setSearch} search /><VoiceNotice /></div>
       {statuses.length > 0 && <label className="focus-field">Status<select value={status} onChange={event => setStatus(event.target.value)}>
         <option value="">All statuses</option>{statuses.map(value => <option key={value}>{value}</option>)}
       </select></label>}
