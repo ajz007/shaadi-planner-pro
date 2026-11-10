@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { ImportedPlanningRecords, WorkspaceImport } from './WorkspaceImport'
+import { WorkspaceGuests } from './WorkspaceGuests'
 
-type Session = { configured: boolean; name?: string; workspaceURL?: string }
+type Session = { configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
 type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
 type Person = { id: string; name: string }
 type WeddingFunction = { id: string; name: string; venue: string; startsAt: string }
@@ -62,6 +63,7 @@ function WeddingWorkspace({ plan, refresh }: { plan: Plan; refresh: () => Promis
   const [invite, setInvite] = useState('')
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
+  const [guestView, setGuestView] = useState(false)
   const path = '/weddings/' + wedding.id
   const organizer = wedding.role !== 'family'
   const personName = (id: string | null) => people.find(person => person.id === id)?.name ?? 'Unassigned'
@@ -105,7 +107,13 @@ function WeddingWorkspace({ plan, refresh }: { plan: Plan; refresh: () => Promis
   return <>
     <div className="focus-heading"><h2>{wedding.name}</h2><button className="focus-secondary" disabled={busy} onClick={() => void refresh().catch(error => setFeedback(errorText(error)))}>Refresh plan</button></div>
     <p>{wedding.date} · {wedding.timeZone} · {wedding.role}</p>
+    {organizer && <div className="focus-actions">
+      <button className="focus-secondary" aria-pressed={!guestView} onClick={() => setGuestView(false)}>Overview</button>
+      <button className="focus-secondary" aria-pressed={guestView} onClick={() => setGuestView(true)}>Guest List</button>
+      {wedding.role === 'owner' && <a className="focus-secondary" href={root + path + '/snapshot.xlsx'} download>Download current Excel snapshot</a>}
+    </div>}
     {feedback && <p role="alert">{feedback}</p>}
+    {organizer && guestView ? <WorkspaceGuests wedding={wedding} /> : <>
     <div className="focus-record-grid">
       {taskList('My tasks', myTasks)}
       {taskList('Help needed', help, true)}
@@ -160,6 +168,7 @@ function WeddingWorkspace({ plan, refresh }: { plan: Plan; refresh: () => Promis
       </>}
     </div>
     {wedding.role === 'owner' && <ImportedPlanningRecords wedding={wedding.id} />}
+    </>}
   </>
 }
 
@@ -208,9 +217,19 @@ export function Workspace({ loginFailed }: { loginFailed: boolean }) {
     </section>}
     {session?.workspaceURL && <p><a href={session.workspaceURL}>Open the configured workspace address →</a></p>}
     {session?.configured && !session.workspaceURL && !session.name && <section className="focus-card">
-      <h2>Sign in to plan together</h2><p>Use your Google account to create a wedding or accept a family invite.</p>
+      <h2>Sign in to plan together</h2>
       {loginFailed && <p role="alert">Sign-in could not finish. Try again.</p>}
-      <a className="focus-secondary" href="/auth/google/start">Continue with Google</a>
+      {session.localTest ? <>
+        <p>Local test accounts share this computer’s test database. Use sample data.</p>
+        <div className="focus-actions">{[['owner', 'Test owner'], ['family', 'Test family member'], ['cousin', 'Test cousin']].map(([account, label]) =>
+          <button className="focus-secondary" key={account} disabled={busy} onClick={() => {
+            setBusy(true)
+            fetch('/auth/local', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account }) })
+              .then(result => { if (!result.ok) throw new Error('Could not open the test account.'); window.location.reload() })
+              .catch(error => { setError(errorText(error)); setBusy(false) })
+          }}>{label}</button>)}</div>
+      </> : <><p>Use your Google account to create a wedding or accept a family invite.</p>
+        <a className="focus-secondary" href="/auth/google/start">Continue with Google</a></>}
     </section>}
     {session?.name && <>
       <p className="focus-item"><span>Signed in as {session.name}</span><button className="focus-secondary" disabled={busy}

@@ -124,7 +124,7 @@ export function ImportedPlanningRecords({ wedding }: { wedding: string }) {
     !column.endsWith('(Auto)') || column === 'Guest ID (Auto)' || column === 'Function ID (Auto)' ? [{ column, index }] : []) ?? []
   return <section className="focus-card">
     <h2>Imported planning records</h2>
-    <p>Review the records brought in from Excel. The live schedule and checklist above include later edits.</p>
+    <p>Review the records as they were imported from Excel. Guest List, the live schedule and the checklist show later edits.</p>
     <ImportSummary totals={data.totals} />
     <label className="focus-field">Imported section<select value={selected} onChange={event => setSelected(event.target.value)}>
       <option value="">Choose a section</option>{data.sections.map(section =>

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/oauth2"
 )
@@ -18,11 +19,24 @@ var workspaceUUID = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}
 
 func configuredWorkspace(ctx context.Context) (*workspaceHTTP, error) {
 	connection, id, secret := os.Getenv("SHAADI_DATABASE_URL"), os.Getenv("SHAADI_GOOGLE_CLIENT_ID"), os.Getenv("SHAADI_GOOGLE_CLIENT_SECRET")
-	if id == "" && secret == "" {
+	localTest := os.Getenv("SHAADI_LOCAL_TEST_LOGIN") == "1"
+	if id == "" && secret == "" && !localTest {
 		return nil, nil
 	}
-	if connection == "" || id == "" || secret == "" {
+	if connection == "" || (!localTest && (id == "" || secret == "")) {
 		return nil, errors.New("workspace sign-in requires a database URL and both Google OAuth credentials")
+	}
+	if localTest {
+		config, err := pgx.ParseConfig(connection)
+		if err != nil || config.Database != "shaadi_local" || (config.Host != "127.0.0.1" && config.Host != "localhost") ||
+			id != "" || secret != "" {
+			return nil, errors.New("local test sign-in requires a local shaadi_local database and no Google credentials")
+		}
+		for _, fallback := range config.Fallbacks {
+			if fallback.Host != "127.0.0.1" && fallback.Host != "localhost" {
+				return nil, errors.New("local test database fallbacks must be loopback addresses")
+			}
+		}
 	}
 	origin := os.Getenv("SHAADI_WORKSPACE_ORIGIN")
 	if origin == "" {
@@ -34,6 +48,9 @@ func configuredWorkspace(ctx context.Context) (*workspaceHTTP, error) {
 	store, err := openWorkspace(ctx, connection)
 	if err != nil {
 		return nil, err
+	}
+	if localTest {
+		return &workspaceHTTP{store: store, origin: origin, localTest: true}, nil
 	}
 	config := oauth2.Config{
 		ClientID: id, ClientSecret: secret, RedirectURL: origin + "/auth/google/callback",
@@ -82,19 +99,23 @@ func (a *workspaceHTTP) register(mux *http.ServeMux) {
 			workspaceFailure(w, err)
 			return
 		}
-		reply(w, http.StatusOK, map[string]any{"configured": true, "name": name})
+		reply(w, http.StatusOK, map[string]any{"configured": true, "name": name, "localTest": a.localTest})
 	})
 	if a == nil {
 		return
 	}
-	mux.HandleFunc("GET /auth/google/start", func(w http.ResponseWriter, r *http.Request) {
-		if "http://"+r.Host != a.origin {
-			http.Redirect(w, r, a.origin+"/#workspace", http.StatusSeeOther)
-			return
-		}
-		a.startLogin(w, r)
-	})
-	mux.HandleFunc("GET /auth/google/callback", a.finishLogin)
+	if a.localTest {
+		mux.HandleFunc("POST /auth/local", a.localSignIn)
+	} else {
+		mux.HandleFunc("GET /auth/google/start", func(w http.ResponseWriter, r *http.Request) {
+			if "http://"+r.Host != a.origin {
+				http.Redirect(w, r, a.origin+"/#workspace", http.StatusSeeOther)
+				return
+			}
+			a.startLogin(w, r)
+		})
+		mux.HandleFunc("GET /auth/google/callback", a.finishLogin)
+	}
 	mux.HandleFunc("POST /api/workspace/logout", a.protected(func(w http.ResponseWriter, r *http.Request, _ string) { a.logout(w, r) }))
 	mux.HandleFunc("GET /api/workspace/weddings", a.protected(a.weddings))
 	mux.HandleFunc("POST /api/workspace/weddings", a.protected(a.create))
@@ -104,6 +125,9 @@ func (a *workspaceHTTP) register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/workspace/import/preview", a.protected(a.importPreview))
 	mux.HandleFunc("POST /api/workspace/import/confirm", a.protected(a.importConfirm))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/imported-sections", a.protected(a.importedSections))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/guests", a.protected(a.guests))
+	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/guests/{guest}", a.protected(a.saveGuest))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/snapshot.xlsx", a.protected(a.weddingSnapshot))
 }
 
 func workspaceFailure(w http.ResponseWriter, err error) {
@@ -146,7 +170,11 @@ type workspaceFunction struct {
 	StartsAt time.Time `json:"startsAt"`
 }
 
-func queryWorkspace[T any](ctx context.Context, db *sql.DB, scan func(*sql.Rows, *T) error, query string, args ...any) ([]T, error) {
+type workspaceRowsQueryer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func queryWorkspace[T any](ctx context.Context, db workspaceRowsQueryer, scan func(*sql.Rows, *T) error, query string, args ...any) ([]T, error) {
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -257,6 +285,8 @@ func (a *workspaceHTTP) action(w http.ResponseWriter, r *http.Request, actor str
 	}
 	ctx := r.Context()
 	switch r.PathValue("action") {
+	case "guests":
+		a.saveGuest(w, r, actor)
 	case "people":
 		var input struct{ Name string }
 		if readJSON(w, r, &input) {

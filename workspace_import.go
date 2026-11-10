@@ -101,8 +101,12 @@ func writeImportedSections(ctx context.Context, tx *sql.Tx, wedding string, plan
 			v := row.Values
 			switch section.Name {
 			case "Guest List":
-				_, err = tx.ExecContext(ctx, "INSERT INTO wedding_guests (wedding_id, workbook_id, name, wedding_rsvp) VALUES ($1, $2, $3, $4)",
-					wedding, v[0], v[1], v[7])
+				clock, _ := excelClock(v[12])
+				_, err = tx.ExecContext(ctx, `
+					INSERT INTO wedding_guests (wedding_id, workbook_id, name, wedding_rsvp, household, side,
+						arrival_date, arrival_time, arrival_mode, transport_required)
+					VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, NULLIF($8, '')::time, $9, $10)`,
+					wedding, v[0], v[1], v[7], v[2], v[3], v[11], clock, v[13], v[10])
 			case "Functions & Events":
 				owner, err := person(v[7])
 				if err != nil {
@@ -123,8 +127,8 @@ func writeImportedSections(ctx context.Context, tx *sql.Tx, wedding string, plan
 					return err
 				}
 				if _, err := tx.ExecContext(ctx, `
-					INSERT INTO wedding_tasks (wedding_id, title, assignee_id, due_date, done)
-					VALUES ($1, $2, $3, NULLIF($4, '')::date, $5)`, wedding, v[0], owner, v[4], strings.EqualFold(v[5], "done")); err != nil {
+					INSERT INTO wedding_tasks (wedding_id, title, assignee_id, due_date, done, workbook_row)
+					VALUES ($1, $2, $3, NULLIF($4, '')::date, $5, $6)`, wedding, v[0], owner, v[4], strings.EqualFold(v[5], "done"), row.Number); err != nil {
 					return err
 				}
 			}

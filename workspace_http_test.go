@@ -1,9 +1,12 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -204,5 +207,54 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 			t.Fatal("member could not see the imported assignment")
 		}
 		request("GET", path+"/imported-sections", "", "", brotherSession, 404)
+		guestsResponse := request("GET", path+"/guests", "", "", owner, 200)
+		var guests []liveGuest
+		if err := json.Unmarshal(guestsResponse.Body.Bytes(), &guests); err != nil || len(guests) != 14 {
+			t.Fatalf("live guest records missing: %s", guestsResponse.Body)
+		}
+		var guestID string
+		for _, guest := range guests {
+			if guest.WorkbookID == "G001" {
+				guestID = guest.ID
+				if guest.ArrivalDate != "2027-02-14" || guest.ArrivalTime != "08:30" || guest.TransportRequired != "Yes" || len(guest.Links) != 3 {
+					t.Fatalf("arrival details were not preserved: %+v", guest)
+				}
+			}
+		}
+		update := `{"name":"Rajiv Sharma","arrivalDate":"2027-02-14","arrivalTime":"11:37","transportRequired":"Yes","revision":1}`
+		request("POST", path+"/guests/"+guestID, update, origin, brotherSession, 404)
+		request("GET", path+"/guests", "", "", brotherSession, 404)
+		request("POST", path+"/guests/"+guestID, update, origin, owner, 200)
+		request("POST", path+"/guests/"+guestID, update, origin, owner, 409)
+		request("POST", path+"/guests", `{"name":"Additional guest","side":"Bride"}`, origin, owner, 201)
+		request("GET", path+"/snapshot.xlsx", "", "", outsider, 404)
+		request("GET", path+"/snapshot.xlsx", "", "", brotherSession, 404)
+		snapshot := request("GET", path+"/snapshot.xlsx", "", "", owner, 200)
+		archive, err := zip.NewReader(bytes.NewReader(snapshot.Body.Bytes()), int64(snapshot.Body.Len()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, part := range archive.File {
+			if !strings.HasPrefix(part.Name, "xl/worksheets/") {
+				continue
+			}
+			file, err := part.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			content, err := io.ReadAll(file)
+			file.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			text := string(content)
+			if strings.Contains(text, "Additional guest") && strings.Contains(text, "11:37") && strings.Contains(text, "G001") {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("downloaded workbook did not contain the new guest and edited arrival")
+		}
 	}
 }
