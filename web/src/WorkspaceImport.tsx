@@ -88,6 +88,7 @@ export function WorkspaceImport({ onCreated }: { onCreated: (id: string) => Prom
       </div>
     </> : <form onSubmit={event => void review(event)}>
       <p>Use a filled English v1.3.1 Shaadi Planner workbook. You’ll review it before creating the wedding.</p>
+      <p className="focus-note">Uploading guest details? Read the <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy (opens in a new tab)</a>.</p>
       <fieldset className="workspace-fields" disabled={busy}>
         <label className="focus-field">Excel workbook<input name="workbook" type="file" accept=".xlsx" required /></label>
         <label className="focus-field">Wedding time zone<input name="zone" defaultValue="Asia/Kolkata" required maxLength={100} /></label>

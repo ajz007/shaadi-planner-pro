@@ -1,0 +1,26 @@
+.public-shell, .public-footer {
+  width: min(100% - 2rem, 68rem);
+  margin-inline: auto;
+  color: #20372f;
+}
+.public-hero {
+  background: #20372f;
+  color: #fff9ed;
+  padding: clamp(1.4rem, 6vw, 4rem);
+  border-radius: 1.35rem;
+}
+.public-kicker { color: #d3dfbd; font-size: .75rem; font-weight: 750; letter-spacing: .13em; }
+.public-hero h1 { font-size: clamp(2.6rem, 8vw, 5rem); }
+.public-hero > p:not(.public-kicker) { max-width: 42rem; font-size: 1.1rem; }
+.public-actions, .public-footer, .public-footer nav { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem 1rem; }
+.public-actions { margin-top: 1.3rem; }
+.public-actions a { color: #fff9ed; }
+.public-actions .public-primary { background: #fff9ed; color: #20372f; font-weight: 750; text-decoration: none; border-radius: .65rem; padding: .7rem 1rem; }
+.public-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
+.public-grid article { background: #fffefa; border: 1px solid #deded2; border-radius: 1rem; padding: 1.15rem; }
+.public-grid p { margin: 0; }
+.public-footer { justify-content: space-between; margin-block: 2rem 1rem; padding-block: 1rem; border-top: 1px solid #d4dacd; font-size: .9rem; }
+.public-footer a, .public-document a { color: #294c3c; }
+.public-document { max-width: 46rem; overflow-wrap: anywhere; }
+.public-document h2 { margin-top: 1.5rem; }
+.public-draft { border-left: .2rem solid #82622d; padding: .65rem .8rem; background: #fff1d7; }

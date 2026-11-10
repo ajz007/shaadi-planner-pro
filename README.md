@@ -87,6 +87,12 @@ Run the workflow test with `go test ./...`.
 
 ### Deploy to Railway
 
+The public homepage is at `/`. The filled sample remains at `/#dashboard` and the private planner at `/#workspace`. Privacy, Terms and Contact are draft previews at `/privacy`, `/terms` and `/contact`. Set `VITE_SELLER_NAME` and `VITE_SUPPORT_EMAIL` on the app service to override the defaults of Ajit Shukla and support@shaadiplannerpro.com. These are public values compiled into the frontend during the build, so changes require a rebuild.
+
+Before publishing the policies, verify that the support inbox receives mail and that the proposed retention rules can be carried out. The draft proposes 90 days of access after the wedding and up to 30 days in backups after removal from the live service. Confirm the deletion workflow, backup schedules and policy wording before removing the draft notice and indexing restriction.
+
+The planned public origin is `https://shaadiplannerpro.com`. Once the domain is attached to Railway and HTTPS is active, update `SHAADI_WORKSPACE_ORIGIN` and register `https://shaadiplannerpro.com/auth/google/callback` in Google Auth Platform for the public deployment.
+
 Create a separate Shaadi Planner project for its app and database. The repository's Dockerfile builds React and Go. Railway supplies the port and checks /healthz. The server applies database migrations at startup.
 
 1. Create the Railway project and add **PostgreSQL**. Add an app service from the shaadi-planner-pro GitHub repository with the repository root as its source.

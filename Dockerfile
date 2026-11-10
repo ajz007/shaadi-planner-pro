@@ -4,6 +4,8 @@ COPY web/package*.json ./
 RUN npm ci
 COPY web/index.html web/tsconfig.json ./
 COPY web/src/ ./src/
+ARG VITE_SELLER_NAME
+ARG VITE_SUPPORT_EMAIL
 RUN npm run build:hosted
 
 FROM golang:1.24-bookworm AS backend

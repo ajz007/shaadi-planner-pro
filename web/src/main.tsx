@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 import { Planner } from './Planner'
+import { PublicFooter, PublicHome, PublicInfoPage, publicPages } from './PublicPages'
 
 type Status = 'pending' | 'accepted' | 'declined'
 type Invitation = {
@@ -244,10 +245,27 @@ function Organizer() {
   </main>
 }
 
-const token = /^\/r\/([a-f0-9]{48})$/.exec(window.location.pathname)?.[1]
-const root = createRoot(document.getElementById('root')!)
-if (window.location.pathname.startsWith('/r/')) {
-  root.render(token ? <GuestPage token={token} /> : <main><h1>RSVP link unavailable</h1></main>)
-} else {
-  root.render(<Planner rsvpDemo={<Organizer />} />)
+function App() {
+  const [hash, setHash] = useState(window.location.hash)
+  useEffect(() => {
+    const navigate = () => {
+      setHash(window.location.hash)
+      if (!window.location.hash) window.scrollTo(0, 0)
+    }
+    window.addEventListener('hashchange', navigate)
+    return () => window.removeEventListener('hashchange', navigate)
+  }, [])
+  const path = window.location.pathname
+  let page
+  if (Object.hasOwn(publicPages, path)) {
+    page = <PublicInfoPage path={path as keyof typeof publicPages} />
+  } else if (path.startsWith('/r/')) {
+    const token = /^\/r\/([a-f0-9]{48})$/.exec(path)?.[1]
+    page = token ? <GuestPage token={token} /> : <main><h1>RSVP link unavailable</h1></main>
+  } else {
+    page = hash ? <Planner rsvpDemo={<Organizer />} /> : <PublicHome />
+  }
+  return <>{page}<PublicFooter /></>
 }
+
+createRoot(document.getElementById('root')!).render(<App />)
