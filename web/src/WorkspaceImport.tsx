@@ -103,7 +103,7 @@ export function WorkspaceImport({ onCreated }: { onCreated: (id: string) => Prom
   </section>
 }
 
-export function ImportedPlanningRecords({ wedding }: { wedding: string }) {
+export function ImportedPlanningRecords({ wedding, guestListURL }: { wedding: string; guestListURL: string }) {
   const [data, setData] = useState<{ sections: ImportedSection[]; totals: ImportTotals }>()
   const [selected, setSelected] = useState('')
   const [error, setError] = useState('')
@@ -124,11 +124,12 @@ export function ImportedPlanningRecords({ wedding }: { wedding: string }) {
     !column.endsWith('(Auto)') || column === 'Guest ID (Auto)' || column === 'Function ID (Auto)' ? [{ column, index }] : []) ?? []
   return <section className="focus-card">
     <h2>Imported planning records</h2>
-    <p>Review the records as they were imported from Excel. Guest List, the live schedule and the checklist show later edits.</p>
+    <p>These are the records as they were imported from Excel. The live schedule and checklist show later edits.</p>
+    <p><a className="focus-secondary" href={guestListURL}>Open live Guest List →</a></p>
     <ImportSummary totals={data.totals} />
     <label className="focus-field">Imported section<select value={selected} onChange={event => setSelected(event.target.value)}>
       <option value="">Choose a section</option>{data.sections.map(section =>
-        <option key={section.name} value={section.name}>{section.name} ({section.rows.length})</option>)}
+        <option key={section.name} value={section.name}>{section.name === 'Guest List' ? 'Original Excel guest records' : section.name} ({section.rows.length})</option>)}
     </select></label>
     {section && <div className="table-scroll" tabIndex={0} role="region" aria-label={section.name + ' imported records'}>
       <table className="imported-records"><thead><tr><th scope="col">Excel row</th>{shown.map(({ column }) => <th key={column} scope="col">{column}</th>)}</tr></thead>

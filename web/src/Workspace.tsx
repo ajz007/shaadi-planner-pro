@@ -11,8 +11,10 @@ type Task = { id: string; title: string; assignee: string | null; function: stri
 type Plan = { wedding: Wedding; people: Person[]; functions: WeddingFunction[]; tasks: Task[] }
 const root = '/api/workspace'
 
-async function workspaceRequest<T>(path: string, body?: object): Promise<T> {
-  const result = await fetch(root + path, body === undefined ? undefined : {
+export const weddingPage = (id: string, guests = false) => '#workspace/' + id + (guests ? '/guests' : '')
+
+async function workspaceRequest<T>(path: string, body?: object, signal?: AbortSignal): Promise<T> {
+  const result = await fetch(root + path, body === undefined ? { signal } : {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -58,12 +60,11 @@ function TextField({ name, label, type = 'text', required = true, value, maxLeng
   return <label className="focus-field">{label}<input name={name} type={type} required={required} defaultValue={value} maxLength={maxLength} /></label>
 }
 
-function WeddingWorkspace({ plan, refresh }: { plan: Plan; refresh: () => Promise<void> }) {
+function WeddingWorkspace({ plan, refresh, guestView }: { plan: Plan; refresh: () => Promise<void>; guestView: boolean }) {
   const { wedding, people, functions, tasks } = plan
   const [invite, setInvite] = useState('')
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
-  const [guestView, setGuestView] = useState(false)
   const path = '/weddings/' + wedding.id
   const organizer = wedding.role !== 'family'
   const personName = (id: string | null) => people.find(person => person.id === id)?.name ?? 'Unassigned'
@@ -107,13 +108,18 @@ function WeddingWorkspace({ plan, refresh }: { plan: Plan; refresh: () => Promis
   return <>
     <div className="focus-heading"><h2>{wedding.name}</h2><button className="focus-secondary" disabled={busy} onClick={() => void refresh().catch(error => setFeedback(errorText(error)))}>Refresh plan</button></div>
     <p>{wedding.date} · {wedding.timeZone} · {wedding.role}</p>
-    {organizer && <div className="focus-actions">
-      <button className="focus-secondary" aria-pressed={!guestView} onClick={() => setGuestView(false)}>Overview</button>
-      <button className="focus-secondary" aria-pressed={guestView} onClick={() => setGuestView(true)}>Guest List</button>
+    {organizer && <nav className="focus-actions wedding-pages" aria-label="Wedding pages">
+      <a className="focus-secondary" aria-current={!guestView ? 'page' : undefined} href={weddingPage(wedding.id)}>Overview</a>
+      <a className="focus-secondary" aria-current={guestView ? 'page' : undefined} href={weddingPage(wedding.id, true)}>Guest List</a>
       {wedding.role === 'owner' && <a className="focus-secondary" href={root + path + '/snapshot.xlsx'} download>Download current Excel snapshot</a>}
-    </div>}
+    </nav>}
     {feedback && <p role="alert">{feedback}</p>}
-    {organizer && guestView ? <WorkspaceGuests wedding={wedding} /> : <>
+    {guestView ? (organizer ? <WorkspaceGuests wedding={wedding} /> :
+      <p role="status">The guest list is available to wedding organizers. <a href={weddingPage(wedding.id)}>Return to your tasks</a>.</p>) : <>
+    {organizer && <section className="focus-card wedding-guest-shortcut">
+      <div><h2>Manage your guests</h2><p>Edit guest details, filter arrivals, and print pickup lists.</p></div>
+      <a className="focus-secondary" href={weddingPage(wedding.id, true)}>Open live Guest List →</a>
+    </section>}
     <div className="focus-record-grid">
       {taskList('My tasks', myTasks)}
       {taskList('Help needed', help, true)}
@@ -167,16 +173,17 @@ function WeddingWorkspace({ plan, refresh }: { plan: Plan; refresh: () => Promis
         </section>}
       </>}
     </div>
-    {wedding.role === 'owner' && <ImportedPlanningRecords wedding={wedding.id} />}
+    {wedding.role === 'owner' && <ImportedPlanningRecords wedding={wedding.id} guestListURL={weddingPage(wedding.id, true)} />}
     </>}
   </>
 }
 
-export function Workspace({ loginFailed }: { loginFailed: boolean }) {
+export function Workspace({ loginFailed, weddingID, guestView }: { loginFailed: boolean; weddingID?: string; guestView: boolean }) {
   const [session, setSession] = useState<Session>()
   const [weddings, setWeddings] = useState<Wedding[]>([])
   const [plan, setPlan] = useState<Plan>()
   const [error, setError] = useState('')
+  const [planError, setPlanError] = useState('')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -186,22 +193,28 @@ export function Workspace({ loginFailed }: { loginFailed: boolean }) {
     }).catch(error => setError(errorText(error)))
   }, [])
 
-  async function openWedding(id: string) {
-    setPlan(await workspaceRequest<Plan>('/weddings/' + id))
-  }
+  const signedIn = Boolean(session?.name)
+  useEffect(() => {
+    setPlan(undefined)
+    setPlanError('')
+    if (!signedIn || !weddingID) return
+    const controller = new AbortController()
+    workspaceRequest<Plan>('/weddings/' + weddingID, undefined, controller.signal)
+      .then(setPlan).catch(error => { if (!controller.signal.aborted) setPlanError(errorText(error)) })
+    return () => controller.abort()
+  }, [signedIn, weddingID])
 
-  async function openFromList(id: string) {
-    setBusy(true)
-    setError('')
-    try { await openWedding(id) } catch (error) { setError(errorText(error)) } finally { setBusy(false) }
+  async function refreshPlan(id: string) {
+    const refreshed = await workspaceRequest<Plan>('/weddings/' + id)
+    setPlan(current => current?.wedding.id === id ? refreshed : current)
   }
 
   async function refreshList(id: string) {
+    window.location.hash = weddingPage(id)
     try {
       setWeddings(await workspaceRequest<Wedding[]>('/weddings'))
-      await openWedding(id)
     } catch {
-      setError('The wedding was saved. Refresh the page to see your weddings.')
+      setError('The wedding was saved. Refresh to update My weddings.')
     }
   }
 
@@ -234,15 +247,18 @@ export function Workspace({ loginFailed }: { loginFailed: boolean }) {
     {session?.name && <>
       <p className="focus-item"><span>Signed in as {session.name}</span><button className="focus-secondary" disabled={busy}
         onClick={() => void workspaceRequest('/logout', {}).then(() => window.location.assign('/')).catch(error => setError(errorText(error)))}>Sign out</button></p>
-      {plan ? <>
-        <button className="focus-secondary" onClick={() => setPlan(undefined)}>← My weddings</button>
-        <WeddingWorkspace key={plan.wedding.id} plan={plan} refresh={() => openWedding(plan.wedding.id)} />
+      {weddingID ? <>
+        <a className="focus-secondary" href="#workspace">← My weddings</a>
+        {plan?.wedding.id === weddingID
+          ? <WeddingWorkspace key={weddingID} plan={plan} guestView={guestView} refresh={() => refreshPlan(weddingID)} />
+          : planError ? <p role="alert">{planError}</p> : <p role="status">Opening wedding…</p>}
       </> : <div className="focus-record-grid">
         <section className="focus-card">
           <h2>My weddings</h2>
           {weddings.length === 0 && <p>Create a wedding or join with an invite code.</p>}
           {weddings.map(wedding => <div className="focus-item" key={wedding.id}><span><strong>{wedding.name}</strong><small>{wedding.role} · {wedding.date}</small></span>
-            <button className="focus-secondary" disabled={busy} onClick={() => void openFromList(wedding.id)}>Open</button></div>)}
+            <div className="focus-actions"><a className="focus-secondary" href={weddingPage(wedding.id)}>Open wedding</a>
+              {wedding.role !== 'family' && <a className="focus-secondary" href={weddingPage(wedding.id, true)}>Guest List</a>}</div></div>)}
         </section>
         <WorkspaceForm title="Create a wedding" label="Create wedding" onSave={async data => {
           const result = await workspaceRequest<{ id: string }>('/weddings', {
