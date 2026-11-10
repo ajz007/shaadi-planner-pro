@@ -1,0 +1,26 @@
+.schedule-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.schedule-board .focus-card { min-width: 0; }
+.schedule-scroll { overflow-x: auto; border: 1px solid #dce4d8; border-radius: .65rem; }
+.schedule-plot { min-width: 41rem; padding: .65rem 1.15rem .45rem .75rem; }
+.schedule-axis, .schedule-row { display: grid !important; grid-template-columns: 12.5rem minmax(0, 1fr); align-items: center; gap: .7rem; width: 100%; }
+.schedule-axis { height: 2rem; }
+.schedule-axis > div { position: relative; height: 1.5rem; }
+.schedule-axis > div > span { position: absolute; transform: translateX(-50%); color: #4a5c53; font-size: .72rem; }
+.focus .schedule-row { border-radius: 0; color: #232d29; background: #fffefa; border: 0; border-top: 1px solid #e7ece3; text-align: left; padding: .4rem .25rem; }
+.focus .schedule-row:hover, .focus .schedule-row[aria-pressed="true"] { background: #eff5e9; }
+.schedule-name small { display: block; font-size: .72rem; color: #4a5c53; font-weight: 500; }
+.schedule-track { display: block; position: relative; height: 1.9rem; }
+.schedule-tick { position: absolute; inset-block: 0; width: 1px; background: #d4dfd0; }
+.schedule-block { position: absolute; top: .45rem; height: 1rem; border-radius: .25rem; background: #43826a; }
+.schedule-point { top: .62rem; width: .68rem; height: .68rem; border-radius: .12rem; transform: translateX(-50%) rotate(45deg); background: #8c621e; }
+.schedule-clash { background: #a43737; }
+.schedule-example { margin: .7rem .5rem 0 0; }
+.schedule-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.schedule-pair { border-top: 1px solid #dce4d8; padding: .65rem 0; }
+.schedule-people { border: 1px solid #dce4d8; border-radius: .6rem; margin: 0 0 .75rem; padding: .65rem; }
+.schedule-people > label { display: inline-flex; align-items: center; min-height: 2.5rem; gap: .3rem; margin-right: .75rem; }
+.schedule-people legend { font-weight: 650; }
+
+@media (max-width: 740px) {
+  .schedule-panels { grid-template-columns: minmax(0, 1fr); }
+}
