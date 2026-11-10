@@ -53,7 +53,11 @@ The PostgreSQL foundation stores wedding owners, planning people, memberships, i
 
 Set `SHAADI_DATABASE_URL` to a development PostgreSQL database and run `go run . migrate-workspace` to apply the migrations. Use a separate database for integration tests. Set `SHAADI_TEST_DATABASE_URL` to that database and run `go test -v ./...` to exercise invitations, access checks, and simultaneous claims. The PostgreSQL integration test is skipped if the test URL is absent.
 
-The existing browser demo runs with `go run .` and uses its sample workspace. The next backend step is verified sign-in and authenticated workspace endpoints. These will connect the existing screens to shared records.
+The existing browser demo runs with `go run .`. To enable **Private workspace**, register a Google OAuth web client with redirect URI `http://localhost:8080/auth/google/callback`. Set `SHAADI_DATABASE_URL`, `SHAADI_GOOGLE_CLIENT_ID`, and `SHAADI_GOOGLE_CLIENT_SECRET` in the process environment. Start Go and open `http://localhost:8080/#workspace`. Keep OAuth credentials outside Git. The app is loopback-only for this milestone. To use `127.0.0.1` locally, set `SHAADI_WORKSPACE_ORIGIN` and register its exact callback URI with Google.
+
+The owner creates a wedding, adds a planning person and a function, and assigns the person a task. The owner can also create an unassigned claimable task. Generate an invite code linked to the existing person and share it privately. The family member signs in separately, joins with that code, sees their existing assignment and can claim an open task. Use separate browser profiles to try both roles. The sample planner and RSVP sandbox remain separate from the signed-in records.
+
+The PostgreSQL HTTP integration test uses a simulated sign-in provider to cover callback state, session cookies, cross-wedding access, invitations, and task updates. Actual Google sign-in requires the registered OAuth credentials above. Workbook import and the rest of the planning sections will connect to the shared workspace in later milestones.
 
 To refresh the preview data from the English launch ZIP, run `python import_demo.py "path/to/launch-package.zip"` and rebuild the web app.
 

@@ -19,6 +19,9 @@ import (
 //go:embed migrations/001_workspace.sql
 var initialWorkspaceMigration string
 
+//go:embed migrations/002_sessions.sql
+var workspaceSessionMigration string
+
 var (
 	errWorkspaceNotFound = errors.New("record not found or access denied")
 	errWorkspaceConflict = errors.New("record changed or no longer available")
@@ -53,15 +56,19 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 	if _, err := tx.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS workspace_migrations (version integer PRIMARY KEY)"); err != nil {
 		return err
 	}
-	var applied bool
-	if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM workspace_migrations WHERE version = 1)").Scan(&applied); err != nil {
-		return err
-	}
-	if !applied {
-		if _, err := tx.ExecContext(ctx, initialWorkspaceMigration); err != nil {
+	for i, migration := range []string{initialWorkspaceMigration, workspaceSessionMigration} {
+		version := i + 1
+		var applied bool
+		if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM workspace_migrations WHERE version = $1)", version).Scan(&applied); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO workspace_migrations VALUES (1)"); err != nil {
+		if applied {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, migration); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, "INSERT INTO workspace_migrations VALUES ($1)", version); err != nil {
 			return err
 		}
 	}
@@ -194,10 +201,14 @@ func (s *workspaceStore) acceptInvite(ctx context.Context, actor, token string) 
 }
 
 type workspaceTask struct {
-	ID, Title               string
-	Function, Assignee, Due *string
-	Claimable, Done         bool
-	Revision                int
+	ID        string  `json:"id"`
+	Title     string  `json:"title"`
+	Function  *string `json:"function"`
+	Assignee  *string `json:"assignee"`
+	Due       *string `json:"due"`
+	Claimable bool    `json:"claimable"`
+	Done      bool    `json:"done"`
+	Revision  int     `json:"revision"`
 }
 
 func (s *workspaceStore) addTask(ctx context.Context, wedding, actor string, task workspaceTask) (string, error) {

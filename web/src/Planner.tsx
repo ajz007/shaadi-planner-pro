@@ -3,6 +3,7 @@ import workbook from './workbook-demo.json'
 import { BlankSetup, SetupOptions, WorkbookSetup } from './Onboarding'
 import { FocusPlanner } from './FocusPlanner'
 import { focusSection } from './FocusPages'
+import { Workspace } from './Workspace'
 import { PlanProvider, usePlan } from './PlanData'
 import { PrintSection } from './PlanActions'
 import './planner.css'
@@ -158,6 +159,7 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
   const settings = Object.fromEntries(table('Settings').rows)
 
   if (page === 'focus' || page.startsWith('focus/')) return <FocusPlanner section={focusSection(page.slice(6))} filter={filter} />
+  if (page === 'workspace') return <Workspace loginFailed={new URLSearchParams(params).get('login') === 'failed'} />
 
   return <div className="planner">
     <aside className="planner-sidebar" aria-label="Wedding planner">
@@ -172,7 +174,7 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
           <p>{group.label}</p>
           {group.sections.map(name => <a href={sectionLink(name)} key={name} aria-current={!sandbox && (setup ? name === 'Start Here' : section === name) ? 'page' : undefined}>{name}</a>)}
         </div>)}
-        <div className="nav-group"><p>Preview tools</p><a href="#rsvp-sandbox" aria-current={sandbox ? 'page' : undefined}>RSVP sandbox</a></div>
+        <div className="nav-group"><p>Workspaces</p><a href="#workspace">Private workspace</a><a href="#rsvp-sandbox" aria-current={sandbox ? 'page' : undefined}>RSVP sandbox</a></div>
       </nav>
     </aside>
     {sandbox ? <div className="planner-sandbox">{rsvpDemo}</div> : <main className="planner-content">

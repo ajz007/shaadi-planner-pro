@@ -88,8 +88,19 @@ func main() {
 		return
 	}
 	const address = "127.0.0.1:8080"
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	workspace, err := configuredWorkspace(ctx)
+	cancel()
+	if err != nil {
+		log.Fatalf("Shared workspace configuration failed: %T", err)
+	}
+	if workspace != nil {
+		defer workspace.store.db.Close()
+	}
+	mux := newDemo().routes(http.Dir("web/dist"))
+	workspace.register(mux)
 	server := &http.Server{
-		Addr: address, Handler: localOnly(newDemo().routes(http.Dir("web/dist"))),
+		Addr: address, Handler: localOnly(mux),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
 		WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second,
 	}
@@ -113,7 +124,7 @@ func localOnly(next http.Handler) http.Handler {
 	})
 }
 
-func (d *demo) routes(assets http.FileSystem) http.Handler {
+func (d *demo) routes(assets http.FileSystem) *http.ServeMux {
 	mux := http.NewServeMux()
 	files := http.FileServer(assets)
 	mux.Handle("GET /", files)

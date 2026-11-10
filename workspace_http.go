@@ -1,0 +1,379 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"log"
+	"net/http"
+	"os"
+	"regexp"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"golang.org/x/oauth2"
+)
+
+var workspaceUUID = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+func configuredWorkspace(ctx context.Context) (*workspaceHTTP, error) {
+	connection, id, secret := os.Getenv("SHAADI_DATABASE_URL"), os.Getenv("SHAADI_GOOGLE_CLIENT_ID"), os.Getenv("SHAADI_GOOGLE_CLIENT_SECRET")
+	if id == "" && secret == "" {
+		return nil, nil
+	}
+	if connection == "" || id == "" || secret == "" {
+		return nil, errors.New("workspace sign-in requires a database URL and both Google OAuth credentials")
+	}
+	origin := os.Getenv("SHAADI_WORKSPACE_ORIGIN")
+	if origin == "" {
+		origin = "http://localhost:8080"
+	}
+	if origin != "http://localhost:8080" && origin != "http://127.0.0.1:8080" {
+		return nil, errors.New("workspace origin must match the local demo address")
+	}
+	store, err := openWorkspace(ctx, connection)
+	if err != nil {
+		return nil, err
+	}
+	config := oauth2.Config{
+		ClientID: id, ClientSecret: secret, RedirectURL: origin + "/auth/google/callback",
+		Scopes: []string{"openid", "profile", "email"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL: "https://accounts.google.com/o/oauth2/v2/auth", TokenURL: "https://oauth2.googleapis.com/token",
+			AuthStyle: oauth2.AuthStyleInParams,
+		},
+	}
+	return &workspaceHTTP{store: store, origin: origin, login: googleWorkspaceLogin{config: config}}, nil
+}
+
+type workspaceRequest func(http.ResponseWriter, *http.Request, string)
+
+func (a *workspaceHTTP) protected(next workspaceRequest) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Header.Get("Origin") != a.origin {
+			fail(w, http.StatusForbidden, "Open the workspace from its configured address.")
+			return
+		}
+		account, _, err := a.session(r.Context(), r)
+		if errors.Is(err, errWorkspaceNotFound) {
+			fail(w, http.StatusUnauthorized, "Sign in to open the workspace.")
+			return
+		}
+		if err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		next(w, r, account)
+	}
+}
+
+func (a *workspaceHTTP) register(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/workspace/session", func(w http.ResponseWriter, r *http.Request) {
+		if a == nil {
+			reply(w, http.StatusOK, map[string]bool{"configured": false})
+			return
+		}
+		if "http://"+r.Host != a.origin {
+			reply(w, http.StatusOK, map[string]any{"configured": true, "workspaceURL": a.origin + "/#workspace"})
+			return
+		}
+		_, name, err := a.session(r.Context(), r)
+		if err != nil && !errors.Is(err, errWorkspaceNotFound) {
+			workspaceFailure(w, err)
+			return
+		}
+		reply(w, http.StatusOK, map[string]any{"configured": true, "name": name})
+	})
+	if a == nil {
+		return
+	}
+	mux.HandleFunc("GET /auth/google/start", func(w http.ResponseWriter, r *http.Request) {
+		if "http://"+r.Host != a.origin {
+			http.Redirect(w, r, a.origin+"/#workspace", http.StatusSeeOther)
+			return
+		}
+		a.startLogin(w, r)
+	})
+	mux.HandleFunc("GET /auth/google/callback", a.finishLogin)
+	mux.HandleFunc("POST /api/workspace/logout", a.protected(func(w http.ResponseWriter, r *http.Request, _ string) { a.logout(w, r) }))
+	mux.HandleFunc("GET /api/workspace/weddings", a.protected(a.weddings))
+	mux.HandleFunc("POST /api/workspace/weddings", a.protected(a.create))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}", a.protected(a.view))
+	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/{action}", a.protected(a.action))
+	mux.HandleFunc("POST /api/workspace/join", a.protected(a.join))
+}
+
+func workspaceFailure(w http.ResponseWriter, err error) {
+	var dbError *pgconn.PgError
+	switch {
+	case errors.Is(err, errWorkspaceNotFound):
+		fail(w, http.StatusNotFound, "This record is unavailable.")
+	case errors.Is(err, errWorkspaceInput):
+		fail(w, http.StatusUnprocessableEntity, "Check the details and try again.")
+	case errors.Is(err, errWorkspaceConflict):
+		fail(w, http.StatusConflict, "The plan changed. Refresh and try again.")
+	case errors.As(err, &dbError) && dbError.Code == "23505":
+		fail(w, http.StatusConflict, "This person or account already belongs to the wedding.")
+	case errors.As(err, &dbError) && dbError.Code == "23503":
+		fail(w, http.StatusUnprocessableEntity, "The selected person or function is unavailable.")
+	default:
+		log.Printf("workspace request failed: %T", err)
+		fail(w, http.StatusInternalServerError, "The workspace could not complete this request.")
+	}
+}
+
+type weddingSummary struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Date     string `json:"date"`
+	TimeZone string `json:"timeZone"`
+	Role     string `json:"role"`
+	PersonID string `json:"personId"`
+}
+
+type workspacePerson struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type workspaceFunction struct {
+	ID       string    `json:"id"`
+	Name     string    `json:"name"`
+	Venue    string    `json:"venue"`
+	StartsAt time.Time `json:"startsAt"`
+}
+
+func queryWorkspace[T any](ctx context.Context, db *sql.DB, scan func(*sql.Rows, *T) error, query string, args ...any) ([]T, error) {
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []T{}
+	for rows.Next() {
+		var item T
+		if err := scan(rows, &item); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (a *workspaceHTTP) weddings(w http.ResponseWriter, r *http.Request, actor string) {
+	items, err := queryWorkspace(r.Context(), a.store.db, func(row *sql.Rows, item *weddingSummary) error {
+		return row.Scan(&item.ID, &item.Name, &item.Date, &item.TimeZone, &item.Role, &item.PersonID)
+	}, `SELECT w.id, w.name, w.wedding_date::text, w.time_zone, m.role, m.person_id
+		FROM weddings w JOIN wedding_memberships m ON w.id = m.wedding_id
+		WHERE m.account_id = $1 ORDER BY w.created_at, w.id`, actor)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	reply(w, http.StatusOK, items)
+}
+
+func (a *workspaceHTTP) create(w http.ResponseWriter, r *http.Request, actor string) {
+	var input struct{ Name, Date, TimeZone string }
+	if !readJSON(w, r, &input) {
+		return
+	}
+	id, err := a.store.createWedding(r.Context(), actor, input.Name, input.Date, input.TimeZone)
+	workspaceCreated(w, id, err)
+}
+
+func (a *workspaceHTTP) view(w http.ResponseWriter, r *http.Request, actor string) {
+	wedding := r.PathValue("wedding")
+	if !workspaceUUID.MatchString(wedding) {
+		fail(w, http.StatusNotFound, "Wedding unavailable.")
+		return
+	}
+	ctx := r.Context()
+	var summary weddingSummary
+	err := scanWorkspace(a.store.db.QueryRowContext(ctx, `
+		SELECT w.id, w.name, w.wedding_date::text, w.time_zone, m.role, m.person_id
+		FROM weddings w JOIN wedding_memberships m ON w.id = m.wedding_id
+		WHERE w.id = $1 AND m.account_id = $2`, wedding, actor),
+		&summary.ID, &summary.Name, &summary.Date, &summary.TimeZone, &summary.Role, &summary.PersonID)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	functions, err := queryWorkspace(ctx, a.store.db, func(row *sql.Rows, item *workspaceFunction) error {
+		return row.Scan(&item.ID, &item.Name, &item.Venue, &item.StartsAt)
+	}, `SELECT f.id, f.name, f.venue, f.starts_at FROM wedding_functions f
+		JOIN wedding_memberships m ON f.wedding_id = m.wedding_id
+		WHERE f.wedding_id = $1 AND m.account_id = $2 ORDER BY f.starts_at, f.id`, wedding, actor)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	people, err := queryWorkspace(ctx, a.store.db, func(row *sql.Rows, item *workspacePerson) error {
+		return row.Scan(&item.ID, &item.Name)
+	}, `SELECT p.id, p.name FROM wedding_people p JOIN wedding_memberships m ON p.wedding_id = m.wedding_id
+		WHERE p.wedding_id = $1 AND m.account_id = $2 AND (m.role <> 'family' OR p.id = m.person_id)
+		ORDER BY p.name, p.id`, wedding, actor)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	tasks, err := a.store.listTasks(ctx, wedding, actor)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	reply(w, http.StatusOK, map[string]any{"wedding": summary, "people": people, "functions": functions, "tasks": tasks})
+}
+
+func workspaceCreated(w http.ResponseWriter, id string, err error) {
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	reply(w, http.StatusCreated, map[string]string{"id": id})
+}
+
+func (a *workspaceHTTP) join(w http.ResponseWriter, r *http.Request, actor string) {
+	var input struct{ Token string }
+	if !readJSON(w, r, &input) {
+		return
+	}
+	if len(input.Token) != 43 {
+		workspaceFailure(w, errWorkspaceInput)
+		return
+	}
+	id, err := a.store.acceptInvite(r.Context(), actor, input.Token)
+	workspaceCreated(w, id, err)
+}
+
+func (a *workspaceHTTP) action(w http.ResponseWriter, r *http.Request, actor string) {
+	wedding := r.PathValue("wedding")
+	if !workspaceUUID.MatchString(wedding) {
+		workspaceFailure(w, errWorkspaceNotFound)
+		return
+	}
+	ctx := r.Context()
+	switch r.PathValue("action") {
+	case "people":
+		var input struct{ Name string }
+		if readJSON(w, r, &input) {
+			id, err := a.store.addPerson(ctx, wedding, actor, input.Name)
+			workspaceCreated(w, id, err)
+		}
+	case "functions":
+		var input struct{ Name, Venue, StartsAt string }
+		if !readJSON(w, r, &input) {
+			return
+		}
+		var zone string
+		err := scanWorkspace(a.store.db.QueryRowContext(ctx, `
+			SELECT w.time_zone FROM weddings w JOIN wedding_memberships m ON m.wedding_id = w.id
+			WHERE w.id = $1 AND m.account_id = $2 AND m.role IN ('owner', 'co-organizer')`, wedding, actor), &zone)
+		if err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		location, err := time.LoadLocation(zone)
+		if err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		const localFormat = "2006-01-02T15:04"
+		start, err := time.ParseInLocation(localFormat, input.StartsAt, location)
+		if err != nil || start.Format(localFormat) != input.StartsAt {
+			workspaceFailure(w, errWorkspaceInput)
+			return
+		}
+		id, err := a.store.addFunction(ctx, wedding, actor, input.Name, input.Venue, start)
+		workspaceCreated(w, id, err)
+	case "tasks":
+		var input struct {
+			Title                   string
+			Function, Assignee, Due *string
+			Claimable               bool
+		}
+		if !readJSON(w, r, &input) {
+			return
+		}
+		if (input.Function != nil && !workspaceUUID.MatchString(*input.Function)) ||
+			(input.Assignee != nil && !workspaceUUID.MatchString(*input.Assignee)) {
+			workspaceFailure(w, errWorkspaceInput)
+			return
+		}
+		id, err := a.store.addTask(ctx, wedding, actor, workspaceTask{
+			Title: input.Title, Function: input.Function, Assignee: input.Assignee, Due: input.Due, Claimable: input.Claimable,
+		})
+		workspaceCreated(w, id, err)
+	case "invite":
+		var input struct{ Person, Role string }
+		if !readJSON(w, r, &input) {
+			return
+		}
+		if !workspaceUUID.MatchString(input.Person) {
+			workspaceFailure(w, errWorkspaceInput)
+			return
+		}
+		token, err := a.store.invite(ctx, wedding, actor, input.Person, input.Role)
+		if err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		reply(w, http.StatusCreated, map[string]string{"token": token})
+	case "revoke":
+		var input struct{ Token string }
+		if !readJSON(w, r, &input) {
+			return
+		}
+		if len(input.Token) != 43 {
+			workspaceFailure(w, errWorkspaceInput)
+			return
+		}
+		if err := a.store.revokeInvite(ctx, wedding, actor, input.Token); err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	case "claim", "complete":
+		a.taskAction(w, r, actor, wedding)
+	default:
+		workspaceFailure(w, errWorkspaceNotFound)
+	}
+}
+
+func (a *workspaceHTTP) taskAction(w http.ResponseWriter, r *http.Request, actor, wedding string) {
+	var input struct {
+		Task     string
+		Revision int
+		Done     *bool
+	}
+	if !readJSON(w, r, &input) {
+		return
+	}
+	if !workspaceUUID.MatchString(input.Task) {
+		workspaceFailure(w, errWorkspaceInput)
+		return
+	}
+	if r.PathValue("action") == "claim" {
+		assignee, err := a.store.claimTask(r.Context(), wedding, actor, input.Task)
+		if errors.Is(err, errWorkspaceConflict) {
+			reply(w, http.StatusConflict, map[string]string{"error": "Already claimed by " + assignee + "."})
+			return
+		}
+		if err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		reply(w, http.StatusOK, map[string]string{"assignee": assignee})
+		return
+	}
+	if input.Done == nil || input.Revision < 1 {
+		workspaceFailure(w, errWorkspaceInput)
+		return
+	}
+	revision, err := a.store.setTaskDone(r.Context(), wedding, actor, input.Task, input.Revision, *input.Done)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	reply(w, http.StatusOK, map[string]int{"revision": revision})
+}
