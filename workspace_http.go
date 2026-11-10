@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -17,10 +18,13 @@ import (
 
 var workspaceUUID = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
-func configuredWorkspace(ctx context.Context) (*workspaceHTTP, error) {
+func configuredWorkspace(ctx context.Context, publicOrigin string) (*workspaceHTTP, error) {
 	connection, id, secret := os.Getenv("SHAADI_DATABASE_URL"), os.Getenv("SHAADI_GOOGLE_CLIENT_ID"), os.Getenv("SHAADI_GOOGLE_CLIENT_SECRET")
 	localTest := os.Getenv("SHAADI_LOCAL_TEST_LOGIN") == "1"
-	if id == "" && secret == "" && !localTest {
+	if publicOrigin != "" && localTest {
+		return nil, errors.New("local test sign-in is only available in loopback mode")
+	}
+	if publicOrigin == "" && id == "" && secret == "" && !localTest {
 		return nil, nil
 	}
 	if connection == "" || (!localTest && (id == "" || secret == "")) {
@@ -38,16 +42,19 @@ func configuredWorkspace(ctx context.Context) (*workspaceHTTP, error) {
 			}
 		}
 	}
-	origin := os.Getenv("SHAADI_WORKSPACE_ORIGIN")
+	origin := publicOrigin
 	if origin == "" {
-		origin = "http://localhost:8080"
-	}
-	if origin != "http://localhost:8080" && origin != "http://127.0.0.1:8080" {
-		return nil, errors.New("workspace origin must match the local demo address")
+		origin = os.Getenv("SHAADI_WORKSPACE_ORIGIN")
+		if origin == "" {
+			origin = "http://localhost:8080"
+		}
+		if origin != "http://localhost:8080" && origin != "http://127.0.0.1:8080" {
+			return nil, errors.New("workspace origin must match the local demo address")
+		}
 	}
 	store, err := openWorkspace(ctx, connection)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("could not connect to or migrate the workspace database")
 	}
 	if localTest {
 		return &workspaceHTTP{store: store, origin: origin, localTest: true}, nil
@@ -63,10 +70,16 @@ func configuredWorkspace(ctx context.Context) (*workspaceHTTP, error) {
 	return &workspaceHTTP{store: store, origin: origin, login: googleWorkspaceLogin{config: config}}, nil
 }
 
+func (a *workspaceHTTP) matchesHost(r *http.Request) bool {
+	_, host, _ := strings.Cut(a.origin, "://")
+	return r.Host == host
+}
+
 type workspaceRequest func(http.ResponseWriter, *http.Request, string)
 
 func (a *workspaceHTTP) protected(next workspaceRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
 		if r.Method != http.MethodGet && r.Header.Get("Origin") != a.origin {
 			fail(w, http.StatusForbidden, "Open the workspace from its configured address.")
 			return
@@ -86,11 +99,12 @@ func (a *workspaceHTTP) protected(next workspaceRequest) http.HandlerFunc {
 
 func (a *workspaceHTTP) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/workspace/session", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
 		if a == nil {
 			reply(w, http.StatusOK, map[string]bool{"configured": false})
 			return
 		}
-		if "http://"+r.Host != a.origin {
+		if !a.matchesHost(r) {
 			reply(w, http.StatusOK, map[string]any{"configured": true, "workspaceURL": a.origin + "/#workspace"})
 			return
 		}
@@ -108,7 +122,7 @@ func (a *workspaceHTTP) register(mux *http.ServeMux) {
 		mux.HandleFunc("POST /auth/local", a.localSignIn)
 	} else {
 		mux.HandleFunc("GET /auth/google/start", func(w http.ResponseWriter, r *http.Request) {
-			if "http://"+r.Host != a.origin {
+			if !a.matchesHost(r) {
 				http.Redirect(w, r, a.origin+"/#workspace", http.StatusSeeOther)
 				return
 			}

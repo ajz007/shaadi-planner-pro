@@ -30,6 +30,11 @@ func (login testWorkspaceLogin) identity(_ context.Context, code, verifier strin
 }
 
 func TestPrivateWorkspaceHTTP(t *testing.T) {
+	t.Run("loopback", func(t *testing.T) { testPrivateWorkspaceHTTP(t, "http://127.0.0.1:8080") })
+	t.Run("hosted", func(t *testing.T) { testPrivateWorkspaceHTTP(t, "https://planner.example.com") })
+}
+
+func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 	connection := os.Getenv("SHAADI_TEST_DATABASE_URL")
 	if connection == "" {
 		t.Skip("set SHAADI_TEST_DATABASE_URL to a dedicated test database")
@@ -42,10 +47,14 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 	}
 	defer store.db.Close()
 	prefix := "http-test:" + time.Now().UTC().Format(time.RFC3339Nano) + ":"
-	const origin = "http://127.0.0.1:8080"
+	secure := strings.HasPrefix(origin, "https://")
 	app := &workspaceHTTP{store: store, origin: origin, login: testWorkspaceLogin{prefix: prefix}}
 	mux := http.NewServeMux()
 	app.register(mux)
+	var handler http.Handler = mux
+	if secure {
+		handler = hostedOnly(origin, mux)
+	}
 	var wedding, importedWedding string
 	t.Cleanup(func() {
 		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
@@ -70,14 +79,14 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 
 	request := func(method, path, body, requestOrigin string, cookie *http.Cookie, want int) *httptest.ResponseRecorder {
 		t.Helper()
-		req := httptest.NewRequest(method, origin+path, strings.NewReader(body)).WithContext(ctx)
+		req := httptest.NewRequest(method, strings.Replace(origin, "https://", "http://", 1)+path, strings.NewReader(body)).WithContext(ctx)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Origin", requestOrigin)
 		if cookie != nil {
 			req.AddCookie(cookie)
 		}
 		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, req)
+		handler.ServeHTTP(rec, req)
 		if rec.Code != want {
 			t.Fatalf("%s %s returned %d, want %d: %s", method, path, rec.Code, want, rec.Body)
 		}
@@ -91,13 +100,16 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 			t.Fatal(err)
 		}
 		flow := start.Result().Cookies()[0]
+		if flow.Secure != secure || !flow.HttpOnly {
+			t.Fatal("incorrect OAuth flow cookie security")
+		}
 		bad := request("GET", "/auth/google/callback?state=wrong&code="+name, "", "", flow, 303)
 		if bad.Header().Get("Location") != "/#workspace?login=failed" {
 			t.Fatal("mismatched login state was accepted")
 		}
 		callback := request("GET", "/auth/google/callback?state="+location.Query().Get("state")+"&code="+name, "", "", flow, 303)
 		for _, cookie := range callback.Result().Cookies() {
-			if cookie.Name == workspaceSessionCookie && cookie.HttpOnly && cookie.Value != "" {
+			if cookie.Name == workspaceSessionCookie && cookie.HttpOnly && cookie.Secure == secure && cookie.Value != "" {
 				return cookie
 			}
 		}

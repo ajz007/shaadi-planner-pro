@@ -15,6 +15,7 @@ const navigation = [
   { label: 'Final details', sections: ['Outfits & Jewellery', 'Gifts', 'Emergency Contacts'] },
 ]
 
+const hosted = import.meta.env.MODE === 'hosted'
 const packageURL = '/Shaadi-Planner-Pro-English.zip'
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
 const metrics = workbook.metrics
@@ -151,7 +152,7 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
     return () => window.removeEventListener('hashchange', navigate)
   }, [])
   const [page, params] = route.slice(1).split('?')
-  const sandbox = page === 'rsvp-sandbox'
+  const sandbox = !hosted && page === 'rsvp-sandbox'
   const setup = page === 'setup-upload' || page === 'setup-blank'
   const section = navigation.flatMap(group => group.sections).find(name => slug(name) === page) || 'Dashboard'
   const filter = new URLSearchParams(params).get('guest') || ''
@@ -182,7 +183,7 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
           <p>{group.label}</p>
           {group.sections.map(name => <a href={sectionLink(name)} key={name} aria-current={!sandbox && (setup ? name === 'Start Here' : section === name) ? 'page' : undefined}>{name}</a>)}
         </div>)}
-        <div className="nav-group"><p>Workspaces</p><a href="#workspace">Private workspace</a><a href="#rsvp-sandbox" aria-current={sandbox ? 'page' : undefined}>RSVP sandbox</a></div>
+        <div className="nav-group"><p>Workspaces</p><a href="#workspace">Private workspace</a>{!hosted && <a href="#rsvp-sandbox" aria-current={sandbox ? 'page' : undefined}>RSVP sandbox</a>}</div>
       </nav>
     </aside>
     {sandbox ? <div className="planner-sandbox">{rsvpDemo}</div> : <main className="planner-content">
@@ -192,10 +193,12 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
           <h1>{setup ? (page === 'setup-upload' ? 'Start from Excel' : 'Start a blank wedding') : section === 'Dashboard' ? 'Aarav & Meera' : section}</h1>
           <p>{setup ? <a href="#start-here">← Back to Start Here</a> : section === 'Dashboard' ? `${settings.City} · ${displayDate(settings['Wedding Date'])}` : settings['Wedding Name']}</p>
         </div>
-        {!setup && <a className="package-button" href={packageURL} download>Download Excel package</a>}
+        {hosted && <a className="package-button" href="#workspace">Open private planner</a>}
+        {!hosted && !setup && <a className="package-button" href={packageURL} download>Download Excel package</a>}
       </header>
       <p className="snapshot-note">{setup
         ? 'Use fictional details. Prototype changes disappear when you leave the setup flow or refresh.'
+        : hosted ? 'Explore the filled sample, or sign in to create your own private wedding.'
         : 'Explore the sample wedding in your browser. The Excel package includes the editable planner, filled example and guides.'}</p>
       {sampleImported && <p className="setup-success" role="status">Sample import complete. You’re viewing the filled wedding dashboard.</p>}
       {setup ? (page === 'setup-upload' ? <WorkbookSetup /> : <BlankSetup />)

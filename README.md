@@ -53,7 +53,7 @@ The PostgreSQL foundation stores wedding owners, planning people, memberships, i
 
 Set `SHAADI_DATABASE_URL` to a development PostgreSQL database and run `go run . migrate-workspace` to apply the migrations. Use a separate database for integration tests. Set `SHAADI_TEST_DATABASE_URL` to that database and run `go test -v ./...` to exercise invitations, access checks, and simultaneous claims. The PostgreSQL integration test is skipped if the test URL is absent.
 
-The existing browser demo runs with `go run .`. To enable **Private workspace**, register a Google OAuth web client with redirect URI `http://localhost:8080/auth/google/callback`. Set `SHAADI_DATABASE_URL`, `SHAADI_GOOGLE_CLIENT_ID`, and `SHAADI_GOOGLE_CLIENT_SECRET` in the process environment. Start Go and open `http://localhost:8080/#workspace`. Keep OAuth credentials outside Git. The app is loopback-only for this milestone. To use `127.0.0.1` locally, set `SHAADI_WORKSPACE_ORIGIN` and register its exact callback URI with Google.
+The existing browser demo runs with `go run .`. To enable **Private workspace**, register a Google OAuth web client with redirect URI `http://localhost:8080/auth/google/callback`. Set `SHAADI_DATABASE_URL`, `SHAADI_GOOGLE_CLIENT_ID`, and `SHAADI_GOOGLE_CLIENT_SECRET` in the process environment. Start Go and open `http://localhost:8080/#workspace`. Keep OAuth credentials outside Git. The default development server listens on loopback. To use `127.0.0.1` locally, set `SHAADI_WORKSPACE_ORIGIN` and register its exact callback URI with Google.
 
 The owner creates a wedding, adds a planning person and a function, and assigns the person a task. The owner can also create an unassigned claimable task. Generate an invite code linked to the existing person and share it privately. The family member signs in separately, joins with that code, sees their existing assignment and can claim an open task. Use separate browser profiles to try both roles. The sample planner and RSVP sandbox remain separate from the signed-in records.
 
@@ -84,3 +84,25 @@ The PostgreSQL HTTP integration test uses a simulated sign-in provider. For cove
 To refresh the preview data from the English launch ZIP, run `python import_demo.py "path/to/launch-package.zip"` and rebuild the web app.
 
 Run the workflow test with `go test ./...`.
+
+### Deploy to Railway
+
+Create a separate Shaadi Planner project for its app and database. The repository's Dockerfile builds React and Go. Railway supplies the port and checks /healthz. The server applies database migrations at startup.
+
+1. Create the Railway project and add **PostgreSQL**. Add an app service from the shaadi-planner-pro GitHub repository with the repository root as its source.
+2. Under the app service's **Settings → Networking**, generate a public domain. Use that exact hostname for both Railway and Google. Update both if you switch to a custom domain.
+3. In **Google Auth Platform**, configure branding and audience, then create an OAuth client of type **Web application**. For a pilot in **External → Testing**, add the pilot accounts as test users. Set **Authorized redirect URIs** to https://YOUR-DOMAIN/auth/google/callback.
+4. In the Railway **app service's Variables**, set these values, then deploy.
+
+   | Variable | Value |
+   | --- | --- |
+   | SHAADI_DATABASE_URL | Reference the database service's DATABASE_URL, for example `${{Postgres.DATABASE_URL}}` if the service is named Postgres. |
+   | SHAADI_WORKSPACE_ORIGIN | https://YOUR-DOMAIN without a trailing slash. |
+   | SHAADI_GOOGLE_CLIENT_ID | The Google web client ID. |
+   | SHAADI_GOOGLE_CLIENT_SECRET | The Google web client secret. Store it in Railway Variables. |
+
+   Railway injects PORT. Hosted startup requires the HTTPS origin, database URL and both OAuth credentials. Local test sign-in and the demo RSVP sandbox are available in loopback mode.
+
+5. Once Railway marks the deployment healthy, open https://YOUR-DOMAIN/#workspace and select **Continue with Google**. Use two Google accounts in separate browser profiles to create a test wedding, accept an invitation and check the assigned tasks. In a signed-out window, confirm that the private wedding requires login.
+
+For a redirect mismatch, compare the origin and callback character for character. If the Railway health check fails, check the app's startup logs and verify the domain, database reference and OAuth variables. For a public launch, use a separate Google OAuth project with your verified domain, app branding and published privacy policy.
