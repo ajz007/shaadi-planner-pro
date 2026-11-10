@@ -4,17 +4,19 @@ import { PrintSection } from './PlanActions'
 import { VoiceField, VoiceNotice } from './VoiceField'
 import { localDay } from './WorkspaceGuests'
 import type { Guest } from './WorkspaceGuests'
+import { PlaceDetails } from './WorkspacePlanning'
+import type { Place } from './WorkspacePlanning'
 import workbook from './workbook-demo.json'
 
 type Section = 'Accommodation' | 'RSVP Follow-up'
-type RecordRow = { id: string; revision: number; values: string[]; guestLinks?: Record<number, string> }
+type RecordRow = { id: string; revision: number; values: string[]; guestLinks?: Record<number, string>; placeId: string }
 type Request = <T>(path: string, body?: object, signal?: AbortSignal) => Promise<T>
 const roomFields = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 15]
 const followupFields = [0, 4, 5, 6, 7, 8]
 
-export function WorkspaceLogistics({ section, wedding, people, workbookView, request, guestHref }: {
+export function WorkspaceLogistics({ section, wedding, people, workbookView, request, guestHref, places, placesHref }: {
   section: Section; wedding: { id: string; name: string; timeZone: string }; people: { id: string; name: string }[]
-  workbookView: boolean; request: Request; guestHref: string
+  workbookView: boolean; request: Request; guestHref: string; places: Place[]; placesHref: string
 }) {
   const room = section === 'Accommodation'
   const path = '/weddings/' + wedding.id
@@ -22,6 +24,7 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
   const columns = workbook.tables.find(table => table.name === section)!.columns
   const [data, setData] = useState<{ records: RecordRow[]; guests: Guest[] }>()
   const [editor, setEditor] = useState<RecordRow | 'new'>()
+  const [placeId, setPlaceId] = useState('')
   const [query, setQuery] = useState('')
   const [dueOnly, setDueOnly] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -62,6 +65,7 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
     setError('')
     setFeedback('')
     setEditor(value)
+    setPlaceId(value === 'new' ? '' : value.placeId)
   }
 
   async function save(body: object, remove = false) {
@@ -91,7 +95,7 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
       if (!guestField(index)) values[index] = value
       else if (value) guestLinks[index] = value
     }
-    void save({ values, guestLinks })
+    void save({ values, guestLinks, placeId })
   }
 
   return <>
@@ -107,7 +111,11 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
       {editor && <form key={editing?.id ?? 'new'} className="focus-card" onSubmit={submit}>
         <h3 ref={editorHeading} tabIndex={-1}>{editing ? 'Edit' : 'Add'} {room ? 'room' : 'follow-up'}</h3>
         <fieldset className="workspace-fields" disabled={busy}><div className="focus-form-grid">
+          {room && <label className="focus-field">Saved hotel<select value={placeId} onChange={event => setPlaceId(event.target.value)}>
+            <option value="">Use hotel name below</option>{places.map(place => <option key={place.id} value={place.id}>{place.name}</option>)}
+          </select></label>}
           {fields.map(index => {
+            if (room && index === 0 && placeId) return null
             const date = (room ? [10, 11] : [4, 6]).includes(index)
             const owner = room ? index === 12 : index === 5
             if (!date && !guestField(index)) return <VoiceField key={index} label={columns[index]} name={String(index)}
@@ -125,6 +133,7 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
             </label>
           })}
           </div><datalist id="logistics-people">{people.map(person => <option key={person.id} value={person.name} />)}</datalist>
+          {room && <p><a href={placesHref}>Manage saved places</a></p>}
           <VoiceNotice />
           <button>{busy ? 'Saving…' : 'Save'}</button>
           <button type="button" className="focus-secondary" onClick={() => setEditor(undefined)}>Cancel</button>
@@ -138,13 +147,15 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
         <div><VoiceField label={room ? 'Search hotels, rooms or guests' : 'Search households, guests or actions'}
           value={query} onValueChange={setQuery} search /><VoiceNotice /></div>
         {!room && <label><input type="checkbox" checked={dueOnly} onChange={event => setDueOnly(event.target.checked)} /> Due by today</label>}
-        {visible.length > 0 && <PrintSection title={section} columns={columns} records={visible.map(record => record.values)}
+        {visible.length > 0 && <PrintSection title={section} columns={room ? [...columns, 'Hotel address'] : columns}
+          records={visible.map(record => room ? [...record.values, places.find(place => place.id === record.placeId)?.address ?? ''] : record.values)}
           filters={dueOnly ? 'Due by today' : undefined} weddingName={wedding.name} />}
       </div>
       {visible.length === 0 && <p>{data.records.length ? 'No records match these filters.' : room ? 'No rooms yet.' : 'No follow-ups yet.'}</p>}
       {workbookView && visible.length > 0 && <div className="table-scroll" tabIndex={0} role="region" aria-label={section + ' table'}><table className="imported-records workspace-sheet">
         <thead><tr>{columns.map(column => <th key={column}>{column}</th>)}<th>Actions</th></tr></thead>
-        <tbody>{visible.map(record => <tr key={record.id}>{record.values.map((value, i) => <td key={i}>{value}</td>)}
+        <tbody>{visible.map(record => <tr key={record.id}>{record.values.map((value, i) => <td key={i}>{value}
+          {i === 0 && places.filter(place => place.id === record.placeId).map(place => <PlaceDetails key={place.id} place={place} />)}</td>)}
           <td><button disabled={busy} onClick={() => open(record)} aria-label={'Edit ' + summary(record)}>Edit</button></td></tr>)}</tbody>
       </table></div>}
       {!workbookView && <div className="focus-record-grid">{visible.map(record => {
@@ -152,6 +163,7 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
         const detailFields = room ? [2, 3, 4, 5, 6, 9, 10, 11, 12, 14, 15] : [0, 2, 4, 5, 6, 7, 8]
         return <article key={record.id} className="focus-card">
           <div className="focus-heading"><h3>{summary(record)}</h3><span className="focus-chip">{values[room ? 13 : 3] || 'Status not set'}</span></div>
+          {places.filter(place => place.id === record.placeId).map(place => <PlaceDetails key={place.id} place={place} />)}
           <dl className="focus-record-details">{detailFields.filter(index => values[index]).map(index => <div key={index}>
             <dt>{columns[index].replace(' (Auto)', '')}</dt><dd>{values[index]}</dd>
           </div>)}</dl>

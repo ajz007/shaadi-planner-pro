@@ -164,7 +164,7 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
   if (workspacePage || page === 'workspace/setup') {
     const key = workspacePage?.[2] ?? ''
     const section = key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history'
-      : key === 'invitations' ? 'Invitations' : focusSection(key)
+      : key === 'invitations' ? 'Invitations' : key === 'places' ? 'Places' : focusSection(key)
     const query = new URLSearchParams(params)
     const layout = query.get('layout')
     return <Workspace weddingID={workspacePage?.[1]} section={section} guestSearch={filter} setup={page === 'workspace/setup'}

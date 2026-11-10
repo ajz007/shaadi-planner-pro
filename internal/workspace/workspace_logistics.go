@@ -22,6 +22,7 @@ type logisticsRecord struct {
 	ID       string `json:"id"`
 	Section  string `json:"section"`
 	Revision int    `json:"revision"`
+	PlaceID  string `json:"placeId"`
 	importRow
 }
 
@@ -38,12 +39,21 @@ func logisticsSection(slug string) string {
 func listLogistics(ctx context.Context, db workspaceRowsQueryer, wedding, actor, section string) ([]logisticsRecord, error) {
 	return queryWorkspace(ctx, db, func(rows *sql.Rows, record *logisticsRecord) error {
 		var payload []byte
-		if err := rows.Scan(&record.ID, &record.Section, &record.Revision, &payload); err != nil {
+		var placeName string
+		if err := rows.Scan(&record.ID, &record.Section, &record.Revision, &payload, &record.PlaceID, &placeName); err != nil {
 			return err
 		}
-		return json.Unmarshal(payload, &record.importRow)
-	}, `SELECT l.id, l.section_name, l.revision, l.payload FROM wedding_logistics_records l
+		if err := json.Unmarshal(payload, &record.importRow); err != nil {
+			return err
+		}
+		if placeName != "" && record.Section == roomSection {
+			record.Values[0] = placeName
+		}
+		return nil
+	}, `SELECT l.id, l.section_name, l.revision, l.payload, COALESCE(l.place_id::text,''), COALESCE(p.name,'')
+	FROM wedding_logistics_records l
 	JOIN wedding_memberships m ON m.wedding_id = l.wedding_id
+	LEFT JOIN wedding_places p ON p.wedding_id=l.wedding_id AND p.id=l.place_id
 	WHERE l.wedding_id = $1 AND m.account_id = $2 AND m.role IN ('owner', 'co-organizer')
 	AND ($3 = '' OR l.section_name = $3)
 	ORDER BY NULLIF((l.payload->>'number')::int, 0) NULLS LAST, l.id`, wedding, actor, section)
@@ -147,6 +157,7 @@ func (s *workspaceStore) requireOrganizer(ctx context.Context, wedding, actor st
 }
 
 type logisticsInput struct {
+	PlaceID    string         `json:"placeId"`
 	Values     map[int]string `json:"values"`
 	GuestLinks map[int]string `json:"guestLinks"`
 	Revision   int            `json:"revision"`
@@ -185,7 +196,7 @@ func (input logisticsInput) row(section string) (importRow, bool) {
 		seen[guest] = true
 	}
 	if section == roomSection {
-		return row, row.Values[0] != "" && row.Values[1] != "" &&
+		return row, (row.Values[0] != "" || workspaceUUID.MatchString(input.PlaceID)) && row.Values[1] != "" &&
 			(row.Values[10] == "" || row.Values[11] == "" || row.Values[10] <= row.Values[11]) &&
 			(len(row.Guests) == 0 || row.Guests[3] != "")
 	}
@@ -220,6 +231,9 @@ func (a *workspaceHTTP) saveLogistics(w http.ResponseWriter, r *http.Request, ac
 		return
 	}
 	row, valid := input.row(section)
+	if input.PlaceID != "" && (section != roomSection || !workspaceUUID.MatchString(input.PlaceID)) {
+		valid = false
+	}
 	if !valid {
 		httpx.Fail(w, http.StatusUnprocessableEntity, "Check the required fields, dates and guest selections. Select each guest only once per room.")
 		return
@@ -246,15 +260,15 @@ func (a *workspaceHTTP) saveLogistics(w http.ResponseWriter, r *http.Request, ac
 	}
 	create := id == "new"
 	if create {
-		err = scanWorkspace(a.store.db.QueryRowContext(ctx, `INSERT INTO wedding_logistics_records (wedding_id, section_name, payload)
-			SELECT $1::uuid, $2::text, $3::jsonb FROM wedding_memberships WHERE wedding_id = $1 AND account_id = $4
-			AND role IN ('owner', 'co-organizer') RETURNING id`, wedding, section, payload, actor), &id)
+		err = scanWorkspace(a.store.db.QueryRowContext(ctx, `INSERT INTO wedding_logistics_records (wedding_id, section_name, payload, place_id)
+			SELECT $1::uuid, $2::text, $3::jsonb, NULLIF($5,'')::uuid FROM wedding_memberships WHERE wedding_id = $1 AND account_id = $4
+			AND role IN ('owner', 'co-organizer') RETURNING id`, wedding, section, payload, actor, input.PlaceID), &id)
 	} else {
 		err = scanWorkspace(a.store.db.QueryRowContext(ctx, `UPDATE wedding_logistics_records l
-			SET payload = jsonb_set($3::jsonb, '{number}', payload->'number'), revision = revision + 1
+			SET payload = jsonb_set($3::jsonb, '{number}', payload->'number'), place_id=NULLIF($7,'')::uuid, revision = revision + 1
 			WHERE wedding_id = $1 AND section_name = $2 AND id = $5 AND revision = $6
 			AND EXISTS (SELECT 1 FROM wedding_memberships WHERE wedding_id = $1 AND account_id = $4
-			AND role IN ('owner', 'co-organizer')) RETURNING id`, wedding, section, payload, actor, id, input.Revision), &id)
+			AND role IN ('owner', 'co-organizer')) RETURNING id`, wedding, section, payload, actor, id, input.Revision, input.PlaceID), &id)
 	}
 	finishLogisticsSave(w, id, create, err)
 }

@@ -73,14 +73,39 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		workspaceFailure(w, err)
 		return
 	}
+	planning, err := listPlanning(ctx, tx, wedding, actor)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	people, err := queryWorkspace(ctx, tx, func(rows *sql.Rows, person *workspacePerson) error {
+		return rows.Scan(&person.ID, &person.Name)
+	}, "SELECT id,name FROM wedding_people WHERE wedding_id=$1", wedding)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	documentRows, err := queryWorkspace(ctx, tx, func(rows *sql.Rows, row *[]any) error {
+		var vendor, category, filename string
+		err := rows.Scan(&vendor, &category, &filename)
+		*row = []any{vendor, category, filename}
+		return err
+	}, `SELECT v.fields->>1,v.fields->>0,d.name FROM wedding_vendor_documents d
+		JOIN wedding_vendors v ON v.wedding_id=d.wedding_id AND v.id=d.vendor_id
+		WHERE d.wedding_id=$1 ORDER BY 1,2,3`, wedding)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
 	type savedFunction struct {
 		ID, WorkbookID, Name, Venue, Owner string
 		Start                              time.Time
 	}
 	functions, err := queryWorkspace(ctx, tx, func(rows *sql.Rows, event *savedFunction) error {
 		return rows.Scan(&event.ID, &event.WorkbookID, &event.Name, &event.Venue, &event.Owner, &event.Start)
-	}, `SELECT f.id, COALESCE(f.workbook_id, ''), f.name, f.venue, COALESCE(p.name, ''), f.starts_at
+	}, `SELECT f.id, COALESCE(f.workbook_id, ''), f.name, concat_ws(' · ', place.name, NULLIF(f.venue,'')), COALESCE(p.name, ''), f.starts_at
 		FROM wedding_functions f LEFT JOIN wedding_people p ON p.wedding_id = f.wedding_id AND p.id = f.owner_id
+		LEFT JOIN wedding_places place ON place.wedding_id=f.wedding_id AND place.id=f.place_id
 		WHERE f.wedding_id = $1 ORDER BY f.starts_at, f.id`, wedding)
 	if err != nil {
 		workspaceFailure(w, err)
@@ -327,6 +352,11 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		}
 		sheets = append(sheets, ledger)
 	}
+	sheets = append(sheets, planningSheets(planning, people)...)
+	if len(documentRows) > 0 {
+		sheets = append(sheets, workbook.Sheet{Name: "Vendor Documents",
+			Rows: append([][]any{{"Vendor", "Category", "Filename"}}, documentRows...)})
+	}
 	content, err := workbook.Create(sheets)
 	if err != nil {
 		workspaceFailure(w, err)
@@ -336,4 +366,45 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 	w.Header().Set("Content-Disposition", `attachment; filename="Shaadi-Planner-Current-Wedding.xlsx"`)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Write(content)
+}
+
+func planningSheets(plan weddingPlanning, people []workspacePerson) []workbook.Sheet {
+	var sheets []workbook.Sheet
+	if len(plan.Places) > 0 {
+		places := workbook.Sheet{Name: "Places", Rows: [][]any{{"Place", "Address", "Map link", "Arrival instructions"}}}
+		for _, p := range plan.Places {
+			places.Rows = append(places.Rows, []any{p.Name, p.Address, p.MapURL, p.Instructions})
+		}
+		sheets = append(sheets, places)
+	}
+	if len(plan.Functions) == 0 {
+		return sheets
+	}
+	names := make(map[string]string, len(people))
+	for _, person := range people {
+		names[person.ID] = person.Name
+	}
+	attendance := workbook.Sheet{Name: "Required People", Rows: [][]any{{"Function", "Duration (minutes)", "Attendance", "Person", "Role", "Needed by"}}}
+	items := workbook.Sheet{Name: "Required Items", Rows: [][]any{{"Function", "Item", "Category", "Quantity", "Unit", "Responsible person", "For", "Ready by", "Handoff", "Status"}}}
+	for _, function := range plan.Functions {
+		var duration any
+		if function.Duration != nil {
+			duration = float64(*function.Duration)
+		}
+		switch {
+		case function.People == nil:
+			attendance.Rows = append(attendance.Rows, []any{function.Name, duration, "Needs review", "", "", ""})
+		case len(function.People) == 0:
+			attendance.Rows = append(attendance.Rows, []any{function.Name, duration, "No required people", "", "", ""})
+		default:
+			for _, person := range function.People {
+				attendance.Rows = append(attendance.Rows, []any{function.Name, duration, "Required", names[person.PersonID], person.Role, person.NeededBy})
+			}
+		}
+		for _, item := range function.Items {
+			items.Rows = append(items.Rows, []any{function.Name, item.Name, item.Category, item.Quantity, item.Unit,
+				names[item.PersonID], item.For, item.NeededBy, item.Handoff, item.Status})
+		}
+	}
+	return append(sheets, attendance, items)
 }

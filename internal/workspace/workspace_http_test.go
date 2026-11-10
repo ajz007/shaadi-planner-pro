@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -422,13 +423,93 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		contractUpdate := `{"revision":4,` + contractBody[1:]
 		request("POST", financePath+"/contracts/"+contractID, strings.Replace(contractUpdate, "1000.50", "100.24", 1), origin, owner, 422)
 		request("POST", financePath+"/contracts/"+contractID, contractUpdate, origin, owner, 200)
+		planningPath := path + "/planning"
+		request("GET", planningPath, "", "", brotherSession, 404)
+		request("POST", planningPath+"/places/new", `{"name":"Live Test Hotel","address":"123 Wedding Lane","mapUrl":"https://maps.google.com/","instructions":"South gate"}`, origin, owner, 204)
+		var planning weddingPlanning
+		if err := json.Unmarshal(request("GET", planningPath, "", "", owner, 200).Body.Bytes(), &planning); err != nil {
+			t.Fatal(err)
+		}
+		if len(planning.Places) != 1 || len(planning.Functions) == 0 || planning.Functions[0].People != nil {
+			t.Fatalf("unexpected initial planning data: %+v", planning)
+		}
+		placeID := planning.Places[0].ID
+		functionPath := planningPath + "/functions/" + planning.Functions[0].ID
+		functionBody := `{"name":"Live Ceremony","start":"2027-02-15T10:30","venue":"Main hall","placeId":"` + placeID +
+			`","duration":60,"revision":1,"people":[{"personId":"` + brotherID +
+			`","role":"Family representative","neededBy":"2027-02-15T10:15"}],"items":[{"name":"Gift tray","category":"Family exchange","quantity":"2","status":"Packed","personId":"` + brotherID + `"}]}`
+		request("POST", functionPath, functionBody, origin, owner, 204)
+		request("POST", functionPath, functionBody, origin, owner, 409)
+		request("POST", roomsPath+"/new", `{"placeId":"`+placeID+`","values":{"1":"990"}}`, origin, owner, 201)
+		passenger := pickupList()[0].Passengers[0]
+		linkedPickup, err := json.Marshal(map[string]any{
+			"date": "2027-02-15", "time": "09:30", "pickupPlaceId": placeID, "pickupPoint": "South gate",
+			"dropPoint": "Reception", "status": "Planned",
+			"passengers": []map[string]any{{"id": passenger.ID, "revision": passenger.Revision}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		linkedPickupID := stringValue(request("POST", path+"/transportation", string(linkedPickup), origin, owner, 201), "id")
+		var placeLinked bool
+		for _, pickup := range pickupList() {
+			if pickup.ID == linkedPickupID {
+				placeLinked = pickup.PickupPlaceID == placeID && pickup.PickupPoint == "Live Test Hotel · South gate"
+			}
+		}
+		if !placeLinked {
+			t.Fatal("pickup did not retain the saved place and the gate detail")
+		}
+		documentsPath := path + "/vendors/" + vendorID + "/documents"
+		pdf := "%PDF-1.4\nExample catalogue"
+		uploadDocuments := func(actorCookie *http.Cookie, want int) {
+			t.Helper()
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			for _, name := range []string{"menu.pdf", "quote.pdf"} {
+				part, err := writer.CreateFormFile("files", name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := io.WriteString(part, pdf); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			req := httptest.NewRequest("POST", strings.Replace(origin, "https://", "http://", 1)+documentsPath, &body).WithContext(ctx)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			req.Header.Set("Origin", origin)
+			req.AddCookie(actorCookie)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, req)
+			if response.Code != want {
+				t.Fatalf("document upload returned %d, want %d: %s", response.Code, want, response.Body)
+			}
+		}
+		uploadDocuments(brotherSession, 404)
+		uploadDocuments(owner, 204)
+		var documents []vendorDocument
+		if err := json.Unmarshal(request("GET", documentsPath, "", "", owner, 200).Body.Bytes(), &documents); err != nil || len(documents) != 2 {
+			t.Fatalf("missing uploaded documents: %+v %v", documents, err)
+		}
+		filePath := documentsPath + "/" + documents[0].ID
+		request("GET", filePath, "", "", brotherSession, 404)
+		download := request("GET", filePath, "", "", owner, 200)
+		if download.Body.String() != pdf || !strings.HasPrefix(download.Header().Get("Content-Disposition"), "attachment;") {
+			t.Fatal("vendor document download did not return the saved file as an attachment")
+		}
 		snapshot := request("GET", path+"/snapshot.xlsx", "", "", owner, 200)
+		request("POST", filePath, "", origin, owner, 204)
+		request("GET", filePath, "", "", owner, 404)
 		archive, err := zip.NewReader(bytes.NewReader(snapshot.Body.Bytes()), int64(snapshot.Body.Len()))
 		if err != nil {
 			t.Fatal(err)
 		}
 		found, foundTransport, foundRoom, foundFollowup := false, false, false, false
 		foundVendor, foundContract, foundLedger := false, false, false
+		foundPlace, foundItems, foundDocuments := false, false, false
 		for _, part := range archive.File {
 			if !strings.HasPrefix(part.Name, "xl/worksheets/") {
 				continue
@@ -443,6 +524,9 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 				t.Fatal(err)
 			}
 			text := string(content)
+			foundPlace = foundPlace || strings.Contains(text, "123 Wedding Lane")
+			foundItems = foundItems || strings.Contains(text, "Gift tray") && strings.Contains(text, "Live Ceremony")
+			foundDocuments = foundDocuments || strings.Contains(text, "menu.pdf") && strings.Contains(text, "quote.pdf")
 			foundVendor = foundVendor || strings.Contains(text, "Live Test Caterer") && strings.Contains(text, "1200.5")
 			foundContract = foundContract || strings.Contains(text, "Live Test Caterer") && strings.Contains(text, "900.25")
 			foundLedger = foundLedger || strings.Contains(text, "Live deposit") && strings.Contains(text, "Voided instalment") && strings.Contains(text, "Imported opening balance")
@@ -467,6 +551,9 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		}
 		if !foundVendor || !foundContract || !foundLedger {
 			t.Fatal("downloaded workbook did not include the live vendor, contract and payment history")
+		}
+		if !foundPlace || !foundItems || !foundDocuments {
+			t.Fatal("downloaded workbook did not include places, required items and document filenames")
 		}
 		// Simulate an older import with numeric and AM/PM values, including an
 		// explicitly cleared arrival. Reapply the repair to the saved records.

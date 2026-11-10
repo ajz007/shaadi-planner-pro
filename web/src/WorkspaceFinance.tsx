@@ -4,6 +4,7 @@ import workbook from './workbook-demo.json'
 import { PrintSection } from './PlanActions'
 import { localDay } from './WorkspaceGuests'
 import { VoiceField, VoiceNotice } from './VoiceField'
+import { VendorDocuments } from './VendorDocuments'
 
 type RecordRow = { id: string; values: string[]; revision: number }
 type Payment = { id: string; amount: number; date: string; method: string; notes: string; voided: boolean }
@@ -28,6 +29,7 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
   const [finance, setFinance] = useState<Finance>()
   const [editing, setEditing] = useState<RecordRow | 'new'>()
   const [paying, setPaying] = useState<Contract>()
+  const [documentVendor, setDocumentVendor] = useState<RecordRow>()
   const [selectedVendor, setSelectedVendor] = useState('')
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
@@ -116,6 +118,8 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
     const item = finance?.contracts.find(contract => contract.id === record.id)
     return <div className="focus-actions">
       <button className="focus-secondary" disabled={busy} onClick={() => edit(record)} aria-label={'Edit ' + record.values[1]}>Edit</button>
+      {comparison && <button className="focus-secondary" onClick={() => setDocumentVendor(record)}
+        aria-label={'Documents for ' + record.values[1]}>Documents</button>}
       {item && item.value > item.paid && <button disabled={busy} onClick={() => {
         setEditing(undefined); setError(''); setFeedback(''); setPaying(item)
       }}>Record payment</button>}
@@ -134,6 +138,8 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
     {feedback && <p role="status">{feedback}</p>}
     {error && <p role="alert">{error}</p>}
     {!finance && !error && <p role="status">Loading vendor records…</p>}
+    {documentVendor && <VendorDocuments key={documentVendor.id} weddingId={wedding.id} vendorId={documentVendor.id}
+      vendorName={documentVendor.values[1]} close={() => setDocumentVendor(undefined)} />}
     {finance && !comparison && !finance.vendors.length && <p><a href={vendorsHref}>Add a vendor in Vendor Comparison</a> before creating a contract.</p>}
     {editing && <form key={current?.id ?? 'new'} className="focus-card" onSubmit={submitRecord}>
       <h3>{current ? 'Edit' : 'Add'} {comparison ? 'vendor' : 'contract'}</h3>

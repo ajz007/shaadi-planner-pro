@@ -77,6 +77,10 @@ On **Guest List** and **Transportation**, the two layouts keep the current filte
 
 In **Money → Vendor Comparison**, wedding owners can add and edit vendor quotes. In **Vendor Payments**, choose a saved vendor to create a contract, then record each payment separately. Imported paid amounts are opening balances. Voided payments stay visible in history and are excluded from the paid total. The Excel snapshot includes the live vendor and contract sheets plus the Payment Ledger. Budget category actuals remain separate from vendor payments.
 
+Open **Documents** on a vendor to upload up to five PDFs, JPGs or PNGs per batch. Limits are 5 MB per file, ten files per vendor and 50 MB per wedding. Files are stored with the wedding in PostgreSQL and are downloadable by the owner. The Excel snapshot lists their filenames.
+
+In **Schedule → Places**, save a venue, hotel or pickup point once and select it in functions, rooms or transport. Keep gate and room details on the associated record. In **Functions & Events**, edit the function duration, mark attendance reviewed, choose required people and add the item checklist. Copy items from another function to reuse a list, then update deadlines and status. Print the checklist by function or responsible person. The Schedule Board uses the saved attendance for conflict checks, and Excel includes places and readiness sheets.
+
 Editable text fields and search in the private planner offer a microphone on browsers that support speech recognition. Review the text before saving. The browser may use an online recognition service, and typing remains available.
 
 For local testing without Google credentials, create a separate loopback database named `shaadi_local`, set `SHAADI_DATABASE_URL`, set `SHAADI_LOCAL_TEST_LOGIN=1`, and start the app with `go run ./cmd/shaadi-planner`. The sign-in screen offers local test accounts. Use sample data and separate browser profiles for different roles. Local test sign-in rejects remote database hosts and cannot be combined with Google credentials.
