@@ -6,6 +6,7 @@ import type { Guest } from './WorkspaceGuests'
 import { FocusNavigation, focusLink, PlanningSection } from './FocusPages'
 import { ScheduleChart, scheduleEntries } from './ScheduleBoard'
 import { WorkspaceTransport } from './WorkspaceTransport'
+import { WorkspaceLogistics } from './WorkspaceLogistics'
 
 type Session = { configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
 type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
@@ -99,18 +100,17 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
   const owner = wedding.role === 'owner'
   const imported = useImportedPlanningRecords(wedding.id, owner)
   const [guests, setGuests] = useState<Guest[]>()
-  const [guestError, setGuestError] = useState('')
   useEffect(() => {
-    if (!organizer || section === 'Guest List') return
+    if (!organizer || section !== undefined) return
     const controller = new AbortController()
-    setGuestError('')
     workspaceRequest<Guest[]>(path + '/guests', undefined, controller.signal)
-      .then(setGuests).catch(error => { if (!controller.signal.aborted) setGuestError(errorText(error)) })
+      .then(items => { if (!controller.signal.aborted) setGuests(items) })
+      .catch(() => { if (!controller.signal.aborted) setGuests(undefined) })
     return () => controller.abort()
   }, [organizer, path, section])
   const href = (page?: string) => weddingPage(wedding.id, page, workbookView)
   const canSee = (page: string) => owner || page === 'Functions & Events' || page === 'Family Responsibilities' ||
-    (organizer && ['Guest List', 'Schedule Board', 'Settings', 'Transportation'].includes(page))
+    (organizer && ['Guest List', 'Schedule Board', 'Settings', 'Transportation', 'Accommodation', 'RSVP Follow-up'].includes(page))
   const personName = (id: string | null) => people.find(person => person.id === id)?.name ?? 'Unassigned'
   const functionName = (id: string | null) => functions.find(event => event.id === id)?.name
   const eventTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: wedding.timeZone })
@@ -132,26 +132,8 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
   const displayMoney = (amount: number) => new Intl.NumberFormat('en-IN', {
     style: 'currency', currency: 'INR', maximumFractionDigits: 0,
   }).format(amount / 100)
-  const linkedGuests = new Map((guests ?? []).map(guest => [guest.workbookId, guest]))
   const sectionRows = (item: NonNullable<typeof activeSection>) => item.rows.map(row => {
     const values = [...row.values]
-    for (const [index, id] of Object.entries(row.guestLinks ?? {})) {
-      const guest = linkedGuests.get(id)
-      if (guest) values[Number(index)] = guest.workbookId + ' | ' + guest.name
-    }
-    if (item.name === 'RSVP Follow-up') {
-      const guest = linkedGuests.get(row.guestLinks?.[0] ?? '')
-      if (guest) { values[1] = guest.household; values[3] = guest.rsvp }
-    }
-    if (item.name === 'Accommodation' || item.name === 'Transportation') {
-      const room = item.name === 'Accommodation'
-      const guest = linkedGuests.get(row.guestLinks?.[room ? 3 : 4] ?? '')
-      if (guest) {
-        values[room ? 7 : 8] = guest.household
-        if (room) values[8] = guest.side
-      }
-      values[room ? 9 : 10] = String(Object.keys(row.guestLinks ?? {}).length)
-    }
     if (item.name === 'Budget vs Actual') values[3] = String(Number(values[1]) - Number(values[2]))
     if (item.name === 'Vendor Payments') values[5] = String(Number(values[3]) - Number(values[4]))
     return values
@@ -228,6 +210,8 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
     {section && !canSee(section) ? <p role="status">This page is unavailable for your role. <a href={href()}>Return to overview</a>.</p>
       : section === 'Guest List' ? <WorkspaceGuests key={guestSearch} wedding={wedding} initialSearch={guestSearch} workbookView={workbookView} />
       : section === 'Transportation' ? <WorkspaceTransport wedding={wedding} people={people} workbookView={workbookView} />
+      : section === 'Accommodation' || section === 'RSVP Follow-up' ? <WorkspaceLogistics key={section} section={section}
+        wedding={wedding} people={people} workbookView={workbookView} request={workspaceRequest} guestHref={href('Guest List')} />
       : section === 'Schedule Board' ? <ScheduleChart actual={scheduleEntries(functionRows, timeline)} weddingName={wedding.name} />
       : section === 'Import history' ? <><p><a href={href('Settings')}>← Wedding settings</a></p><ImportedPlanningRecords {...imported} /></>
       : section && !showTasks && !showFunctions && section !== 'Settings' ? <>
@@ -236,7 +220,6 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
           : !imported.data ? <p role="status">Loading planning records…</p>
           : activeSection ? <>
             <p className="focus-note">Read-only. These records came from your workbook.</p>
-            {guestError && <p role="alert">Live guest details could not be loaded. Refresh to check linked records.</p>}
             <PlanningSection key={section} section={section} table={{ columns: activeSection.columns, rows: sectionRows(activeSection) }}
               weddingName={wedding.name} hrefFor={href} workbookView={workbookView} />
           </> : <p>No {section.toLowerCase()} records have been imported for this wedding.</p>}

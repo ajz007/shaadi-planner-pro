@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
+
 	"net/http"
 	"strings"
 	"time"
@@ -53,16 +53,8 @@ func (a *workspaceHTTP) guests(w http.ResponseWriter, r *http.Request, actor str
 		workspaceFailure(w, errWorkspaceNotFound)
 		return
 	}
-	var allowed bool
-	err := a.store.db.QueryRowContext(r.Context(), `
-		SELECT EXISTS (SELECT 1 FROM wedding_memberships WHERE wedding_id = $1 AND account_id = $2
-		AND role IN ('owner', 'co-organizer'))`, wedding, actor).Scan(&allowed)
-	if err != nil {
+	if err := a.store.requireOrganizer(r.Context(), wedding, actor); err != nil {
 		workspaceFailure(w, err)
-		return
-	}
-	if !allowed {
-		workspaceFailure(w, errWorkspaceNotFound)
 		return
 	}
 	guests, err := listLiveGuests(r.Context(), a.store.db, wedding, actor)
@@ -82,36 +74,26 @@ func (a *workspaceHTTP) guests(w http.ResponseWriter, r *http.Request, actor str
 }
 
 func (a *workspaceHTTP) guestPlanLinks(ctx context.Context, wedding, actor string) (map[string][]guestPlanLink, error) {
-	sections, err := queryWorkspace(ctx, a.store.db, func(rows *sql.Rows, section *importSection) error {
-		var payload []byte
-		if err := rows.Scan(&payload); err != nil {
-			return err
-		}
-		return json.Unmarshal(payload, section)
-	}, `SELECT i.payload FROM wedding_imported_sections i JOIN wedding_memberships m ON m.wedding_id = i.wedding_id
-		WHERE i.wedding_id = $1 AND m.account_id = $2 AND m.role IN ('owner', 'co-organizer')
-		AND i.section_name IN ('Accommodation', 'RSVP Follow-up') ORDER BY i.position`, wedding, actor)
+	records, err := listLogistics(ctx, a.store.db, wedding, actor, "")
 	if err != nil {
 		return nil, err
 	}
 	links := make(map[string][]guestPlanLink)
-	for _, section := range sections {
-		for _, row := range section.Rows {
-			values := row.Values
-			link := guestPlanLink{Section: section.Name}
-			switch section.Name {
-			case "Accommodation":
-				link.Label = values[0] + " · Room " + values[1]
-				link.Detail = strings.Trim(strings.Join([]string{values[10], values[11]}, " – "), " –")
-			case "RSVP Follow-up":
-				link.Label, link.Detail = values[7], strings.TrimSpace(values[4]+" "+values[5])
-			}
-			seen := make(map[string]bool)
-			for _, id := range row.Guests {
-				if !seen[id] {
-					links[id] = append(links[id], link)
-					seen[id] = true
-				}
+	for _, record := range records {
+		values := record.Values
+		link := guestPlanLink{Section: record.Section}
+		switch record.Section {
+		case roomSection:
+			link.Label = values[0] + " · Room " + values[1]
+			link.Detail = strings.Trim(strings.Join([]string{values[10], values[11]}, " – "), " –")
+		case followupSection:
+			link.Label, link.Detail = values[7], strings.TrimSpace(values[4]+" "+values[5])
+		}
+		seen := make(map[string]bool)
+		for _, id := range record.Guests {
+			if !seen[id] {
+				links[id] = append(links[id], link)
+				seen[id] = true
 			}
 		}
 	}

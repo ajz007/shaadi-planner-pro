@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var snapshotAmounts = regexp.MustCompile(`^(Budget|Actual Paid|Quote|Negotiated Price|Contract Value|Paid|Expected Guests|Qty|Unit Cost|Passenger Count \(Auto\))$`)
+var snapshotAmounts = regexp.MustCompile(`^(Occupancy \(Auto\)|Budget|Actual Paid|Quote|Negotiated Price|Contract Value|Paid|Expected Guests|Qty|Unit Cost|Passenger Count \(Auto\))$`)
 
 func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, actor string) {
 	wedding := r.PathValue("wedding")
@@ -56,6 +56,11 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	pickups, err := listPickups(ctx, tx, wedding, actor)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	logistics, err := listLogistics(ctx, tx, wedding, actor, "")
 	if err != nil {
 		workspaceFailure(w, err)
 		return
@@ -150,6 +155,17 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		}
 		return result
 	})
+	for _, name := range []string{roomSection, followupSection} {
+		liveSection(name, func(_ importSection) []importRow {
+			result := []importRow{}
+			for _, record := range logistics {
+				if record.Section == name {
+					result = append(result, importRow{Values: logisticsValues(record, byGuest, guestPhones)})
+				}
+			}
+			return result
+		})
+	}
 	liveSection("Transportation", func(section importSection) []importRow {
 		result := make([]importRow, 0, len(pickups))
 		for _, pickup := range pickups {

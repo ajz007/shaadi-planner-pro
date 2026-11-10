@@ -161,7 +161,10 @@ func writeImportedSections(ctx context.Context, tx *sql.Tx, wedding string, plan
 			}
 		}
 	}
-	_, err = tx.ExecContext(ctx, "SELECT shaadi_seed_pickups($1)", wedding)
+	if _, err := tx.ExecContext(ctx, "SELECT shaadi_seed_pickups($1)", wedding); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, "SELECT shaadi_seed_logistics($1)", wedding)
 	return err
 }
 

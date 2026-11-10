@@ -315,12 +315,54 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 		request("POST", path+"/guests", `{"name":"Additional guest","side":"Bride"}`, origin, owner, 201)
 		request("GET", path+"/snapshot.xlsx", "", "", outsider, 404)
 		request("GET", path+"/snapshot.xlsx", "", "", brotherSession, 404)
+		roomsPath, followupsPath := path+"/logistics/accommodation", path+"/logistics/rsvp-follow-up"
+		readLogistics := func(endpoint string) []logisticsRecord {
+			t.Helper()
+			response := request("GET", endpoint, "", "", owner, 200)
+			var records []logisticsRecord
+			if err := json.Unmarshal(response.Body.Bytes(), &records); err != nil {
+				t.Fatal(err)
+			}
+			return records
+		}
+		rooms, followups := readLogistics(roomsPath), readLogistics(followupsPath)
+		if len(rooms) != 4 || rooms[0].Values[9] != "2" || len(followups) != 3 || followups[0].Values[2] == "" {
+			t.Fatal("rooms or follow-ups did not seed from the workbook with their guest details")
+		}
+		request("GET", roomsPath, "", "", brotherSession, 404)
+		roomEdit := `{"values":{"0":"Test live hotel","1":"201","2":"Single","10":"2027-02-14","11":"2027-02-16"},"guestLinks":{"3":"G001","4":"G002"},"revision":1}`
+		request("POST", roomsPath+"/"+rooms[0].ID, roomEdit, origin, brotherSession, 404)
+		request("POST", roomsPath+"/"+rooms[0].ID, roomEdit, origin, owner, 200)
+		request("POST", roomsPath+"/"+rooms[0].ID, roomEdit, origin, owner, 409)
+		request("POST", roomsPath+"/new", `{"values":{"0":"Test hotel","1":"202"},"guestLinks":{"3":"G001","4":"G001"}}`, origin, owner, 422)
+		request("POST", roomsPath+"/new", `{"values":{"0":"Test hotel","1":"202"},"guestLinks":{"3":"UNKNOWN"}}`, origin, owner, 422)
+		addedRoom := stringValue(request("POST", roomsPath+"/new", `{"values":{"0":"Temporary hotel","1":"203"}}`, origin, owner, 201), "id")
+		request("POST", roomsPath+"/"+addedRoom, `{"remove":true,"revision":1}`, origin, owner, 200)
+		rooms = readLogistics(roomsPath)
+		if len(rooms) != 4 || rooms[0].Values[0] != "Test live hotel" || rooms[0].Values[14] != "Over room capacity" {
+			t.Fatal("room edit or allocation check was not reflected in the live plan")
+		}
+		followupEdit := `{"values":{"4":"2027-01-21","6":"2027-01-19","7":"Test live follow-up"},"guestLinks":{"0":"G001"},"revision":1}`
+		request("POST", followupsPath+"/"+followups[0].ID, followupEdit, origin, owner, 200)
+		request("POST", path+"/guests/"+guestID, strings.Replace(strings.Replace(update, `"Confirmed"`, `"Maybe"`, 1), `"revision":1`, `"revision":2`, 1), origin, owner, 200)
+		followups = readLogistics(followupsPath)
+		if followups[0].Values[3] != "Maybe" || followups[0].Values[7] != "Test live follow-up" {
+			t.Fatal("follow-up did not show the saved action and current guest RSVP")
+		}
+		updatedGuests := request("GET", path+"/guests", "", "", owner, 200).Body.String()
+		if !strings.Contains(updatedGuests, "Test live hotel") || !strings.Contains(updatedGuests, "Test live follow-up") {
+			t.Fatal("guest links did not reflect changes to the live plan")
+		}
+		importHistory := request("GET", path+"/imported-sections", "", "", owner, 200).Body.String()
+		if strings.Contains(importHistory, "Test live hotel") || strings.Contains(importHistory, "Test live follow-up") {
+			t.Fatal("live edits overwrote the original import history")
+		}
 		snapshot := request("GET", path+"/snapshot.xlsx", "", "", owner, 200)
 		archive, err := zip.NewReader(bytes.NewReader(snapshot.Body.Bytes()), int64(snapshot.Body.Len()))
 		if err != nil {
 			t.Fatal(err)
 		}
-		found, foundTransport := false, false
+		found, foundTransport, foundRoom, foundFollowup := false, false, false, false
 		for _, part := range archive.File {
 			if !strings.HasPrefix(part.Name, "xl/worksheets/") {
 				continue
@@ -335,6 +377,8 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 				t.Fatal(err)
 			}
 			text := string(content)
+			foundRoom = foundRoom || strings.Contains(text, "Test live hotel") && strings.Contains(text, "Over room capacity")
+			foundFollowup = foundFollowup || strings.Contains(text, "Test live follow-up") && strings.Contains(text, "Maybe")
 			if strings.Contains(text, "Additional guest") && strings.Contains(text, "11:37") && strings.Contains(text, "G001") {
 				found = true
 			}
@@ -348,6 +392,9 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 		}
 		if !foundTransport {
 			t.Fatal("downloaded workbook did not contain the saved transportation changes")
+		}
+		if !foundRoom || !foundFollowup {
+			t.Fatal("downloaded workbook did not include live room and follow-up changes")
 		}
 		// Simulate an older import with numeric and AM/PM values, including an
 		// explicitly cleared arrival. Reapply the repair to the saved records.
