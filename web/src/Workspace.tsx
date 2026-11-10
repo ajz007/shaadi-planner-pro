@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { ImportedPlanningRecords, WorkspaceImport } from './WorkspaceImport'
 
 type Session = { configured: boolean; name?: string; workspaceURL?: string }
 type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
@@ -158,6 +159,7 @@ function WeddingWorkspace({ plan, refresh }: { plan: Plan; refresh: () => Promis
         </section>}
       </>}
     </div>
+    {wedding.role === 'owner' && <ImportedPlanningRecords wedding={wedding.id} />}
   </>
 }
 
@@ -239,6 +241,7 @@ export function Workspace({ loginFailed }: { loginFailed: boolean }) {
         }}>
           <TextField name="code" label="Invite code" maxLength={43} />
         </WorkspaceForm>
+        <WorkspaceImport onCreated={refreshList} />
       </div>}
     </>}
   </main>

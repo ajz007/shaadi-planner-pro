@@ -22,6 +22,9 @@ var initialWorkspaceMigration string
 //go:embed migrations/002_sessions.sql
 var workspaceSessionMigration string
 
+//go:embed migrations/003_workbook_import.sql
+var workspaceImportMigration string
+
 var (
 	errWorkspaceNotFound = errors.New("record not found or access denied")
 	errWorkspaceConflict = errors.New("record changed or no longer available")
@@ -56,7 +59,7 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 	if _, err := tx.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS workspace_migrations (version integer PRIMARY KEY)"); err != nil {
 		return err
 	}
-	for i, migration := range []string{initialWorkspaceMigration, workspaceSessionMigration} {
+	for i, migration := range []string{initialWorkspaceMigration, workspaceSessionMigration, workspaceImportMigration} {
 		version := i + 1
 		var applied bool
 		if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM workspace_migrations WHERE version = $1)", version).Scan(&applied); err != nil {
@@ -108,8 +111,16 @@ func (s *workspaceStore) createWedding(ctx context.Context, account, name, date,
 	if !validLabel(name, 120) || dateErr != nil || zoneErr != nil || zone == "" || zone == "Local" {
 		return "", errWorkspaceInput
 	}
+	return createWorkspaceWedding(ctx, s.db, account, name, date, zone)
+}
+
+type workspaceQueryer interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func createWorkspaceWedding(ctx context.Context, db workspaceQueryer, account, name, date, zone string) (string, error) {
 	var id string
-	err := scanWorkspace(s.db.QueryRowContext(ctx, `
+	err := scanWorkspace(db.QueryRowContext(ctx, `
 		WITH wedding AS (
 			INSERT INTO weddings (name, wedding_date, time_zone)
 			SELECT $2, $3, $4 FROM workspace_accounts WHERE id = $1

@@ -101,6 +101,9 @@ func (a *workspaceHTTP) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}", a.protected(a.view))
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/{action}", a.protected(a.action))
 	mux.HandleFunc("POST /api/workspace/join", a.protected(a.join))
+	mux.HandleFunc("POST /api/workspace/import/preview", a.protected(a.importPreview))
+	mux.HandleFunc("POST /api/workspace/import/confirm", a.protected(a.importConfirm))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/imported-sections", a.protected(a.importedSections))
 }
 
 func workspaceFailure(w http.ResponseWriter, err error) {

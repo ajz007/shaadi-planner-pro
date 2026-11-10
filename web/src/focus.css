@@ -59,6 +59,8 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .workspace-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
 .workspace-fields button { margin-top: .65rem; }
 .workspace-fields select { min-height: 2.75rem; border: 1px solid #acb7a5; border-radius: .5rem; background: #fffefa; color: inherit; padding: .55rem; }
+.imported-records { border-collapse: collapse; text-align: left; font-size: .85rem; }
+.imported-records th, .imported-records td { border-bottom: 1px solid #dce4d8; padding: .5rem .7rem; vertical-align: top; min-width: 6rem; }
 .focus-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (max-width: 740px) {

@@ -57,7 +57,15 @@ The existing browser demo runs with `go run .`. To enable **Private workspace**,
 
 The owner creates a wedding, adds a planning person and a function, and assigns the person a task. The owner can also create an unassigned claimable task. Generate an invite code linked to the existing person and share it privately. The family member signs in separately, joins with that code, sees their existing assignment and can claim an open task. Use separate browser profiles to try both roles. The sample planner and RSVP sandbox remain separate from the signed-in records.
 
-The PostgreSQL HTTP integration test uses a simulated sign-in provider to cover callback state, session cookies, cross-wedding access, invitations, and task updates. Actual Google sign-in requires the registered OAuth credentials above. Workbook import and the rest of the planning sections will connect to the shared workspace in later milestones.
+### Import an existing wedding
+
+In **Private workspace**, select **Upload my workbook**, choose the filled English v1.3.1 `.xlsx` and confirm the wedding time zone. Review the detected records and totals, or fix the indicated sheet and row and upload again. **Create wedding from workbook** saves a new wedding in one transaction. Retrying the same confirmation returns that wedding.
+
+Functions and assigned tasks appear in the live schedule and checklist. An imported owner name such as Brother becomes a planning person the wedding owner can invite later. The original guest IDs, wedding-level RSVP values, and links from rooms, transport and follow-ups are retained. The owner can browse the other workbook tabs under **Imported planning records**. These records are read-only until their shared editing screens are added. Summary figures are calculated from the imported rows. Template formulas, cached calculated outputs, and unused rows are excluded.
+
+The importer accepts the English v1.3.1 layout in files up to 2 MB. The upload itself is read in memory. Private review data expires after 30 minutes and is cleared when confirmed. Subsequent imports purge expired reviews. A confirmation can be retried for seven days.
+
+The PostgreSQL HTTP integration test uses a simulated sign-in provider. For coverage against the original filled and blank workbooks, also set `SHAADI_TEST_WORKBOOK_PACKAGE` to the English v1.3.1 launch ZIP before running `go test -v ./...`. The launch files stay outside Git. Actual Google sign-in requires the registered OAuth credentials above.
 
 To refresh the preview data from the English launch ZIP, run `python import_demo.py "path/to/launch-package.zip"` and rebuild the web app.
 

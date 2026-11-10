@@ -43,7 +43,7 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 	app := &workspaceHTTP{store: store, origin: origin, login: testWorkspaceLogin{prefix: prefix}}
 	mux := http.NewServeMux()
 	app.register(mux)
-	var wedding string
+	var wedding, importedWedding string
 	t.Cleanup(func() {
 		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
@@ -53,9 +53,11 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 			return
 		}
 		defer db.db.Close()
-		if wedding != "" {
-			if _, err := db.db.ExecContext(cleanup, "DELETE FROM weddings WHERE id = $1", wedding); err != nil {
-				t.Error(err)
+		for _, id := range []string{wedding, importedWedding} {
+			if id != "" {
+				if _, err := db.db.ExecContext(cleanup, "DELETE FROM weddings WHERE id = $1", id); err != nil {
+					t.Error(err)
+				}
 			}
 		}
 		if _, err := db.db.ExecContext(cleanup, "DELETE FROM workspace_accounts WHERE identity_subject LIKE $1", prefix+"%"); err != nil {
@@ -140,4 +142,67 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 	request("POST", path+"/complete", `{"task":"`+openTask+`","revision":2,"done":false}`, origin, owner, 409)
 	request("POST", "/api/workspace/logout", "{}", origin, brother, 204)
 	request("GET", path, "", "", brother, 401)
+
+	if os.Getenv("SHAADI_TEST_WORKBOOK_PACKAGE") != "" {
+		workbook := launchWorkbook(t, "DEMO")
+		preview := request("POST", "/api/workspace/import/preview", string(workbook), origin, owner, 200)
+		var data struct {
+			Token  string       `json:"token"`
+			Totals importTotals `json:"totals"`
+		}
+		if err := json.Unmarshal(preview.Body.Bytes(), &data); err != nil || data.Token == "" || data.Totals.Guests != 14 {
+			t.Fatalf("invalid review response: %s", preview.Body)
+		}
+		list := request("GET", "/api/workspace/weddings", "", "", owner, 200)
+		if strings.Contains(list.Body.String(), "Aarav & Meera") {
+			t.Fatal("preview created a wedding")
+		}
+		body := `{"token":"` + data.Token + `"}`
+		request("POST", "/api/workspace/import/confirm", body, origin, outsider, 404)
+		importedWedding = stringValue(request("POST", "/api/workspace/import/confirm", body, origin, owner, 201), "id")
+		repeated := stringValue(request("POST", "/api/workspace/import/confirm", body, origin, owner, 201), "id")
+		if repeated != importedWedding {
+			t.Fatal("confirmation created a duplicate wedding")
+		}
+		path := "/api/workspace/weddings/" + importedWedding
+		rec := request("GET", path, "", "", owner, 200)
+		var imported struct {
+			Functions []workspaceFunction `json:"functions"`
+			Tasks     []workspaceTask     `json:"tasks"`
+			People    []workspacePerson   `json:"people"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &imported); err != nil || len(imported.Functions) != 4 || len(imported.Tasks) != 5 {
+			t.Fatalf("wedding functions or tasks were lost: %s", rec.Body)
+		}
+		var brotherID string
+		for _, person := range imported.People {
+			if person.Name == "Brother" {
+				brotherID = person.ID
+			}
+		}
+		if brotherID == "" {
+			t.Fatal("import did not create the planning person for Brother")
+		}
+		var assigned bool
+		for _, item := range imported.Tasks {
+			if item.Title == "Finalize room allocation" && item.Assignee != nil && *item.Assignee == brotherID {
+				assigned = true
+			}
+		}
+		if !assigned {
+			t.Fatal("import did not keep Brother's task assignment")
+		}
+		sections := request("GET", path+"/imported-sections", "", "", owner, 200)
+		if !strings.Contains(sections.Body.String(), "guestLinks") {
+			t.Fatal("imported guest references were not stored")
+		}
+		brotherSession := login("Brother")
+		brotherInvite := stringValue(request("POST", path+"/invite", `{"person":"`+brotherID+`","role":"family"}`, origin, owner, 201), "token")
+		request("POST", "/api/workspace/join", `{"token":"`+brotherInvite+`"}`, origin, brotherSession, 201)
+		joined := request("GET", path, "", "", brotherSession, 200)
+		if !strings.Contains(joined.Body.String(), "Finalize room allocation") {
+			t.Fatal("member could not see the imported assignment")
+		}
+		request("GET", path+"/imported-sections", "", "", brotherSession, 404)
+	}
 }

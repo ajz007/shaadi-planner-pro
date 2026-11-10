@@ -32,9 +32,10 @@ export function WorkbookSetup() {
       <p className="eyebrow">Step 1 of 2 · Workbook</p>
       <h2>Choose a workbook</h2>
       <p>Try the import flow with the filled English v1.3.1 workbook for Aarav & Meera.</p>
-      <p className="subtle">This prototype uses the included sample. Uploading your own file will be available in the private workspace.</p>
+      <p className="subtle">This walkthrough uses the included sample. To upload your own file, sign in to the private workspace.</p>
       <div className="actions">
         <button onClick={() => setReview(true)}>Use filled sample workbook</button>
+        <a href="#workspace">Upload my own workbook →</a>
         <a href={blankWorkbookURL} download>Download the blank Excel planner</a>
       </div>
     </> : <>
