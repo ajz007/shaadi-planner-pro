@@ -1,4 +1,4 @@
-package main
+package workbook
 
 import (
 	"archive/zip"
@@ -16,7 +16,7 @@ func TestWorkbookSnapshotExportsTextAndNumbers(t *testing.T) {
 	))
 	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
-	workbookSnapshot(recorder, req)
+	SnapshotHandler(recorder, req)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("snapshot failed: %d %s", recorder.Code, recorder.Body)
 	}

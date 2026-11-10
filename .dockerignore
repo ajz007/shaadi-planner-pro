@@ -1,10 +1,12 @@
 **
-!*.go
 !go.mod
 !go.sum
-!migrations/
-!migrations/*.sql
+!cmd/
+!cmd/**
+!internal/
+!internal/**
 !web/
+!web/assets.go
 !web/package.json
 !web/package-lock.json
 !web/index.html

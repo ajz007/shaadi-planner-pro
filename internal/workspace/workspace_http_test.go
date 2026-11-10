@@ -1,4 +1,4 @@
-package main
+package workspace
 
 import (
 	"archive/zip"
@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
 
 type testWorkspaceLogin struct{ prefix string }
@@ -50,10 +52,10 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 	secure := strings.HasPrefix(origin, "https://")
 	app := &workspaceHTTP{store: store, origin: origin, login: testWorkspaceLogin{prefix: prefix}}
 	mux := http.NewServeMux()
-	app.register(mux)
+	app.Register(mux)
 	var handler http.Handler = mux
 	if secure {
-		handler = hostedOnly(origin, mux)
+		handler = httpx.HostedOnly(origin, mux)
 	}
 	var wedding, importedWedding string
 	t.Cleanup(func() {

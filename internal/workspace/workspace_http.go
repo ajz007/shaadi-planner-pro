@@ -1,4 +1,4 @@
-package main
+package workspace
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/oauth2"
@@ -18,7 +19,7 @@ import (
 
 var workspaceUUID = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
-func configuredWorkspace(ctx context.Context, publicOrigin string) (*workspaceHTTP, error) {
+func Configure(ctx context.Context, publicOrigin string) (*workspaceHTTP, error) {
 	connection, id, secret := os.Getenv("SHAADI_DATABASE_URL"), os.Getenv("SHAADI_GOOGLE_CLIENT_ID"), os.Getenv("SHAADI_GOOGLE_CLIENT_SECRET")
 	localTest := os.Getenv("SHAADI_LOCAL_TEST_LOGIN") == "1"
 	if publicOrigin != "" && localTest {
@@ -81,12 +82,12 @@ func (a *workspaceHTTP) protected(next workspaceRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if r.Method != http.MethodGet && r.Header.Get("Origin") != a.origin {
-			fail(w, http.StatusForbidden, "Open the workspace from its configured address.")
+			httpx.Fail(w, http.StatusForbidden, "Open the workspace from its configured address.")
 			return
 		}
 		account, _, err := a.session(r.Context(), r)
 		if errors.Is(err, errWorkspaceNotFound) {
-			fail(w, http.StatusUnauthorized, "Sign in to open the workspace.")
+			httpx.Fail(w, http.StatusUnauthorized, "Sign in to open the workspace.")
 			return
 		}
 		if err != nil {
@@ -97,15 +98,15 @@ func (a *workspaceHTTP) protected(next workspaceRequest) http.HandlerFunc {
 	}
 }
 
-func (a *workspaceHTTP) register(mux *http.ServeMux) {
+func (a *workspaceHTTP) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/workspace/session", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if a == nil {
-			reply(w, http.StatusOK, map[string]bool{"configured": false})
+			httpx.Reply(w, http.StatusOK, map[string]bool{"configured": false})
 			return
 		}
 		if !a.matchesHost(r) {
-			reply(w, http.StatusOK, map[string]any{"configured": true, "workspaceURL": a.origin + "/#workspace"})
+			httpx.Reply(w, http.StatusOK, map[string]any{"configured": true, "workspaceURL": a.origin + "/#workspace"})
 			return
 		}
 		_, name, err := a.session(r.Context(), r)
@@ -113,7 +114,7 @@ func (a *workspaceHTTP) register(mux *http.ServeMux) {
 			workspaceFailure(w, err)
 			return
 		}
-		reply(w, http.StatusOK, map[string]any{"configured": true, "name": name, "localTest": a.localTest})
+		httpx.Reply(w, http.StatusOK, map[string]any{"configured": true, "name": name, "localTest": a.localTest})
 	})
 	if a == nil {
 		return
@@ -152,18 +153,18 @@ func workspaceFailure(w http.ResponseWriter, err error) {
 	var dbError *pgconn.PgError
 	switch {
 	case errors.Is(err, errWorkspaceNotFound):
-		fail(w, http.StatusNotFound, "This record is unavailable.")
+		httpx.Fail(w, http.StatusNotFound, "This record is unavailable.")
 	case errors.Is(err, errWorkspaceInput):
-		fail(w, http.StatusUnprocessableEntity, "Check the details and try again.")
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Check the details and try again.")
 	case errors.Is(err, errWorkspaceConflict):
-		fail(w, http.StatusConflict, "The plan changed. Refresh and try again.")
+		httpx.Fail(w, http.StatusConflict, "The plan changed. Refresh and try again.")
 	case errors.As(err, &dbError) && dbError.Code == "23505":
-		fail(w, http.StatusConflict, "This person or account already belongs to the wedding.")
+		httpx.Fail(w, http.StatusConflict, "This person or account already belongs to the wedding.")
 	case errors.As(err, &dbError) && dbError.Code == "23503":
-		fail(w, http.StatusUnprocessableEntity, "The selected person or function is unavailable.")
+		httpx.Fail(w, http.StatusUnprocessableEntity, "The selected person or function is unavailable.")
 	default:
 		log.Printf("workspace request failed: %T", err)
-		fail(w, http.StatusInternalServerError, "The workspace could not complete this request.")
+		httpx.Fail(w, http.StatusInternalServerError, "The workspace could not complete this request.")
 	}
 }
 
@@ -219,12 +220,12 @@ func (a *workspaceHTTP) weddings(w http.ResponseWriter, r *http.Request, actor s
 		workspaceFailure(w, err)
 		return
 	}
-	reply(w, http.StatusOK, items)
+	httpx.Reply(w, http.StatusOK, items)
 }
 
 func (a *workspaceHTTP) create(w http.ResponseWriter, r *http.Request, actor string) {
 	var input struct{ Name, Date, TimeZone string }
-	if !readJSON(w, r, &input) {
+	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
 	id, err := a.store.createWedding(r.Context(), actor, input.Name, input.Date, input.TimeZone)
@@ -234,7 +235,7 @@ func (a *workspaceHTTP) create(w http.ResponseWriter, r *http.Request, actor str
 func (a *workspaceHTTP) view(w http.ResponseWriter, r *http.Request, actor string) {
 	wedding := r.PathValue("wedding")
 	if !workspaceUUID.MatchString(wedding) {
-		fail(w, http.StatusNotFound, "Wedding unavailable.")
+		httpx.Fail(w, http.StatusNotFound, "Wedding unavailable.")
 		return
 	}
 	ctx := r.Context()
@@ -271,7 +272,7 @@ func (a *workspaceHTTP) view(w http.ResponseWriter, r *http.Request, actor strin
 		workspaceFailure(w, err)
 		return
 	}
-	reply(w, http.StatusOK, map[string]any{"wedding": summary, "people": people, "functions": functions, "tasks": tasks})
+	httpx.Reply(w, http.StatusOK, map[string]any{"wedding": summary, "people": people, "functions": functions, "tasks": tasks})
 }
 
 func workspaceCreated(w http.ResponseWriter, id string, err error) {
@@ -279,12 +280,12 @@ func workspaceCreated(w http.ResponseWriter, id string, err error) {
 		workspaceFailure(w, err)
 		return
 	}
-	reply(w, http.StatusCreated, map[string]string{"id": id})
+	httpx.Reply(w, http.StatusCreated, map[string]string{"id": id})
 }
 
 func (a *workspaceHTTP) join(w http.ResponseWriter, r *http.Request, actor string) {
 	var input struct{ Token string }
-	if !readJSON(w, r, &input) {
+	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
 	if len(input.Token) != 43 {
@@ -309,13 +310,13 @@ func (a *workspaceHTTP) action(w http.ResponseWriter, r *http.Request, actor str
 		a.savePickup(w, r, actor)
 	case "people":
 		var input struct{ Name string }
-		if readJSON(w, r, &input) {
+		if httpx.ReadJSON(w, r, &input) {
 			id, err := a.store.addPerson(ctx, wedding, actor, input.Name)
 			workspaceCreated(w, id, err)
 		}
 	case "functions":
 		var input struct{ Name, Venue, StartsAt string }
-		if !readJSON(w, r, &input) {
+		if !httpx.ReadJSON(w, r, &input) {
 			return
 		}
 		var zone string
@@ -345,7 +346,7 @@ func (a *workspaceHTTP) action(w http.ResponseWriter, r *http.Request, actor str
 			Function, Assignee, Due *string
 			Claimable               bool
 		}
-		if !readJSON(w, r, &input) {
+		if !httpx.ReadJSON(w, r, &input) {
 			return
 		}
 		if (input.Function != nil && !workspaceUUID.MatchString(*input.Function)) ||
@@ -359,7 +360,7 @@ func (a *workspaceHTTP) action(w http.ResponseWriter, r *http.Request, actor str
 		workspaceCreated(w, id, err)
 	case "invite":
 		var input struct{ Person, Role string }
-		if !readJSON(w, r, &input) {
+		if !httpx.ReadJSON(w, r, &input) {
 			return
 		}
 		if !workspaceUUID.MatchString(input.Person) {
@@ -371,10 +372,10 @@ func (a *workspaceHTTP) action(w http.ResponseWriter, r *http.Request, actor str
 			workspaceFailure(w, err)
 			return
 		}
-		reply(w, http.StatusCreated, map[string]string{"token": token})
+		httpx.Reply(w, http.StatusCreated, map[string]string{"token": token})
 	case "revoke":
 		var input struct{ Token string }
-		if !readJSON(w, r, &input) {
+		if !httpx.ReadJSON(w, r, &input) {
 			return
 		}
 		if len(input.Token) != 43 {
@@ -400,7 +401,7 @@ func (a *workspaceHTTP) taskAction(w http.ResponseWriter, r *http.Request, actor
 		Done     *bool
 		Assignee *string
 	}
-	if !readJSON(w, r, &input) {
+	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
 	if !workspaceUUID.MatchString(input.Task) {
@@ -410,14 +411,14 @@ func (a *workspaceHTTP) taskAction(w http.ResponseWriter, r *http.Request, actor
 	if r.PathValue("action") == "claim" {
 		assignee, err := a.store.claimTask(r.Context(), wedding, actor, input.Task)
 		if errors.Is(err, errWorkspaceConflict) {
-			reply(w, http.StatusConflict, map[string]string{"error": "Already claimed by " + assignee + "."})
+			httpx.Reply(w, http.StatusConflict, map[string]string{"error": "Already claimed by " + assignee + "."})
 			return
 		}
 		if err != nil {
 			workspaceFailure(w, err)
 			return
 		}
-		reply(w, http.StatusOK, map[string]string{"assignee": assignee})
+		httpx.Reply(w, http.StatusOK, map[string]string{"assignee": assignee})
 		return
 	}
 	if input.Revision < 1 {
@@ -443,5 +444,13 @@ func (a *workspaceHTTP) taskAction(w http.ResponseWriter, r *http.Request, actor
 		workspaceFailure(w, err)
 		return
 	}
-	reply(w, http.StatusOK, map[string]int{"revision": revision})
+	httpx.Reply(w, http.StatusOK, map[string]int{"revision": revision})
+}
+
+func (a *workspaceHTTP) Close() {
+	a.store.db.Close()
+}
+
+func (a *workspaceHTTP) MaintainImportPreviews(ctx context.Context) {
+	a.store.maintainImportPreviews(ctx)
 }

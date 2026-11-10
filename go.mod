@@ -1,4 +1,4 @@
-module shaadi-planner-web
+module github.com/ajz007/shaadi-planner-pro
 
 go 1.24.0
 
