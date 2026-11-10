@@ -371,12 +371,64 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		if strings.Contains(importHistory, "Test live hotel") || strings.Contains(importHistory, "Test live follow-up") {
 			t.Fatal("live edits overwrote the original import history")
 		}
+		financePath := path + "/finance"
+		readFinance := func() weddingFinance {
+			t.Helper()
+			var data weddingFinance
+			if err := json.Unmarshal(request("GET", financePath, "", "", owner, 200).Body.Bytes(), &data); err != nil {
+				t.Fatal(err)
+			}
+			return data
+		}
+		finance := readFinance()
+		if len(finance.Vendors) != 4 || len(finance.Contracts) != 5 {
+			t.Fatalf("finance sections did not seed: %d vendors, %d contracts", len(finance.Vendors), len(finance.Contracts))
+		}
+		var importedContract vendorContract
+		for _, contract := range finance.Contracts {
+			if contract.Values[1] == "LensCraft Studio" {
+				importedContract = contract
+			}
+		}
+		if importedContract.VendorID == "" || importedContract.OpeningPaid != 2000000 || importedContract.Paid != 2000000 {
+			t.Fatalf("imported contract lost its vendor link or opening balance: %+v", importedContract)
+		}
+		request("GET", financePath, "", "", brotherSession, 404)
+		request("GET", financePath, "", "", outsider, 404)
+		vendorBody := `{"values":["Catering","Live Test Caterer","1200.50","Dinner","","","Test owner","Shortlisted","1000.50",""]}`
+		request("POST", financePath+"/vendors/new", vendorBody, origin, brotherSession, 404)
+		vendorID := stringValue(request("POST", financePath+"/vendors/new", vendorBody, origin, owner, 200), "id")
+		contractBody := `{"vendorId":"` + vendorID + `","values":["","","","1000.50","","","2027-02-13","Test owner","UPI",""]}`
+		contractID := stringValue(request("POST", financePath+"/contracts/new", contractBody, origin, owner, 200), "id")
+		paymentPath := financePath + "/payments/" + contractID
+		request("POST", paymentPath, `{"revision":1,"amount":"1000.51","date":"2027-02-01"}`, origin, owner, 422)
+		firstPayment := `{"revision":1,"amount":"100.25","date":"2027-02-01","method":"UPI","notes":"Live deposit"}`
+		request("POST", paymentPath, firstPayment, origin, owner, 200)
+		request("POST", paymentPath, firstPayment, origin, owner, 409)
+		request("POST", paymentPath, `{"revision":2,"amount":"200.50","date":"2027-02-02","notes":"Voided instalment"}`, origin, owner, 200)
+		for _, contract := range readFinance().Contracts {
+			if contract.ID == contractID {
+				if contract.Paid != 30075 || len(contract.Payments) != 2 {
+					t.Fatalf("contract did not roll up its payments: %+v", contract)
+				}
+				request("POST", paymentPath, `{"revision":3,"voidPayment":"`+contract.Payments[1].ID+`"}`, origin, owner, 200)
+			}
+		}
+		for _, contract := range readFinance().Contracts {
+			if contract.ID == contractID && (contract.Paid != 10025 || contract.Values[5] != "900.25" || !contract.Payments[1].Voided) {
+				t.Fatalf("voided payment affected the balance or disappeared: %+v", contract)
+			}
+		}
+		contractUpdate := `{"revision":4,` + contractBody[1:]
+		request("POST", financePath+"/contracts/"+contractID, strings.Replace(contractUpdate, "1000.50", "100.24", 1), origin, owner, 422)
+		request("POST", financePath+"/contracts/"+contractID, contractUpdate, origin, owner, 200)
 		snapshot := request("GET", path+"/snapshot.xlsx", "", "", owner, 200)
 		archive, err := zip.NewReader(bytes.NewReader(snapshot.Body.Bytes()), int64(snapshot.Body.Len()))
 		if err != nil {
 			t.Fatal(err)
 		}
 		found, foundTransport, foundRoom, foundFollowup := false, false, false, false
+		foundVendor, foundContract, foundLedger := false, false, false
 		for _, part := range archive.File {
 			if !strings.HasPrefix(part.Name, "xl/worksheets/") {
 				continue
@@ -391,6 +443,9 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 				t.Fatal(err)
 			}
 			text := string(content)
+			foundVendor = foundVendor || strings.Contains(text, "Live Test Caterer") && strings.Contains(text, "1200.5")
+			foundContract = foundContract || strings.Contains(text, "Live Test Caterer") && strings.Contains(text, "900.25")
+			foundLedger = foundLedger || strings.Contains(text, "Live deposit") && strings.Contains(text, "Voided instalment") && strings.Contains(text, "Imported opening balance")
 			foundRoom = foundRoom || strings.Contains(text, "Test live hotel") && strings.Contains(text, "Over room capacity")
 			foundFollowup = foundFollowup || strings.Contains(text, "Test live follow-up") && strings.Contains(text, "Maybe")
 			if strings.Contains(text, "Additional guest") && strings.Contains(text, "11:37") && strings.Contains(text, "G001") {
@@ -409,6 +464,9 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		}
 		if !foundRoom || !foundFollowup {
 			t.Fatal("downloaded workbook did not include live room and follow-up changes")
+		}
+		if !foundVendor || !foundContract || !foundLedger {
+			t.Fatal("downloaded workbook did not include the live vendor, contract and payment history")
 		}
 		// Simulate an older import with numeric and AM/PM values, including an
 		// explicitly cleared arrival. Reapply the repair to the saved records.

@@ -146,6 +146,8 @@ func (a *workspaceHTTP) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/guests/{guest}", a.protected(a.saveGuest))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/logistics/{section}", a.protected(a.logistics))
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/logistics/{section}/{record}", a.protected(a.saveLogistics))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/finance", a.protected(a.finance))
+	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/finance/{kind}/{record}", a.protected(a.saveFinance))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/snapshot.xlsx", a.protected(a.weddingSnapshot))
 }
 

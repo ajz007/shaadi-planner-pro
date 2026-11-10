@@ -7,6 +7,8 @@ import { FocusNavigation, focusGroups, focusLink, PlanningSection } from './Focu
 import { ScheduleChart, scheduleEntries } from './ScheduleBoard'
 import { WorkspaceTransport } from './WorkspaceTransport'
 import { WorkspaceLogistics } from './WorkspaceLogistics'
+import { WorkspaceFinance } from './WorkspaceFinance'
+import { VoiceField, VoiceNotice } from './VoiceField'
 
 type Session = { configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
 type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
@@ -35,8 +37,8 @@ async function workspaceRequest<T>(path: string, body?: object, signal?: AbortSi
 const field = (data: FormData, name: string) => String(data.get(name) ?? '').trim()
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong.'
 
-function WorkspaceForm({ title, label, onSave, children }: {
-  title: string; label: string; onSave: (data: FormData) => Promise<void>; children: ReactNode
+function WorkspaceForm({ title, label, onSave, children, voice }: {
+  title: string; label: string; onSave: (data: FormData) => Promise<void>; children: ReactNode; voice?: boolean
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -56,7 +58,7 @@ function WorkspaceForm({ title, label, onSave, children }: {
   }
   return <form className="focus-card" onSubmit={event => void submit(event)}>
     <h2>{title}</h2>
-    <fieldset className="workspace-fields" disabled={busy}>{children}<button>{busy ? 'Saving…' : label}</button></fieldset>
+    <fieldset className="workspace-fields" disabled={busy}>{children}{voice && <VoiceNotice />}<button>{busy ? 'Saving…' : label}</button></fieldset>
     {error && <p role="alert">{error}</p>}
   </form>
 }
@@ -64,6 +66,9 @@ function WorkspaceForm({ title, label, onSave, children }: {
 function TextField({ name, label, type = 'text', required = true, value, maxLength = 120 }: {
   name: string; label: string; type?: string; required?: boolean; value?: string; maxLength?: number
 }) {
+  if (type === 'text' && name !== 'code' && name !== 'zone') {
+    return <VoiceField name={name} label={label} required={required} defaultValue={value} maxLength={maxLength} />
+  }
   return <label className="focus-field">{label}<input name={name} type={type} required={required} defaultValue={value} maxLength={maxLength} /></label>
 }
 
@@ -220,6 +225,8 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
       : section === 'Transportation' ? <WorkspaceTransport wedding={wedding} people={people} workbookView={workbookView} />
       : section === 'Accommodation' || section === 'RSVP Follow-up' ? <WorkspaceLogistics key={section} section={section}
         wedding={wedding} people={people} workbookView={workbookView} request={workspaceRequest} guestHref={href('Guest List')} />
+      : section === 'Vendor Comparison' || section === 'Vendor Payments' ? <WorkspaceFinance key={section} section={section}
+        wedding={wedding} workbookView={workbookView} request={workspaceRequest} vendorsHref={href('Vendor Comparison')} />
       : section === 'Schedule Board' ? <ScheduleChart actual={scheduleEntries(functionRows, timeline)} weddingName={wedding.name} />
       : section === 'Import history' ? <><p><a href={href('Settings')}>← Wedding settings</a></p><ImportedPlanningRecords {...imported} /></>
       : section && !showTasks && !showFunctions && section !== 'Settings' && section !== 'Invitations' ? <>
@@ -227,7 +234,9 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
         {imported.error ? <p role="alert">{imported.error}</p>
           : !imported.data ? <p role="status">Loading planning records…</p>
           : activeSection ? <>
-            <p className="focus-note">Read-only. These records came from your workbook.</p>
+            <p className="focus-note">{section === 'Budget vs Actual'
+              ? 'These category totals came from your workbook. Live contract balances and recorded payments are in Vendor Payments.'
+              : 'Read-only. These records came from your workbook.'}</p>
             <PlanningSection key={section} section={section} table={{ columns: activeSection.columns, rows: sectionRows(activeSection) }}
               weddingName={wedding.name} hrefFor={href} workbookView={workbookView} />
           </> : <p>No {section.toLowerCase()} records have been imported for this wedding.</p>}
@@ -287,12 +296,12 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
         {owner && <div className="focus-actions"><a href={href('Import history')}>Import history →</a><a href={href('Invitations')}>Invite family →</a></div>}
       </section>}
       {organizer && (section === 'Settings' || section === 'Invitations') &&
-        <WorkspaceForm title="Add a planning person" label="Add person" onSave={data => mutate('people', { name: field(data, 'name') })}>
+        <WorkspaceForm title="Add a planning person" label="Add person" voice onSave={data => mutate('people', { name: field(data, 'name') })}>
           <p>Add a name now and invite the person when you’re ready.</p>
           <TextField name="name" label="Planning name" />
         </WorkspaceForm>}
       {organizer && section === 'Functions & Events' &&
-        <WorkspaceForm title="Add a function" label="Add function" onSave={data => mutate('functions', {
+        <WorkspaceForm title="Add a function" label="Add function" voice onSave={data => mutate('functions', {
           name: field(data, 'name'), venue: field(data, 'venue'), startsAt: field(data, 'start'),
         })}>
           <TextField name="name" label="Function name" />
@@ -300,7 +309,7 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
           <TextField name="venue" label="Venue" required={false} maxLength={200} />
         </WorkspaceForm>}
       {organizer && section === 'Family Responsibilities' &&
-        <WorkspaceForm title="Add a task" label="Add task" onSave={data => mutate('tasks', {
+        <WorkspaceForm title="Add a task" label="Add task" voice onSave={data => mutate('tasks', {
           title: field(data, 'title'), assignee: field(data, 'assignee') || null, function: field(data, 'function') || null,
           due: field(data, 'due') || null, claimable: data.has('claimable'),
         })}>
@@ -451,7 +460,7 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
             <span aria-hidden="true">→</span></a>)}
         </section>
       </> : <div className="focus-record-grid">
-        <WorkspaceForm title="Create a wedding" label="Create wedding" onSave={async data => {
+        <WorkspaceForm title="Create a wedding" label="Create wedding" voice onSave={async data => {
           const result = await workspaceRequest<{ id: string }>('/weddings', {
             name: field(data, 'name'), date: field(data, 'date'), timeZone: field(data, 'zone'),
           })

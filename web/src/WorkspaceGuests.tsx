@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { PrintSection } from './PlanActions'
+import { VoiceField, VoiceNotice } from './VoiceField'
 
 export type Guest = {
   id: string; workbookId: string; name: string; household: string; side: string; rsvp: string;
@@ -121,9 +122,8 @@ export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = fa
     {editing && <form className="focus-card" key={current?.id ?? 'new'} onSubmit={event => void save(event)}>
       <h3>{current ? 'Edit ' + current.name : 'Add guest'}</h3>
       <fieldset className="workspace-fields focus-form-grid" disabled={busy}>
-        <label className="focus-field">Guest name<input name="name" required maxLength={120} defaultValue={current?.name} /></label>
-        <label className="focus-field">Household<input name="household" maxLength={120} defaultValue={current?.household}
-          list="workspace-households" /></label>
+        <VoiceField label="Guest name" name="name" required maxLength={120} defaultValue={current?.name} />
+        <VoiceField label="Household" name="household" maxLength={120} defaultValue={current?.household} list="workspace-households" />
         <datalist id="workspace-households">{[...new Set((guests ?? []).map(guest => guest.household).filter(Boolean))].map(name => <option key={name} value={name} />)}</datalist>
         <label className="focus-field">Guest arrival date<input type="date" name="arrivalDate" defaultValue={current?.arrivalDate} /></label>
         <label className="focus-field">Arrival time<input type="time" name="arrivalTime" defaultValue={current?.arrivalTime} /></label>
@@ -134,11 +134,12 @@ export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = fa
           </select>
         </label>)}
       </fieldset>
+      <VoiceNotice />
       <div className="focus-actions"><button disabled={busy}>{busy ? 'Saving…' : 'Save guest'}</button>
         <button className="focus-secondary" type="button" disabled={busy} onClick={() => { setEditing(undefined); setError('') }}>Cancel</button></div>
     </form>}
     <div className="focus-filters">
-      <label className="focus-field">Find a guest<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>
+      <div><VoiceField label="Find a guest" value={search} onValueChange={setSearch} search /><VoiceNotice /></div>
       <label className="focus-field">Sort by<select aria-label="Sort by" value={sortBy} onChange={event => setSortBy(event.target.value)}>
         <option value="arrival">Arrival date and time</option><option value="name">Guest name</option><option value="household">Household</option>
       </select></label>

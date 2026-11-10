@@ -61,6 +61,9 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .focus-task-page { max-width: 48rem; }
 .workspace-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
 .workspace-fields button { margin-top: .65rem; }
+.voice-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0 .4rem; }
+.voice-field .focus-field { margin-bottom: 0; }
+.voice-field small { grid-column: 1 / -1; }
 .workspace-fields select { min-height: 2.75rem; border: 1px solid #acb7a5; border-radius: .5rem; background: #fffefa; color: inherit; padding: .55rem; }
 .workspace-topline { margin-bottom: .8rem; }
 .workspace-topline > span { margin-left: auto; }

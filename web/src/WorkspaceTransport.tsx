@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { PrintSection } from './PlanActions'
+import { VoiceField, VoiceNotice } from './VoiceField'
 import type { Guest } from './WorkspaceGuests'
 import { localDay, shownDate } from './WorkspaceGuests'
 
@@ -173,9 +174,10 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
         <ul>{changes(current).map(change => <li key={change.key}>{change.name} · {change.label}: {change.from} → {change.to}</li>)}</ul></>}
       <fieldset className="workspace-fields" disabled={busy}>
         <div className="focus-form-grid">
-          {fields.map(([field, label, type], i) => <label className="focus-field" key={field}>{label}
-            <input name={field} type={type} required={i < 4} maxLength={500}
-              defaultValue={field === 'date' ? editor.date : field === 'time' ? editor.time : current?.[field]} /></label>)}
+          {fields.map(([field, label, type], i) => type === 'text'
+            ? <VoiceField key={field} name={field} label={label} required={i < 4} multiline={field === 'notes'} defaultValue={current?.[field]} />
+            : <label className="focus-field" key={field}>{label}
+              <input name={field} type={type} required defaultValue={field === 'date' ? editor.date : editor.time} /></label>)}
           <label className="focus-field">Pickup owner<select name="ownerId" defaultValue={current?.ownerId ?? ''}>
             <option value="">{current?.owner && !current.ownerId ? 'Keep ' + current.owner : 'Unassigned'}</option>
             {people.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
@@ -189,7 +191,8 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
         </div>
         <h3>Passengers · {editor.guestIds.length} selected</h3>
         {selectedGuests.length > 0 && <p>{selectedGuests.map(guest => guest.name + ' (' + groupArrival(guest) + ')').join(' · ')}</p>}
-        <label className="focus-field">Find passengers<input type="search" value={guestQuery} onChange={event => setGuestQuery(event.target.value)} /></label>
+        <VoiceField label="Find passengers" value={guestQuery} onValueChange={setGuestQuery} search />
+        <VoiceNotice />
         <div className="transport-passengers">
           {listedGuests.map(guest => <label className="focus-item" key={guest.id}>
             <span>{guest.name}<small>{guest.household && guest.household + ' · '}{groupArrival(guest)}</small></span>

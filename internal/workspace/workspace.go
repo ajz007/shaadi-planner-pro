@@ -37,6 +37,9 @@ var workspaceArrivalRepairMigration string
 //go:embed migrations/007_live_logistics.sql
 var workspaceLogisticsMigration string
 
+//go:embed migrations/008_live_finance.sql
+var workspaceFinanceMigration string
+
 var (
 	errWorkspaceNotFound = errors.New("record not found or access denied")
 	errWorkspaceConflict = errors.New("record changed or no longer available")
@@ -72,7 +75,7 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 		return err
 	}
 	migrations := []string{initialWorkspaceMigration, workspaceSessionMigration, workspaceImportMigration,
-		workspaceGuestMigration, workspaceTransportMigration, workspaceArrivalRepairMigration, workspaceLogisticsMigration}
+		workspaceGuestMigration, workspaceTransportMigration, workspaceArrivalRepairMigration, workspaceLogisticsMigration, workspaceFinanceMigration}
 	for i, migration := range migrations {
 		version := i + 1
 		var applied bool

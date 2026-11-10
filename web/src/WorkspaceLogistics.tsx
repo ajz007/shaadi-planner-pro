@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { PrintSection } from './PlanActions'
+import { VoiceField, VoiceNotice } from './VoiceField'
 import { localDay } from './WorkspaceGuests'
 import type { Guest } from './WorkspaceGuests'
 import workbook from './workbook-demo.json'
@@ -109,6 +110,9 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
           {fields.map(index => {
             const date = (room ? [10, 11] : [4, 6]).includes(index)
             const owner = room ? index === 12 : index === 5
+            if (!date && !guestField(index)) return <VoiceField key={index} label={columns[index]} name={String(index)}
+              required={room && index < 2} list={owner ? 'logistics-people' : undefined}
+              multiline={index === (room ? 15 : 8)} defaultValue={editing?.values[index]} />
             return <label key={index} className="focus-field">{columns[index]}
               {guestField(index)
                 ? <select name={String(index)} required={!room} defaultValue={editing?.guestLinks?.[index] ?? ''}>
@@ -117,11 +121,11 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
                     {guest.name} · {guest.household || guest.workbookId}
                   </option>)}
                 </select>
-                : <input name={String(index)} type={date ? 'date' : 'text'} required={room && index < 2}
-                  maxLength={500} list={owner ? 'logistics-people' : undefined} defaultValue={editing?.values[index] ?? ''} />}
+                : <input name={String(index)} type="date" defaultValue={editing?.values[index] ?? ''} />}
             </label>
           })}
           </div><datalist id="logistics-people">{people.map(person => <option key={person.id} value={person.name} />)}</datalist>
+          <VoiceNotice />
           <button>{busy ? 'Saving…' : 'Save'}</button>
           <button type="button" className="focus-secondary" onClick={() => setEditor(undefined)}>Cancel</button>
           {editing && <button type="button" className="focus-secondary" onClick={() => {
@@ -131,8 +135,8 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
         {!room && <p className="focus-note">Update the household contact’s RSVP in <a href={guestHref}>Guest List</a>.</p>}
       </form>}
       <div className="focus-heading">
-        <label className="focus-field">Search<input type="search" value={query} onChange={event => setQuery(event.target.value)}
-          placeholder={room ? 'Hotel, room or guest' : 'Household, guest or action'} /></label>
+        <div><VoiceField label={room ? 'Search hotels, rooms or guests' : 'Search households, guests or actions'}
+          value={query} onValueChange={setQuery} search /><VoiceNotice /></div>
         {!room && <label><input type="checkbox" checked={dueOnly} onChange={event => setDueOnly(event.target.checked)} /> Due by today</label>}
         {visible.length > 0 && <PrintSection title={section} columns={columns} records={visible.map(record => record.values)}
           filters={dueOnly ? 'Due by today' : undefined} weddingName={wedding.name} />}
