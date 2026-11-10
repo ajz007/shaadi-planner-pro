@@ -4,6 +4,8 @@ import { PrintSection } from './PlanActions'
 import { VoiceField, VoiceNotice } from './VoiceField'
 import type { Guest } from './WorkspaceGuests'
 import { localDay, shownDate } from './WorkspaceGuests'
+import { PlaceDetails } from './WorkspacePlanning'
+import type { Place } from './WorkspacePlanning'
 
 type Arrival = { date: string; time: string; mode: string; transport: string }
 type Passenger = { id: string; name: string; arrival: Arrival; reviewed: Arrival }
@@ -11,6 +13,7 @@ type Pickup = {
   id: string; date: string; time: string; pickupPoint: string; dropPoint: string; vehicle: string
   vehicleNumber: string; driver: string; ownerId: string; owner: string; status: string
   driverConfirmed: string; notes: string; revision: number; passengers: Passenger[]; needsReview: boolean
+  pickupPlaceId: string; dropPlaceId: string; pickupDetail: string; dropDetail: string
 }
 type Editor = { pickup?: Pickup; guestIds: string[]; date: string; time: string }
 const statusOptions = ['Planned', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
@@ -39,8 +42,9 @@ async function transportRequest<T>(url: string, body?: object, signal?: AbortSig
   return data
 }
 
-export function WorkspaceTransport({ wedding, people, workbookView }: {
+export function WorkspaceTransport({ wedding, people, workbookView, places, placesHref }: {
   wedding: { id: string; name: string; timeZone: string }; people: { id: string; name: string }[]; workbookView: boolean
+  places: Place[]; placesHref: string
 }) {
   const [data, setData] = useState<{ guests: Guest[]; pickups: Pickup[] }>()
   const [date, setDate] = useState('')
@@ -104,6 +108,10 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
     event.preventDefault()
     if (!editor || !data) return
     const raw = Object.fromEntries([...new FormData(event.currentTarget)].map(([key, value]) => [key, String(value).trim()]))
+    if ((!raw.pickupPoint && !raw.pickupPlaceId) || (!raw.dropPoint && !raw.dropPlaceId)) {
+      setError('Choose a saved place or enter a pickup and drop-off point.')
+      return
+    }
     const passengers = editor.guestIds.flatMap(id => {
       const guest = guests.find(guest => guest.id === id)
       return guest ? [{ id, revision: guest.revision }] : []
@@ -128,6 +136,12 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
   }
 
   const printable = visible.filter(pickup => pickup.status !== 'Cancelled')
+  const placeFor = (id: string) => places.find(place => place.id === id)
+  const routePlaces = (pickup: Pickup) => [
+    { label: 'Pickup', place: placeFor(pickup.pickupPlaceId) }, { label: 'Drop-off', place: placeFor(pickup.dropPlaceId) },
+  ]
+  const routeDetails = (pickup: Pickup) => routePlaces(pickup).map(({ label, place }) => place &&
+    <details key={label}><summary>{label} directions</summary><PlaceDetails place={place} /></details>)
   const selectedGuests = editor ? guests.filter(guest => editor.guestIds.includes(guest.id)) : []
   const query = guestQuery.trim().toLowerCase()
   const listedGuests = guests.filter(guest => !query || (guest.name + ' ' + guest.household).toLowerCase().includes(query))
@@ -146,8 +160,9 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
           }}>Refresh transportation</button>
           {data && <PrintSection title="Pickup plan" weddingName={wedding.name} buttonLabel="Print pickup plan"
             filters={(date === 'missing' ? 'Date not recorded' : date ? shownDate(date) : 'All pickup dates') + (reviewOnly ? ' · Needs review only' : '')}
-            columns={['Date', 'Time', 'Route', 'Passengers', 'Vehicle / driver', 'Owner', 'Status']}
+            columns={['Date', 'Time', 'Route', 'Addresses', 'Passengers', 'Vehicle / driver', 'Owner', 'Status']}
             records={printable.map(pickup => [shownDate(pickup.date), pickup.time, pickupRoute(pickup),
+              routePlaces(pickup).filter(({ place }) => place).map(({ label, place }) => label + ' ' + place?.address).join(' · '),
               pickup.passengers.map(passenger => passenger.name).join(', '), vehicleDetails(pickup),
               pickup.owner, pickup.needsReview ? 'Needs review' : pickup.status])} />}
         </div>
@@ -174,8 +189,14 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
         <ul>{changes(current).map(change => <li key={change.key}>{change.name} · {change.label}: {change.from} → {change.to}</li>)}</ul></>}
       <fieldset className="workspace-fields" disabled={busy}>
         <div className="focus-form-grid">
-          {fields.map(([field, label, type], i) => type === 'text'
-            ? <VoiceField key={field} name={field} label={label} required={i < 4} multiline={field === 'notes'} defaultValue={current?.[field]} />
+          {[['pickupPlaceId', 'Saved pickup place'], ['dropPlaceId', 'Saved drop-off place']].map(([field, label]) =>
+            <label key={field} className="focus-field">{label}<select name={field}
+              defaultValue={field === 'pickupPlaceId' ? current?.pickupPlaceId : current?.dropPlaceId}>
+              <option value="">Enter a point below</option>{places.map(place => <option key={place.id} value={place.id}>{place.name}</option>)}
+            </select></label>)}
+          {fields.map(([field, label, type]) => type === 'text'
+            ? <VoiceField key={field} name={field} label={label} multiline={field === 'notes'}
+              defaultValue={field === 'pickupPoint' ? current?.pickupDetail : field === 'dropPoint' ? current?.dropDetail : current?.[field]} />
             : <label className="focus-field" key={field}>{label}
               <input name={field} type={type} required defaultValue={field === 'date' ? editor.date : editor.time} /></label>)}
           <label className="focus-field">Pickup owner<select name="ownerId" defaultValue={current?.ownerId ?? ''}>
@@ -192,6 +213,7 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
         <h3>Passengers · {editor.guestIds.length} selected</h3>
         {selectedGuests.length > 0 && <p>{selectedGuests.map(guest => guest.name + ' (' + groupArrival(guest) + ')').join(' · ')}</p>}
         <VoiceField label="Find passengers" value={guestQuery} onValueChange={setGuestQuery} search />
+        <p><a href={placesHref}>Manage saved places</a></p>
         <VoiceNotice />
         <div className="transport-passengers">
           {listedGuests.map(guest => <label className="focus-item" key={guest.id}>
@@ -212,7 +234,7 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
       {workbookView && visible.length ? <div className="table-scroll" tabIndex={0} role="region" aria-label="Transportation table">
         <table className="imported-records workspace-sheet"><thead><tr>{['Route', 'Date and time', 'Passengers', 'Vehicle / driver', 'Owner', 'Status', 'Action'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
           <tbody>{visible.map(pickup => <tr key={pickup.id}>
-            <th scope="row">{pickupRoute(pickup)}</th><td>{shownDate(pickup.date)} {pickup.time}</td>
+            <th scope="row">{pickupRoute(pickup)}{routeDetails(pickup)}</th><td>{shownDate(pickup.date)} {pickup.time}</td>
             <td>{pickup.passengers.length} · {pickup.passengers.map(guest => guest.name).join(', ')}</td>
             <td>{vehicleDetails(pickup)}{pickup.driverConfirmed && <small>Driver confirmed: {pickup.driverConfirmed}</small>}</td><td>{pickup.owner}</td>
             <td>{pickup.needsReview ? <><span className="focus-chip pickup-review">Needs review</span>
@@ -224,6 +246,7 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
           <span className={pickup.needsReview ? 'focus-chip pickup-review' : 'focus-chip'}>{pickup.needsReview ? 'Needs review' : pickup.status || 'Status not set'}</span></div>
         <p>{[shownDate(pickup.date), pickup.time, vehicleDetails(pickup), pickup.owner].filter(Boolean).join(' · ')}</p>
         <p>{pickup.passengers.length} passengers · {pickup.passengers.map(guest => guest.name).join(', ')}</p>
+        {routeDetails(pickup)}
         {pickup.needsReview && pickupChanges(pickup)}
         <button className="focus-secondary" disabled={busy} onClick={() => editPickup(pickup)}>{pickup.needsReview ? 'Review pickup' : 'Edit pickup'}</button>
       </article>)}</div>}

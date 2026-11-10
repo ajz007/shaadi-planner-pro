@@ -4,6 +4,7 @@ import workbook from './workbook-demo.json'
 import { PrintSection } from './PlanActions'
 import { localDay } from './WorkspaceGuests'
 import { VoiceField, VoiceNotice } from './VoiceField'
+import { VendorDocuments } from './VendorDocuments'
 
 type RecordRow = { id: string; values: string[]; revision: number }
 type Payment = { id: string; amount: number; date: string; method: string; notes: string; voided: boolean }
@@ -28,8 +29,10 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
   const [finance, setFinance] = useState<Finance>()
   const [editing, setEditing] = useState<RecordRow | 'new'>()
   const [paying, setPaying] = useState<Contract>()
+  const [documentVendor, setDocumentVendor] = useState<RecordRow>()
   const [selectedVendor, setSelectedVendor] = useState('')
   const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -51,7 +54,19 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
   const chosenVendor = finance?.vendors.find(vendor => vendor.id === selectedVendor)
   const contract = finance?.contracts.find(record => record.id === current?.id)
   const records = (comparison ? finance?.vendors : finance?.contracts) ?? []
-  const visible = records.filter(row => row.values.join(' ').toLowerCase().includes(query.trim().toLowerCase()))
+  const categories = new Map<string, string>()
+  if (comparison) {
+    for (const record of records) {
+      const label = record.values[0].trim()
+      const key = label.toLowerCase()
+      if (label && !categories.has(key)) categories.set(key, label)
+    }
+  }
+  const activeCategory = categories.has(category) ? category : ''
+  const visible = records.filter(row =>
+    (!activeCategory || row.values[0].trim().toLowerCase() === activeCategory) &&
+    row.values.join(' ').toLowerCase().includes(query.trim().toLowerCase()),
+  )
 
   function edit(record: RecordRow | 'new') {
     setFeedback('')
@@ -103,6 +118,8 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
     const item = finance?.contracts.find(contract => contract.id === record.id)
     return <div className="focus-actions">
       <button className="focus-secondary" disabled={busy} onClick={() => edit(record)} aria-label={'Edit ' + record.values[1]}>Edit</button>
+      {comparison && <button className="focus-secondary" onClick={() => setDocumentVendor(record)}
+        aria-label={'Documents for ' + record.values[1]}>Documents</button>}
       {item && item.value > item.paid && <button disabled={busy} onClick={() => {
         setEditing(undefined); setError(''); setFeedback(''); setPaying(item)
       }}>Record payment</button>}
@@ -121,6 +138,8 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
     {feedback && <p role="status">{feedback}</p>}
     {error && <p role="alert">{error}</p>}
     {!finance && !error && <p role="status">Loading vendor records…</p>}
+    {documentVendor && <VendorDocuments key={documentVendor.id} weddingId={wedding.id} vendorId={documentVendor.id}
+      vendorName={documentVendor.values[1]} close={() => setDocumentVendor(undefined)} />}
     {finance && !comparison && !finance.vendors.length && <p><a href={vendorsHref}>Add a vendor in Vendor Comparison</a> before creating a contract.</p>}
     {editing && <form key={current?.id ?? 'new'} className="focus-card" onSubmit={submitRecord}>
       <h3>{current ? 'Edit' : 'Add'} {comparison ? 'vendor' : 'contract'}</h3>
@@ -170,11 +189,19 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
       </fieldset>
     </form>}
     {finance && <>
-      <div className="focus-heading">
+      <div className="focus-filters">
         <div><VoiceField label="Search vendors" value={query} onValueChange={setQuery} search /><VoiceNotice /></div>
-        {!!visible.length && <PrintSection title={section} columns={columns} records={visible.map(record => record.values)} weddingName={wedding.name} />}
+        {comparison && <label className="focus-field">Filter by category
+          <select value={activeCategory} onChange={event => setCategory(event.target.value)}>
+            <option value="">All categories</option>
+            {[...categories].sort(([, a], [, b]) => a.localeCompare(b)).map(([key, label]) =>
+              <option key={key} value={key}>{label}</option>)}
+          </select>
+        </label>}
+        {!!visible.length && <PrintSection title={section} columns={columns} records={visible.map(record => record.values)}
+          filters={activeCategory ? 'Category: ' + categories.get(activeCategory) : undefined} weddingName={wedding.name} />}
       </div>
-      {!visible.length && <p>{records.length ? 'No records match the search.' : comparison ? 'No vendors yet.' : 'No contracts yet.'}</p>}
+      {!visible.length && <p>{records.length ? 'No records match these filters.' : comparison ? 'No vendors yet.' : 'No contracts yet.'}</p>}
       {workbookView && !!visible.length && <div className="table-scroll" tabIndex={0} role="region" aria-label={section + ' table'}>
         <table className="imported-records"><thead><tr>{columns.map(column => <th key={column}>{column}</th>)}<th>Actions</th></tr></thead>
           <tbody>{visible.map(record => <tr key={record.id}>{record.values.map((value, i) => <td key={i}>{value}</td>)}

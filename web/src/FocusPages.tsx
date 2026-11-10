@@ -87,8 +87,8 @@ function chronological(value: string) {
   return String(hours).padStart(2, '0') + ':' + time[2]
 }
 
-export function FocusNavigation({ section, hrefFor = focusLink, canSee, home = '#focus' }: {
-  section?: string; hrefFor?: (name: string) => string; canSee?: (name: string) => boolean; home?: string
+export function FocusNavigation({ section, hrefFor = focusLink, canSee, home = '#focus', includePlaces }: {
+  section?: string; hrefFor?: (name: string) => string; canSee?: (name: string) => boolean; home?: string; includePlaces?: boolean
 }) {
   const nav = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -111,7 +111,8 @@ export function FocusNavigation({ section, hrefFor = focusLink, canSee, home = '
       document.removeEventListener('keydown', escape)
     }
   }, [])
-  const groups = focusGroups.map(group => ({ ...group, pages: group.pages.filter(name => !canSee || canSee(name)) }))
+  const groups = focusGroups.map(group => ({ ...group, pages: (includePlaces && group.name === 'Schedule'
+    ? [...group.pages, 'Places'] : group.pages).filter(name => !canSee || canSee(name)) }))
     .filter(group => group.pages.length)
   return <nav ref={nav} className="focus-nav" aria-label={canSee ? 'Wedding planning pages' : 'Alternate planning pages'}>
     <a href={home} aria-current={section ? undefined : 'page'}>Overview</a>

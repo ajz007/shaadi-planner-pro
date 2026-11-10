@@ -9,6 +9,8 @@ import { WorkspaceTransport } from './WorkspaceTransport'
 import { WorkspaceLogistics } from './WorkspaceLogistics'
 import { WorkspaceFinance } from './WorkspaceFinance'
 import { VoiceField, VoiceNotice } from './VoiceField'
+import { functionLocalTime, WorkspaceFunctionReadiness, WorkspacePlaces } from './WorkspacePlanning'
+import type { Planning } from './WorkspacePlanning'
 
 type Session = { configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
 type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
@@ -107,6 +109,19 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
   const inviteURL = invite ? window.location.origin + '/#workspace/setup?invite=' + encodeURIComponent(invite) : ''
   const imported = useImportedPlanningRecords(wedding.id, owner)
   const [guests, setGuests] = useState<Guest[]>()
+  const [planning, setPlanning] = useState<Planning>()
+  const [planningError, setPlanningError] = useState('')
+  const showPlanning = organizer && (section === 'Functions & Events' || section === 'Places' || section === 'Schedule Board'
+    || section === 'Accommodation' || section === 'Transportation')
+  useEffect(() => {
+    if (!showPlanning) return
+    const controller = new AbortController()
+    setPlanningError('')
+    workspaceRequest<Planning>(path + '/planning', undefined, controller.signal)
+      .then(data => { if (!controller.signal.aborted) setPlanning(data) })
+      .catch(error => { if (!controller.signal.aborted) setPlanningError(errorText(error)) })
+    return () => controller.abort()
+  }, [path, showPlanning])
   useEffect(() => {
     if (!organizer || section !== undefined) return
     const controller = new AbortController()
@@ -117,20 +132,27 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
   }, [organizer, path, section])
   const href = (page?: string) => weddingPage(wedding.id, page, workbookView)
   const canSee = (page: string) => owner || page === 'Functions & Events' || page === 'Family Responsibilities' ||
-    (organizer && ['Guest List', 'Schedule Board', 'Settings', 'Transportation', 'Accommodation', 'RSVP Follow-up'].includes(page))
+    (organizer && ['Guest List', 'Schedule Board', 'Settings', 'Transportation', 'Accommodation', 'RSVP Follow-up', 'Places'].includes(page))
   const personName = (id: string | null) => people.find(person => person.id === id)?.name ?? 'Unassigned'
   const functionName = (id: string | null) => functions.find(event => event.id === id)?.name
   const eventTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: wedding.timeZone })
   const myTasks = tasks.filter(task => task.assignee === wedding.personId)
   const help = tasks.filter(task => task.claimable && !task.assignee && !task.done)
   const otherTasks = organizer ? tasks.filter(task => task.assignee !== wedding.personId && !help.includes(task)) : []
-  const functionParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: wedding.timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  const functionRows = (planning?.functions ?? functions).map(event => {
+    const [date, time] = functionLocalTime(event.startsAt, wedding.timeZone).split('T')
+    const details = planning?.functions.find(record => record.id === event.id)
+    const place = planning?.places.find(place => place.id === details?.placeId)
+    return [event.id, event.name, date, time, [place?.name, event.venue].filter(Boolean).join(' · '), '', '', '', '', '',
+      String(details?.duration ?? ''), details?.people ? JSON.stringify(details.people.map(person => person.personId)) : '']
   })
-  const functionRows = functions.map(event => {
-    const parts = Object.fromEntries(functionParts.formatToParts(new Date(event.startsAt)).map(part => [part.type, part.value]))
-    return [event.id, event.name, parts.year + '-' + parts.month + '-' + parts.day, parts.hour + ':' + parts.minute, event.venue, '', '', '', '', '']
-  })
+  async function savePlanning(kind: string, id: string, data: object) {
+    await workspaceRequest(path + '/planning/' + kind + '/' + id, data)
+    try {
+      setPlanning(await workspaceRequest<Planning>(path + '/planning'))
+      await refresh()
+    } catch { setFeedback('Saved. Reload the page to see the latest records.') }
+  }
   const timeline = imported.data?.sections.find(item => item.name === 'Wedding Timeline')?.rows.map(row => row.values) ?? []
   const overview = section === undefined
   const showTasks = section === 'Family Responsibilities' || (overview && !organizer)
@@ -213,7 +235,7 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
         {owner && <a className="focus-secondary" href={root + path + '/snapshot.xlsx'} download>Download current Excel snapshot</a>}
       </div>
     </header>
-    <FocusNavigation section={section} hrefFor={href} home={href()} canSee={canSee} />
+    <FocusNavigation section={section} hrefFor={href} home={href()} canSee={canSee} includePlaces={organizer} />
     {workbookView && <nav className="workbook-tabs" aria-label="Workbook sheets">
       <a href={href()} aria-current={overview ? 'page' : undefined}>Dashboard</a>
       {focusGroups.flatMap(group => group.pages).filter(page => page !== 'Schedule Board' && canSee(page))
@@ -222,12 +244,25 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
     {feedback && <p role="alert">{feedback}</p>}
     {section && !canSee(section) ? <p role="status">This page is unavailable for your role. <a href={href()}>Return to overview</a>.</p>
       : section === 'Guest List' ? <WorkspaceGuests key={guestSearch} wedding={wedding} initialSearch={guestSearch} workbookView={workbookView} />
-      : section === 'Transportation' ? <WorkspaceTransport wedding={wedding} people={people} workbookView={workbookView} />
+      : section === 'Transportation' ? <WorkspaceTransport wedding={wedding} people={people} workbookView={workbookView}
+        places={planning?.places ?? []} placesHref={href('Places')} />
       : section === 'Accommodation' || section === 'RSVP Follow-up' ? <WorkspaceLogistics key={section} section={section}
-        wedding={wedding} people={people} workbookView={workbookView} request={workspaceRequest} guestHref={href('Guest List')} />
+        wedding={wedding} people={people} workbookView={workbookView} request={workspaceRequest} guestHref={href('Guest List')}
+        places={planning?.places ?? []} placesHref={href('Places')} />
       : section === 'Vendor Comparison' || section === 'Vendor Payments' ? <WorkspaceFinance key={section} section={section}
         wedding={wedding} workbookView={workbookView} request={workspaceRequest} vendorsHref={href('Vendor Comparison')} />
-      : section === 'Schedule Board' ? <ScheduleChart actual={scheduleEntries(functionRows, timeline)} weddingName={wedding.name} />
+      : organizer && (section === 'Functions & Events' || section === 'Places') ? (
+        planningError ? <p role="alert">{planningError}</p> : !planning ? <p role="status">Loading the wedding plan…</p>
+          : section === 'Places' ? <WorkspacePlaces data={planning} save={savePlanning} />
+            : <WorkspaceFunctionReadiness data={planning} people={people} wedding={wedding} save={savePlanning}
+              workbookView={workbookView} placesHref={href('Places')} />
+      )
+      : section === 'Schedule Board' ? <>
+        <p><a href={href('Functions & Events')}>Edit functions and required people</a> · <a href={href('Places')}>Manage places</a></p>
+        {planningError ? <p role="alert">{planningError}</p> : !planning ? <p role="status">Loading the wedding plan…</p>
+          : <ScheduleChart actual={scheduleEntries(functionRows, timeline)} weddingName={wedding.name}
+            personLabel={id => people.find(person => person.id === id)?.name ?? id} />}
+      </>
       : section === 'Import history' ? <><p><a href={href('Settings')}>← Wedding settings</a></p><ImportedPlanningRecords {...imported} /></>
       : section && !showTasks && !showFunctions && section !== 'Settings' && section !== 'Invitations' ? <>
         <h2>{section}</h2>
@@ -299,14 +334,6 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
         <WorkspaceForm title="Add a planning person" label="Add person" voice onSave={data => mutate('people', { name: field(data, 'name') })}>
           <p>Add a name now and invite the person when you’re ready.</p>
           <TextField name="name" label="Planning name" />
-        </WorkspaceForm>}
-      {organizer && section === 'Functions & Events' &&
-        <WorkspaceForm title="Add a function" label="Add function" voice onSave={data => mutate('functions', {
-          name: field(data, 'name'), venue: field(data, 'venue'), startsAt: field(data, 'start'),
-        })}>
-          <TextField name="name" label="Function name" />
-          <TextField name="start" label={'Starts in ' + wedding.timeZone} type="datetime-local" />
-          <TextField name="venue" label="Venue" required={false} maxLength={200} />
         </WorkspaceForm>}
       {organizer && section === 'Family Responsibilities' &&
         <WorkspaceForm title="Add a task" label="Add task" voice onSave={data => mutate('tasks', {

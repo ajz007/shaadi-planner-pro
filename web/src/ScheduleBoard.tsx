@@ -61,8 +61,8 @@ export function ScheduleBoard() {
   }} />
 }
 
-export function ScheduleChart({ actual, weddingName, saveEntry }: {
-  actual: ScheduleEntry[]; weddingName?: string; saveEntry?: (entry: ScheduleEntry) => void
+export function ScheduleChart({ actual, weddingName, saveEntry, personLabel = value => value }: {
+  actual: ScheduleEntry[]; weddingName?: string; saveEntry?: (entry: ScheduleEntry) => void; personLabel?: (id: string) => string
 }) {
   const [scenario, setScenario] = useState<ScheduleEntry[]>()
   const entries = scenario ?? actual
@@ -130,7 +130,7 @@ export function ScheduleChart({ actual, weddingName, saveEntry }: {
         columns={['Event', 'Source', 'Start', 'Duration', 'Venue', 'Required people']}
         records={visible.map(entry => [entry.name, entry.source, entry.date === date ? entry.time : 'Continues after midnight',
           entry.duration === null ? 'Unknown' : entry.duration + ' min', entry.place,
-          entry.required === null ? 'Needs review' : entry.required.join(', ') || 'None'])} />
+          entry.required === null ? 'Needs review' : entry.required.map(personLabel).join(', ') || 'None'])} />
       <p className="focus-note">Bars show known durations. A diamond marks a start with no duration. Workbook owners are shown separately from required attendees.</p>
       <div className="schedule-scroll" tabIndex={0} role="region" aria-label="Day timeline, scroll horizontally for later hours">
         <div className="schedule-plot">
@@ -173,7 +173,7 @@ export function ScheduleChart({ actual, weddingName, saveEntry }: {
         {incomplete > 0 && <p className="focus-note">Entries with missing durations can’t be checked for overlap. Entries without reviewed attendance can still overlap, but the planner can’t rule out a people conflict.</p>}
         {pairs.length === 0 && <p>No overlap found among entries with known durations for this day.</p>}
         {pairs.map(({ a, b, from, to, shared, unchecked }) => <div className="schedule-pair" key={a.id + ':' + b.id}>
-          <strong>{shared.length ? shared.join(', ') + ' needed in both' : unchecked ? 'Parallel · attendance needs review' : 'Parallel · no shared required people'}</strong>
+          <strong>{shared.length ? shared.map(personLabel).join(', ') + ' needed in both' : unchecked ? 'Parallel · attendance needs review' : 'Parallel · no shared required people'}</strong>
           <p>{a.name} + {b.name} · {hourLabel(from)}–{hourLabel(to)}</p>
           {saveEntry && <button className="focus-secondary" onClick={() => edit(b)}>Review {b.name}</button>}
         </div>)}

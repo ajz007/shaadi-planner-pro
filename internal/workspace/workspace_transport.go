@@ -36,6 +36,10 @@ type savedPickup struct {
 	Time            string            `json:"time"`
 	PickupPoint     string            `json:"pickupPoint"`
 	DropPoint       string            `json:"dropPoint"`
+	PickupPlaceID   string            `json:"pickupPlaceId"`
+	DropPlaceID     string            `json:"dropPlaceId"`
+	PickupDetail    string            `json:"pickupDetail"`
+	DropDetail      string            `json:"dropDetail"`
 	Vehicle         string            `json:"vehicle"`
 	VehicleNumber   string            `json:"vehicleNumber"`
 	Driver          string            `json:"driver"`
@@ -53,7 +57,8 @@ func listPickups(ctx context.Context, db workspaceRowsQueryer, wedding, actor st
 	return queryWorkspace(ctx, db, func(rows *sql.Rows, pickup *savedPickup) error {
 		var payload []byte
 		err := rows.Scan(&pickup.ID, &pickup.Date, &pickup.Time, &pickup.PickupPoint, &pickup.DropPoint, &pickup.Vehicle,
-			&pickup.VehicleNumber, &pickup.Driver, &pickup.OwnerID, &pickup.Owner, &pickup.Status, &pickup.DriverConfirmed, &pickup.Notes, &pickup.Revision, &payload)
+			&pickup.VehicleNumber, &pickup.Driver, &pickup.OwnerID, &pickup.Owner, &pickup.Status, &pickup.DriverConfirmed, &pickup.Notes, &pickup.Revision, &payload,
+			&pickup.PickupPlaceID, &pickup.DropPlaceID, &pickup.PickupDetail, &pickup.DropDetail)
 		if err != nil {
 			return err
 		}
@@ -66,12 +71,16 @@ func listPickups(ctx context.Context, db workspaceRowsQueryer, wedding, actor st
 			}
 		}
 		return nil
-	}, `SELECT p.id, COALESCE(p.pickup_date::text, ''), p.pickup_time, p.pickup_point, p.drop_point, p.vehicle,
+	}, `SELECT p.id, COALESCE(p.pickup_date::text, ''), p.pickup_time,
+		concat_ws(' · ', src.name, NULLIF(p.pickup_point,'')), concat_ws(' · ', dst.name, NULLIF(p.drop_point,'')), p.vehicle,
 		p.vehicle_number, p.driver, COALESCE(p.owner_id::text, ''), COALESCE(o.name, p.imported_owner),
-		p.status, p.driver_confirmed, p.notes, p.revision, COALESCE(passengers.payload, '[]'::jsonb)
+		p.status, p.driver_confirmed, p.notes, p.revision, COALESCE(passengers.payload, '[]'::jsonb),
+		COALESCE(p.pickup_place_id::text,''), COALESCE(p.drop_place_id::text,''), p.pickup_point, p.drop_point
 	FROM wedding_pickups p
 	JOIN wedding_memberships m ON m.wedding_id = p.wedding_id AND m.account_id = $2 AND m.role IN ('owner', 'co-organizer')
 	LEFT JOIN wedding_people o ON o.wedding_id = p.wedding_id AND o.id = p.owner_id
+	LEFT JOIN wedding_places src ON src.wedding_id=p.wedding_id AND src.id=p.pickup_place_id
+	LEFT JOIN wedding_places dst ON dst.wedding_id=p.wedding_id AND dst.id=p.drop_place_id
 	LEFT JOIN LATERAL (
 		SELECT jsonb_agg(jsonb_build_object(
 			'id', g.id, 'workbookId', g.workbook_id, 'name', g.name, 'household', g.household, 'revision', g.revision,
@@ -88,6 +97,7 @@ func listPickups(ctx context.Context, db workspaceRowsQueryer, wedding, actor st
 
 type pickupInput struct {
 	Date, Time, PickupPoint, DropPoint, Vehicle, VehicleNumber, Driver, OwnerID, Status, DriverConfirmed, Notes string
+	PickupPlaceID, DropPlaceID                                                                                  string
 	Revision                                                                                                    int
 	Passengers                                                                                                  []struct {
 		ID       string
@@ -104,7 +114,10 @@ func (p *pickupInput) valid(id string) bool {
 	}
 	_, dateErr := time.Parse(time.DateOnly, p.Date)
 	clock, timeErr := time.Parse("15:04", p.Time)
-	if dateErr != nil || timeErr != nil || clock.Format("15:04") != p.Time || p.PickupPoint == "" || p.DropPoint == "" ||
+	if dateErr != nil || timeErr != nil || clock.Format("15:04") != p.Time ||
+		(p.PickupPoint == "" && p.PickupPlaceID == "") || (p.DropPoint == "" && p.DropPlaceID == "") ||
+		(p.PickupPlaceID != "" && !workspaceUUID.MatchString(p.PickupPlaceID)) ||
+		(p.DropPlaceID != "" && !workspaceUUID.MatchString(p.DropPlaceID)) ||
 		(p.OwnerID != "" && !workspaceUUID.MatchString(p.OwnerID)) || (id != "" && p.Revision < 1) ||
 		(p.Status != "Planned" && p.Status != "Pending" && p.Status != "Confirmed" && p.Status != "Cancelled" && p.Status != "Completed") ||
 		(p.DriverConfirmed != "" && p.DriverConfirmed != "Yes" && p.DriverConfirmed != "No") ||
@@ -184,19 +197,19 @@ func (s *workspaceStore) savePickup(ctx context.Context, wedding, actor, id stri
 		return "", err
 	}
 	args := []any{wedding, p.Date, p.Time, p.PickupPoint, p.DropPoint, p.Vehicle, p.VehicleNumber, p.Driver,
-		p.OwnerID, p.Status, p.DriverConfirmed, p.Notes}
+		p.OwnerID, p.Status, p.DriverConfirmed, p.Notes, p.PickupPlaceID, p.DropPlaceID}
 	if id == "" {
 		err = scanWorkspace(tx.QueryRowContext(ctx, `INSERT INTO wedding_pickups (wedding_id, pickup_date, pickup_time,
-			pickup_point, drop_point, vehicle, vehicle_number, driver, owner_id, status, driver_confirmed, notes)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9,'')::uuid, $10, $11, $12) RETURNING id`, args...), &id)
+			pickup_point, drop_point, vehicle, vehicle_number, driver, owner_id, status, driver_confirmed, notes, pickup_place_id, drop_place_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9,'')::uuid, $10, $11, $12, NULLIF($13,'')::uuid, NULLIF($14,'')::uuid) RETURNING id`, args...), &id)
 	} else {
 		args = append(args, id, p.Revision)
 		var updated string
 		err = scanWorkspace(tx.QueryRowContext(ctx, `UPDATE wedding_pickups SET pickup_date = $2, pickup_time = $3,
 			pickup_point = $4, drop_point = $5, vehicle = $6, vehicle_number = $7, driver = $8, owner_id = NULLIF($9,'')::uuid,
 			imported_owner = CASE WHEN $9 = '' THEN imported_owner ELSE '' END,
-			status = $10, driver_confirmed = $11, notes = $12, revision = revision + 1
-			WHERE wedding_id = $1 AND id = $13 AND revision = $14 RETURNING id`, args...), &updated)
+			status = $10, driver_confirmed = $11, notes = $12, pickup_place_id=NULLIF($13,'')::uuid, drop_place_id=NULLIF($14,'')::uuid, revision = revision + 1
+			WHERE wedding_id = $1 AND id = $15 AND revision = $16 RETURNING id`, args...), &updated)
 		if errors.Is(err, errWorkspaceNotFound) {
 			return "", errWorkspaceConflict
 		}

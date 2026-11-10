@@ -146,6 +146,12 @@ func (a *workspaceHTTP) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/guests/{guest}", a.protected(a.saveGuest))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/logistics/{section}", a.protected(a.logistics))
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/logistics/{section}/{record}", a.protected(a.saveLogistics))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/planning", a.protected(a.planning))
+	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/planning/{kind}/{record}", a.protected(a.savePlanning))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/vendors/{vendor}/documents", a.protected(a.vendorDocuments))
+	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/vendors/{vendor}/documents", a.protected(a.uploadVendorDocuments))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/vendors/{vendor}/documents/{document}", a.protected(a.downloadVendorDocument))
+	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/vendors/{vendor}/documents/{document}", a.protected(a.removeVendorDocument))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/finance", a.protected(a.finance))
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/finance/{kind}/{record}", a.protected(a.saveFinance))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/snapshot.xlsx", a.protected(a.weddingSnapshot))
@@ -253,8 +259,9 @@ func (a *workspaceHTTP) view(w http.ResponseWriter, r *http.Request, actor strin
 	}
 	functions, err := queryWorkspace(ctx, a.store.db, func(row *sql.Rows, item *workspaceFunction) error {
 		return row.Scan(&item.ID, &item.Name, &item.Venue, &item.StartsAt)
-	}, `SELECT f.id, f.name, f.venue, f.starts_at FROM wedding_functions f
+	}, `SELECT f.id, f.name, concat_ws(' · ', p.name, NULLIF(f.venue,'')), f.starts_at FROM wedding_functions f
 		JOIN wedding_memberships m ON f.wedding_id = m.wedding_id
+		LEFT JOIN wedding_places p ON p.wedding_id=f.wedding_id AND p.id=f.place_id
 		WHERE f.wedding_id = $1 AND m.account_id = $2 ORDER BY f.starts_at, f.id`, wedding, actor)
 	if err != nil {
 		workspaceFailure(w, err)
