@@ -12,9 +12,11 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -87,12 +89,20 @@ func main() {
 		log.Print("Workspace database is up to date.")
 		return
 	}
-	const address = "127.0.0.1:8080"
+	address, publicOrigin, err := serverSettings(os.Getenv("PORT"), os.Getenv("SHAADI_WORKSPACE_ORIGIN"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	if publicOrigin != "" {
+		if _, err := os.Stat("web/dist/index.html"); err != nil {
+			log.Fatal("Build the frontend before starting the hosted planner.")
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	workspace, err := configuredWorkspace(ctx)
+	workspace, err := configuredWorkspace(ctx, publicOrigin)
 	cancel()
 	if err != nil {
-		log.Fatalf("Shared workspace configuration failed: %T", err)
+		log.Fatalf("Shared workspace configuration failed: %v", err)
 	}
 	if workspace != nil {
 		defer workspace.store.db.Close()
@@ -100,15 +110,59 @@ func main() {
 		defer stop()
 		go workspace.store.maintainImportPreviews(maintenance)
 	}
-	mux := newDemo().routes(http.Dir("web/dist"))
+	mux := newDemo().routes(http.Dir("web/dist"), publicOrigin == "")
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	handler := localOnly(http.Handler(mux))
+	if publicOrigin != "" {
+		handler = hostedOnly(publicOrigin, mux)
+	}
 	workspace.register(mux)
 	server := &http.Server{
-		Addr: address, Handler: localOnly(mux),
+		Addr: address, Handler: handler,
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
 		WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second,
 	}
-	log.Printf("Shaadi Planner local demo: http://%s", address)
+	log.Printf("Shaadi Planner listening on %s", address)
 	log.Fatal(server.ListenAndServe())
+}
+
+func serverSettings(port, origin string) (address, publicOrigin string, err error) {
+	if port == "" {
+		return "127.0.0.1:8080", "", nil
+	}
+	number, err := strconv.Atoi(port)
+	if err != nil || number < 1 || number > 65535 || strconv.Itoa(number) != port {
+		return "", "", errors.New("PORT must be a number between 1 and 65535")
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" ||
+		parsed.Host != parsed.Hostname() || !strings.Contains(parsed.Host, ".") ||
+		origin != "https://"+parsed.Host {
+		return "", "", errors.New("set SHAADI_WORKSPACE_ORIGIN to the HTTPS public origin without a path or port")
+	}
+	return ":" + port, origin, nil
+}
+
+func hostedOnly(origin string, next http.Handler) http.Handler {
+	host := strings.TrimPrefix(origin, "https://")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Railway terminates TLS. Use the configured origin and the request
+		// authority rather than deriving either from forwarded headers.
+		probe := r.Host == "healthcheck.railway.app" && r.Method == http.MethodGet && r.URL.Path == "/healthz"
+		if r.Host != host && !probe {
+			http.Error(w, "Use the configured planner address.", http.StatusForbidden)
+			return
+		}
+		if source := r.Header.Get("Origin"); source != "" && source != origin {
+			http.Error(w, "Request origin does not match the planner.", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func localOnly(next http.Handler) http.Handler {
@@ -127,25 +181,27 @@ func localOnly(next http.Handler) http.Handler {
 	})
 }
 
-func (d *demo) routes(assets http.FileSystem) *http.ServeMux {
+func (d *demo) routes(assets http.FileSystem, sandbox bool) *http.ServeMux {
 	mux := http.NewServeMux()
 	files := http.FileServer(assets)
 	mux.Handle("GET /", files)
-	mux.Handle("GET /r/{token}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.URL.Path = "/"
-		files.ServeHTTP(w, r)
-	}))
-	mux.HandleFunc("GET /api/wedding", d.wedding)
-	mux.HandleFunc("GET /api/sample.csv", func(w http.ResponseWriter, _ *http.Request) {
-		writeCSVHeaders(w, "sample-guests.csv")
-		fmt.Fprint(w, sampleCSV)
-	})
-	mux.HandleFunc("POST /api/import", d.importGuests)
-	mux.HandleFunc("GET /api/headcounts.csv", d.headcounts)
 	mux.HandleFunc("POST /api/workbook-snapshot", workbookSnapshot)
-	mux.HandleFunc("GET /api/rsvp/{token}", d.guestRSVP)
-	mux.HandleFunc("PUT /api/rsvp/{token}", d.saveRSVP)
-	mux.HandleFunc("PUT /api/responses", d.saveRSVP)
+	if sandbox {
+		mux.Handle("GET /r/{token}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.URL.Path = "/"
+			files.ServeHTTP(w, r)
+		}))
+		mux.HandleFunc("GET /api/wedding", d.wedding)
+		mux.HandleFunc("GET /api/sample.csv", func(w http.ResponseWriter, _ *http.Request) {
+			writeCSVHeaders(w, "sample-guests.csv")
+			fmt.Fprint(w, sampleCSV)
+		})
+		mux.HandleFunc("POST /api/import", d.importGuests)
+		mux.HandleFunc("GET /api/headcounts.csv", d.headcounts)
+		mux.HandleFunc("GET /api/rsvp/{token}", d.guestRSVP)
+		mux.HandleFunc("PUT /api/rsvp/{token}", d.saveRSVP)
+		mux.HandleFunc("PUT /api/responses", d.saveRSVP)
+	}
 	return mux
 }
 

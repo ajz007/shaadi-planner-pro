@@ -1,0 +1,13 @@
+**
+!*.go
+!go.mod
+!go.sum
+!migrations/
+!migrations/*.sql
+!web/
+!web/package.json
+!web/package-lock.json
+!web/index.html
+!web/tsconfig.json
+!web/src/
+!web/src/**
