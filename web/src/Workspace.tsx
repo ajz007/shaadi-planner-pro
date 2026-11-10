@@ -65,8 +65,14 @@ function TextField({ name, label, type = 'text', required = true, value, maxLeng
   return <label className="focus-field">{label}<input name={name} type={type} required={required} defaultValue={value} maxLength={maxLength} /></label>
 }
 
-function WeddingWorkspace({ plan, refresh, section, workbookView, guestSearch }: {
-  plan: Plan; refresh: () => Promise<void>; section?: string; workbookView: boolean; guestSearch: string
+type WeddingLayout = 'cards' | 'workbook'
+
+function storeWeddingLayout(key: string, layout: WeddingLayout) {
+  try { localStorage.setItem(key, layout) } catch { /* The current view still works. */ }
+}
+
+function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
+  plan: Plan; refresh: () => Promise<void>; section?: string; layout?: WeddingLayout; guestSearch: string
 }) {
   const { wedding, people, functions, tasks } = plan
   const [invite, setInvite] = useState('')
@@ -74,6 +80,22 @@ function WeddingWorkspace({ plan, refresh, section, workbookView, guestSearch }:
   const [busy, setBusy] = useState(false)
   const path = '/weddings/' + wedding.id
   const organizer = wedding.role !== 'family'
+  const preferenceKey = 'shaadi-wedding-layout:' + wedding.id + ':' + wedding.personId
+  const [preferredLayout, setPreferredLayout] = useState<WeddingLayout>(() => {
+    try { return localStorage.getItem(preferenceKey) === 'workbook' ? 'workbook' : 'cards' }
+    catch { return 'cards' }
+  })
+  useEffect(() => {
+    if (!organizer || !layout) return
+    setPreferredLayout(layout)
+    storeWeddingLayout(preferenceKey, layout)
+  }, [layout, organizer, preferenceKey])
+  const workbookView = organizer && (layout ?? preferredLayout) === 'workbook'
+  const [route, query] = window.location.hash.split('?')
+  const layoutQuery = new URLSearchParams(query)
+  const nextLayout = workbookView ? 'cards' : 'workbook'
+  layoutQuery.set('layout', nextLayout)
+  const layoutTarget = route + '?' + layoutQuery.toString()
   const owner = wedding.role === 'owner'
   const imported = useImportedPlanningRecords(wedding.id, owner)
   const [guests, setGuests] = useState<Guest[]>()
@@ -176,7 +198,13 @@ function WeddingWorkspace({ plan, refresh, section, workbookView, guestSearch }:
       <div><p className="focus-kicker">{section ?? (organizer ? 'WEDDING OVERVIEW' : 'MY WEDDING TASKS')}</p>
         <h1>{wedding.name}</h1><p>{wedding.date} · {wedding.timeZone}</p></div>
       <div className="focus-actions">
-        {organizer && <a className="focus-secondary" href={weddingPage(wedding.id, section, !workbookView) + (guestSearch ? (workbookView ? '?' : '&') + 'guest=' + encodeURIComponent(guestSearch) : '')}>{workbookView ? 'Card view' : 'Workbook view'}</a>}
+        {organizer && <a className="focus-secondary" href={layoutTarget} onClick={event => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+          event.preventDefault()
+          setPreferredLayout(nextLayout)
+          storeWeddingLayout(preferenceKey, nextLayout)
+          window.location.hash = layoutTarget
+        }}>{workbookView ? 'Card view' : 'Workbook view'}</a>}
         {owner && <a className="focus-secondary" href={root + path + '/snapshot.xlsx'} download>Download current Excel snapshot</a>}
       </div>
     </header>
@@ -287,8 +315,8 @@ function WeddingWorkspace({ plan, refresh, section, workbookView, guestSearch }:
   </>
 }
 
-export function Workspace({ loginFailed, weddingID, section, workbookView, guestSearch, setup }: {
-  loginFailed: boolean; weddingID?: string; section?: string; workbookView: boolean; guestSearch: string; setup: boolean
+export function Workspace({ loginFailed, weddingID, section, layout, guestSearch, setup }: {
+  loginFailed: boolean; weddingID?: string; section?: string; layout?: WeddingLayout; guestSearch: string; setup: boolean
 }) {
   const [session, setSession] = useState<Session>()
   const [weddings, setWeddings] = useState<Wedding[]>([])
@@ -363,7 +391,7 @@ export function Workspace({ loginFailed, weddingID, section, workbookView, guest
       </div>
       {weddingID ? <>
         {plan?.wedding.id === weddingID
-          ? <WeddingWorkspace key={weddingID} plan={plan} section={section} workbookView={workbookView}
+          ? <WeddingWorkspace key={weddingID} plan={plan} section={section} layout={layout}
             guestSearch={guestSearch} refresh={() => refreshPlan(weddingID)} />
           : planError ? <p role="alert">{planError}</p> : <p role="status">Opening wedding…</p>}
       </> : !setup ? <>

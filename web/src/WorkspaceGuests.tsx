@@ -22,6 +22,15 @@ export function localDay(zone: string) {
   return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type)?.value).join('-')
 }
 
+function GuestLinks({ guest }: { guest: Guest }) {
+  if (!guest.links?.length) return null
+  return <details className="focus-completed">
+    <summary>Room, pickup and follow-up ({guest.links.length})</summary>
+    <ul>{guest.links.map((link, index) => <li key={index}><strong>{link.section}</strong> · {link.label}
+      {link.detail && ' · ' + link.detail}</li>)}</ul>
+  </details>
+}
+
 export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = false }: {
   wedding: { id: string; name: string; timeZone: string }; initialSearch?: string; workbookView?: boolean
 }) {
@@ -29,6 +38,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = fa
   const [editing, setEditing] = useState<Guest | 'new'>()
   const [filters, setFilters] = useState<Partial<Record<typeof guestFilters[number]['field'], string>>>({})
   const [search, setSearch] = useState(initialSearch)
+  const [sortBy, setSortBy] = useState('arrival')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -76,8 +86,13 @@ export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = fa
   const filtered = (guests ?? []).filter(guest =>
     (!query || [guest.name, guest.household, guest.workbookId].some(value => value.toLowerCase().includes(query))) &&
     guestFilters.every(({ field }) => !filters[field] || (guest[field] || 'missing') === filters[field]))
-    .sort((a, b) => (a.arrivalDate || '9999').localeCompare(b.arrivalDate || '9999') ||
-      (a.arrivalTime || '99').localeCompare(b.arrivalTime || '99') || a.name.localeCompare(b.name))
+    .sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name)
+      if (sortBy === 'household') return Number(!a.household) - Number(!b.household) ||
+        a.household.localeCompare(b.household) || a.name.localeCompare(b.name)
+      return (a.arrivalDate || '9999').localeCompare(b.arrivalDate || '9999') ||
+        (a.arrivalTime || '99').localeCompare(b.arrivalTime || '99') || a.name.localeCompare(b.name)
+    })
   const filterLabel = [
     query && 'Search: ' + search.trim(),
     ...guestFilters.map(({ field, label }) => {
@@ -85,6 +100,11 @@ export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = fa
       return value && label + ': ' + (value === 'missing' ? 'Not recorded' : field === 'arrivalDate' ? shownDate(value) : value)
     }),
   ].filter(Boolean).join(' · ')
+
+  function editGuest(guest: Guest) {
+    setEditing(guest); setError(''); setMessage('')
+    document.getElementById('workspace-guest-editor')?.scrollIntoView()
+  }
 
   return <section className="focus-card">
     <div className="focus-heading"><h2>Guest List</h2><div className="focus-actions">
@@ -119,6 +139,9 @@ export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = fa
     </form>}
     <div className="focus-filters">
       <label className="focus-field">Find a guest<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>
+      <label className="focus-field">Sort by<select aria-label="Sort by" value={sortBy} onChange={event => setSortBy(event.target.value)}>
+        <option value="arrival">Arrival date and time</option><option value="name">Guest name</option><option value="household">Household</option>
+      </select></label>
       {guestFilters.map(({ field, label }) => {
         const options = [...new Set((guests ?? []).map(guest => guest[field]).filter(Boolean))].sort()
         return <label className="focus-field" key={field}>{label}<select aria-label={label} value={filters[field] ?? ''}
@@ -134,14 +157,14 @@ export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = fa
     </div>
     <p role="status">{guests ? filtered.length + ' of ' + guests.length + ' guests' : 'Loading guests…'}</p>
     {workbookView ? <div className="table-scroll" tabIndex={0} role="region" aria-label="Guest List table">
-      <table className="imported-records"><thead><tr>{['Guest', 'Household', 'Side', 'RSVP', 'Arrival date', 'Time', 'Mode', 'Transport', 'Edit']
+      <table className="imported-records workspace-sheet"><thead><tr>{['Guest', 'Household', 'Side', 'RSVP', 'Arrival date', 'Time', 'Mode', 'Transport', 'Linked records', 'Edit']
         .map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
         <tbody>{filtered.map(guest => <tr key={guest.id}>
-          {[guest.name, guest.household, guest.side, guest.rsvp, shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode, guest.transportRequired]
+          <th scope="row">{guest.name}</th>
+          {[guest.household, guest.side, guest.rsvp, shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode, guest.transportRequired]
             .map((value, index) => <td key={index}>{value}</td>)}
-          <td><button className="focus-secondary" aria-label={'Edit ' + guest.name} disabled={busy} onClick={() => {
-            setEditing(guest); setError(''); setMessage(''); document.getElementById('workspace-guest-editor')?.scrollIntoView()
-          }}>Edit</button></td>
+          <td><GuestLinks guest={guest} /></td>
+          <td><button className="focus-secondary" aria-label={'Edit ' + guest.name} disabled={busy} onClick={() => editGuest(guest)}>Edit</button></td>
         </tr>)}</tbody>
       </table>
     </div> : <div className="focus-record-grid">{filtered.map(guest => <article className="focus-card" key={guest.id}>
@@ -149,15 +172,8 @@ export function WorkspaceGuests({ wedding, initialSearch = '', workbookView = fa
       <p>{[guest.household, guest.side].filter(Boolean).join(' · ')}</p>
       <p>{[shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode].filter(Boolean).join(' · ') || 'Arrival not recorded'}</p>
       <p>Transport: {guest.transportRequired || 'Not recorded'}</p>
-      {!!guest.links?.length && <details className="focus-completed">
-        <summary>Linked room, pickup and follow-up records ({guest.links.length})</summary>
-        <ul>{guest.links.map((link, index) => <li key={index}><strong>{link.section}</strong> · {link.label}
-          {link.detail && ' · ' + link.detail}</li>)}</ul>
-      </details>}
-      <button className="focus-secondary" aria-label={'Edit ' + guest.name} disabled={busy} onClick={() => {
-        setEditing(guest); setError(''); setMessage('')
-        document.getElementById('workspace-guest-editor')?.scrollIntoView()
-      }}>Edit guest</button>
+      <GuestLinks guest={guest} />
+      <button className="focus-secondary" aria-label={'Edit ' + guest.name} disabled={busy} onClick={() => editGuest(guest)}>Edit guest</button>
     </article>)}</div>}
   </section>
 }

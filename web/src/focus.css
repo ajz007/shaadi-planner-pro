@@ -70,6 +70,11 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .transport-passengers label { cursor: pointer; }
 .transport-passengers input { width: 1.25rem; height: 1.25rem; }
 .pickup-review { background: #ffedc9; color: #694900; }
+.transport-filters { padding-inline: 0; }
+.transport-review-filter { display: flex; align-items: center; min-height: 2.75rem; gap: .35rem; }
+.workspace-sheet { border-collapse: separate; border-spacing: 0; }
+.workspace-sheet th:first-child { position: sticky; left: 0; z-index: 1; min-width: 8rem; background: #fffefa; box-shadow: 1px 0 #dce4d8; }
+.workspace-sheet td small { display: block; }
 .imported-records { border-collapse: collapse; text-align: left; font-size: .85rem; }
 .imported-records th, .imported-records td { border-bottom: 1px solid #dce4d8; padding: .5rem .7rem; vertical-align: top; min-width: 6rem; }
 .focus-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

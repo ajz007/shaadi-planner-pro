@@ -142,10 +142,10 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
   const [route, setRoute] = useState(window.location.hash)
   const [menuOpen, setMenuOpen] = useState(false)
   useEffect(() => {
-    function navigate() {
+    function navigate(event: HashChangeEvent) {
       setRoute(window.location.hash)
       setMenuOpen(false)
-      window.scrollTo(0, 0)
+      if (new URL(event.oldURL).hash.split('?')[0] !== window.location.hash.split('?')[0]) window.scrollTo(0, 0)
     }
     window.addEventListener('hashchange', navigate)
     return () => window.removeEventListener('hashchange', navigate)
@@ -164,8 +164,9 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
     const key = workspacePage?.[2] ?? ''
     const section = key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history' : focusSection(key)
     const query = new URLSearchParams(params)
+    const layout = query.get('layout')
     return <Workspace weddingID={workspacePage?.[1]} section={section} guestSearch={filter} setup={page === 'workspace/setup'}
-      workbookView={query.get('layout') === 'workbook'} loginFailed={query.get('login') === 'failed'} />
+      layout={layout === 'workbook' || layout === 'cards' ? layout : undefined} loginFailed={query.get('login') === 'failed'} />
   }
 
   return <div className="planner">

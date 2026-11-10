@@ -24,6 +24,10 @@ const arrivalLabels: Record<keyof Arrival, string> = {
 
 const groupArrival = (guest: Guest) => [shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode].filter(Boolean).join(' · ') || 'Arrival not recorded'
 const displayChange = (field: keyof Arrival, value: string) => value ? (field === 'date' ? shownDate(value) : value) : 'Not recorded'
+const pickupRoute = (pickup: Pickup) => pickup.pickupPoint + ' → ' + pickup.dropPoint
+const vehicleDetails = (pickup: Pickup) => [pickup.vehicle, pickup.vehicleNumber, pickup.driver].filter(Boolean).join(' · ')
+const byPickupTime = (a: Pickup, b: Pickup) => (a.date || '9999').localeCompare(b.date || '9999') ||
+  (a.time || '99').localeCompare(b.time || '99') || pickupRoute(a).localeCompare(pickupRoute(b))
 
 async function transportRequest<T>(url: string, body?: object, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, body === undefined ? { signal } : {
@@ -39,6 +43,8 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
 }) {
   const [data, setData] = useState<{ guests: Guest[]; pickups: Pickup[] }>()
   const [date, setDate] = useState('')
+  const [sortBy, setSortBy] = useState('date')
+  const [reviewOnly, setReviewOnly] = useState(false)
   const [editor, setEditor] = useState<Editor>()
   const [editorKey, setEditorKey] = useState(0)
   const [feedback, setFeedback] = useState('')
@@ -66,7 +72,12 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
   const pickups = data?.pickups ?? []
   const scheduled = new Set(pickups.filter(pickup => pickup.status !== 'Cancelled').flatMap(pickup => pickup.passengers.map(guest => guest.id)))
   const dates = [...new Set([...guests.map(guest => guest.arrivalDate), ...pickups.map(pickup => pickup.date)].filter(Boolean))].sort()
-  const visible = pickups.filter(pickup => !date || (pickup.date || 'missing') === date)
+  const visible = pickups.filter(pickup => (!date || (pickup.date || 'missing') === date) && (!reviewOnly || pickup.needsReview))
+    .sort((a, b) => {
+      if (sortBy === 'review') return Number(b.needsReview) - Number(a.needsReview) || byPickupTime(a, b)
+      if (sortBy === 'route') return pickupRoute(a).localeCompare(pickupRoute(b)) || byPickupTime(a, b)
+      return byPickupTime(a, b)
+    })
   const pending = guests.filter(guest => guest.transportRequired === 'Yes' && !scheduled.has(guest.id) && (!date || (guest.arrivalDate || 'missing') === date))
   const groups = new Map<string, Guest[]>()
   for (const guest of pending) {
@@ -120,6 +131,8 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
   const query = guestQuery.trim().toLowerCase()
   const listedGuests = guests.filter(guest => !query || (guest.name + ' ' + guest.household).toLowerCase().includes(query))
   const current = editor?.pickup
+  const pickupChanges = (pickup: Pickup) => <ul>{changes(pickup).map(change =>
+    <li key={change.key}>{change.name} · {change.label}: {change.from} → {change.to}</li>)}</ul>
 
   return <>
     <section className="focus-card">
@@ -131,18 +144,24 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
             void load().catch(error => setError(error.message))
           }}>Refresh transportation</button>
           {data && <PrintSection title="Pickup plan" weddingName={wedding.name} buttonLabel="Print pickup plan"
-            filters={date === 'missing' ? 'Date not recorded' : date ? shownDate(date) : 'All pickup dates'}
+            filters={(date === 'missing' ? 'Date not recorded' : date ? shownDate(date) : 'All pickup dates') + (reviewOnly ? ' · Needs review only' : '')}
             columns={['Date', 'Time', 'Route', 'Passengers', 'Vehicle / driver', 'Owner', 'Status']}
-            records={printable.map(pickup => [shownDate(pickup.date), pickup.time, pickup.pickupPoint + ' → ' + pickup.dropPoint,
-              pickup.passengers.map(passenger => passenger.name).join(', '), [pickup.vehicle, pickup.vehicleNumber, pickup.driver].filter(Boolean).join(' · '),
+            records={printable.map(pickup => [shownDate(pickup.date), pickup.time, pickupRoute(pickup),
+              pickup.passengers.map(passenger => passenger.name).join(', '), vehicleDetails(pickup),
               pickup.owner, pickup.needsReview ? 'Needs review' : pickup.status])} />}
         </div>
       </div>
+      <div className="focus-filters transport-filters">
       <label className="focus-field">Pickup and arrival date<select aria-label="Pickup and arrival date" value={date} onChange={event => setDate(event.target.value)}>
         <option value="">All dates</option><option value={today}>Today · {shownDate(today)}</option>
         {dates.filter(value => value !== today).map(value => <option key={value} value={value}>{shownDate(value)}</option>)}
         <option value="missing">Date not recorded</option>
       </select></label>
+      <label className="focus-field">Sort by<select aria-label="Sort by" value={sortBy} onChange={event => setSortBy(event.target.value)}>
+        <option value="date">Pickup date and time</option><option value="review">Needs review first</option><option value="route">Route</option>
+      </select></label>
+      <label className="transport-review-filter"><input type="checkbox" checked={reviewOnly} onChange={event => setReviewOnly(event.target.checked)} /> Only pickups needing review</label>
+      </div>
       {feedback && <p role="status">{feedback}</p>}
       {error && <p role="alert">{error}</p>}
       {data && <p>{visible.length} pickups · {visible.filter(pickup => pickup.needsReview).length} need review · {pending.length} guests still need transport</p>}
@@ -188,20 +207,21 @@ export function WorkspaceTransport({ wedding, people, workbookView }: {
       <h2>Saved pickups</h2>
       {data && !visible.length && <p>No pickups for this selection.</p>}
       {workbookView && visible.length ? <div className="table-scroll" tabIndex={0} role="region" aria-label="Transportation table">
-        <table className="imported-records"><thead><tr>{['Date and time', 'Route', 'Passengers', 'Vehicle', 'Owner', 'Status', 'Action'].map(label => <th key={label}>{label}</th>)}</tr></thead>
+        <table className="imported-records workspace-sheet"><thead><tr>{['Route', 'Date and time', 'Passengers', 'Vehicle / driver', 'Owner', 'Status', 'Action'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
           <tbody>{visible.map(pickup => <tr key={pickup.id}>
-            <td>{shownDate(pickup.date)} {pickup.time}</td><td>{pickup.pickupPoint} → {pickup.dropPoint}</td>
+            <th scope="row">{pickupRoute(pickup)}</th><td>{shownDate(pickup.date)} {pickup.time}</td>
             <td>{pickup.passengers.length} · {pickup.passengers.map(guest => guest.name).join(', ')}</td>
-            <td>{pickup.vehicle}</td><td>{pickup.owner}</td><td>{pickup.needsReview ? 'Needs review' : pickup.status}</td>
+            <td>{vehicleDetails(pickup)}{pickup.driverConfirmed && <small>Driver confirmed: {pickup.driverConfirmed}</small>}</td><td>{pickup.owner}</td>
+            <td>{pickup.needsReview ? <><span className="focus-chip pickup-review">Needs review</span>
+              <details className="focus-completed"><summary>Arrival changes</summary>{pickupChanges(pickup)}</details></> : pickup.status}</td>
             <td><button className="focus-secondary" disabled={busy} onClick={() => editPickup(pickup)}>{pickup.needsReview ? 'Review pickup' : 'Edit pickup'}</button></td>
           </tr>)}</tbody></table>
       </div> : <div className="focus-record-grid">{visible.map(pickup => <article className="focus-card" key={pickup.id}>
-        <div className="focus-heading"><h3>{pickup.pickupPoint} → {pickup.dropPoint}</h3>
+        <div className="focus-heading"><h3>{pickupRoute(pickup)}</h3>
           <span className={pickup.needsReview ? 'focus-chip pickup-review' : 'focus-chip'}>{pickup.needsReview ? 'Needs review' : pickup.status || 'Status not set'}</span></div>
-        <p>{[shownDate(pickup.date), pickup.time, pickup.vehicle, pickup.owner].filter(Boolean).join(' · ')}</p>
+        <p>{[shownDate(pickup.date), pickup.time, vehicleDetails(pickup), pickup.owner].filter(Boolean).join(' · ')}</p>
         <p>{pickup.passengers.length} passengers · {pickup.passengers.map(guest => guest.name).join(', ')}</p>
-        {pickup.needsReview && <ul>{changes(pickup).map(change =>
-          <li key={change.key}>{change.name} · {change.label}: {change.from} → {change.to}</li>)}</ul>}
+        {pickup.needsReview && pickupChanges(pickup)}
         <button className="focus-secondary" disabled={busy} onClick={() => editPickup(pickup)}>{pickup.needsReview ? 'Review pickup' : 'Edit pickup'}</button>
       </article>)}</div>}
     </section>
