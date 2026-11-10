@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
-var snapshotAmounts = regexp.MustCompile(`^(Budget|Actual Paid|Quote|Negotiated Price|Contract Value|Paid|Expected Guests|Qty|Unit Cost)$`)
+var snapshotAmounts = regexp.MustCompile(`^(Budget|Actual Paid|Quote|Negotiated Price|Contract Value|Paid|Expected Guests|Qty|Unit Cost|Passenger Count \(Auto\))$`)
 
 func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, actor string) {
 	wedding := r.PathValue("wedding")
@@ -50,6 +51,11 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	guests, err := listLiveGuests(ctx, tx, wedding, actor)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	pickups, err := listPickups(ctx, tx, wedding, actor)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
@@ -125,10 +131,12 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		return result
 	})
 	byGuest := make(map[string]liveGuest)
+	guestPhones := make(map[string]string)
 	liveSection("Guest List", func(section importSection) []importRow {
 		originals := make(map[string][]string)
 		for _, row := range section.Rows {
 			originals[row.Values[0]] = row.Values
+			guestPhones[row.Values[0]] = row.Values[6]
 		}
 		result := make([]importRow, 0, len(guests))
 		for _, guest := range guests {
@@ -138,6 +146,33 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 			values[7], values[10], values[11], values[12], values[13] = guest.RSVP, guest.TransportRequired, guest.ArrivalDate, guest.ArrivalTime, guest.ArrivalMode
 			values[20] = guest.WorkbookID + " | " + guest.Name
 			byGuest[guest.WorkbookID] = guest
+			result = append(result, importRow{Values: values})
+		}
+		return result
+	})
+	liveSection("Transportation", func(section importSection) []importRow {
+		result := make([]importRow, 0, len(pickups))
+		for _, pickup := range pickups {
+			values := make([]string, len(section.Columns)+2)
+			values[0], values[1], values[2], values[3] = pickup.Date, pickup.Time, pickup.PickupPoint, pickup.DropPoint
+			values[10], values[11], values[12], values[13] = strconv.Itoa(len(pickup.Passengers)), pickup.Vehicle, pickup.VehicleNumber, pickup.Driver
+			values[14], values[15], values[16], values[17] = pickup.Owner, pickup.Status, pickup.DriverConfirmed, pickup.Notes
+			extra := []string{}
+			for index, passenger := range pickup.Passengers {
+				label := passenger.WorkbookID + " | " + passenger.Name
+				if index == 0 {
+					values[8], values[9] = passenger.Household, guestPhones[passenger.WorkbookID]
+				}
+				if index < 4 {
+					values[4+index] = label
+				} else {
+					extra = append(extra, label)
+				}
+			}
+			values[18] = strings.Join(extra, ", ")
+			if pickup.NeedsReview {
+				values[19] = "Needs review"
+			}
 			result = append(result, importRow{Values: values})
 		}
 		return result
@@ -200,6 +235,7 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 	sheets := []snapshotSheet{{Name: "Dashboard", Rows: [][]any{
 		{"Metric", "Value"}, {"Wedding", name}, {"Guests", float64(totals.Guests)}, {"Confirmed guests", float64(totals.Confirmed)},
 		{"Rooms", float64(totals.Rooms)}, {"Functions", float64(len(functions))}, {"Open tasks", float64(openTasks)},
+		{"Pickups", float64(len(pickups))},
 		{"Planned budget", float64(totals.PlannedPaise) / 100}, {"Budget paid", float64(totals.PaidPaise) / 100},
 		{"Vendor balance", float64(totals.VendorDuePaise) / 100},
 	}}}
@@ -207,6 +243,9 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		columns := section.Columns
 		if section.Name == "Family Responsibilities" {
 			columns = append(append([]string{}, columns...), "Open for claiming")
+		}
+		if section.Name == "Transportation" {
+			columns = append(append([]string{}, columns...), "Additional passengers", "Arrival review")
 		}
 		header := make([]any, len(columns))
 		for i, label := range columns {

@@ -5,6 +5,7 @@ import { WorkspaceGuests } from './WorkspaceGuests'
 import type { Guest } from './WorkspaceGuests'
 import { FocusNavigation, focusLink, PlanningSection } from './FocusPages'
 import { ScheduleChart, scheduleEntries } from './ScheduleBoard'
+import { WorkspaceTransport } from './WorkspaceTransport'
 
 type Session = { configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
 type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
@@ -87,7 +88,7 @@ function WeddingWorkspace({ plan, refresh, section, workbookView, guestSearch }:
   }, [organizer, path, section])
   const href = (page?: string) => weddingPage(wedding.id, page, workbookView)
   const canSee = (page: string) => owner || page === 'Functions & Events' || page === 'Family Responsibilities' ||
-    (organizer && ['Guest List', 'Schedule Board', 'Settings'].includes(page))
+    (organizer && ['Guest List', 'Schedule Board', 'Settings', 'Transportation'].includes(page))
   const personName = (id: string | null) => people.find(person => person.id === id)?.name ?? 'Unassigned'
   const functionName = (id: string | null) => functions.find(event => event.id === id)?.name
   const eventTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: wedding.timeZone })
@@ -183,6 +184,7 @@ function WeddingWorkspace({ plan, refresh, section, workbookView, guestSearch }:
     {feedback && <p role="alert">{feedback}</p>}
     {section && !canSee(section) ? <p role="status">This page is unavailable for your role. <a href={href()}>Return to overview</a>.</p>
       : section === 'Guest List' ? <WorkspaceGuests key={guestSearch} wedding={wedding} initialSearch={guestSearch} workbookView={workbookView} />
+      : section === 'Transportation' ? <WorkspaceTransport wedding={wedding} people={people} workbookView={workbookView} />
       : section === 'Schedule Board' ? <ScheduleChart actual={scheduleEntries(functionRows, timeline)} weddingName={wedding.name} />
       : section === 'Import history' ? <><p><a href={href('Settings')}>← Wedding settings</a></p><ImportedPlanningRecords {...imported} /></>
       : section && !showTasks && !showFunctions && section !== 'Settings' ? <>

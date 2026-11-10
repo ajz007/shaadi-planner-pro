@@ -28,6 +28,9 @@ var workspaceImportMigration string
 //go:embed migrations/004_live_guests.sql
 var workspaceGuestMigration string
 
+//go:embed migrations/005_live_transport.sql
+var workspaceTransportMigration string
+
 var (
 	errWorkspaceNotFound = errors.New("record not found or access denied")
 	errWorkspaceConflict = errors.New("record changed or no longer available")
@@ -62,7 +65,7 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 	if _, err := tx.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS workspace_migrations (version integer PRIMARY KEY)"); err != nil {
 		return err
 	}
-	for i, migration := range []string{initialWorkspaceMigration, workspaceSessionMigration, workspaceImportMigration, workspaceGuestMigration} {
+	for i, migration := range []string{initialWorkspaceMigration, workspaceSessionMigration, workspaceImportMigration, workspaceGuestMigration, workspaceTransportMigration} {
 		version := i + 1
 		var applied bool
 		if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM workspace_migrations WHERE version = $1)", version).Scan(&applied); err != nil {

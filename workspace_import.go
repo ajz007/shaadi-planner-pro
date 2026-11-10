@@ -137,7 +137,8 @@ func writeImportedSections(ctx context.Context, tx *sql.Tx, wedding string, plan
 			}
 		}
 	}
-	return nil
+	_, err = tx.ExecContext(ctx, "SELECT shaadi_seed_pickups($1)", wedding)
+	return err
 }
 
 func (a *workspaceHTTP) importPreview(w http.ResponseWriter, r *http.Request, actor string) {

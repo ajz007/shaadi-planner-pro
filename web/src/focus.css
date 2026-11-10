@@ -65,6 +65,11 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .wedding-hero h1 { font-size: clamp(2rem, 5vw, 3.7rem); }
 .wedding-overview-metrics a { flex: 1 1 12rem; text-decoration: none; }
 .wedding-overview-metrics a span { display: block; }
+.transport-panel { margin-top: 1rem; }
+.transport-passengers { max-height: 19rem; overflow: auto; padding: 0 .5rem; border: 1px solid #dce4d8; border-radius: .5rem; }
+.transport-passengers label { cursor: pointer; }
+.transport-passengers input { width: 1.25rem; height: 1.25rem; }
+.pickup-review { background: #ffedc9; color: #694900; }
 .imported-records { border-collapse: collapse; text-align: left; font-size: .85rem; }
 .imported-records th, .imported-records td { border-bottom: 1px solid #dce4d8; padding: .5rem .7rem; vertical-align: top; min-width: 6rem; }
 .focus-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

@@ -126,6 +126,8 @@ func (a *workspaceHTTP) register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/workspace/import/confirm", a.protected(a.importConfirm))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/imported-sections", a.protected(a.importedSections))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/guests", a.protected(a.guests))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/transportation", a.protected(a.pickups))
+	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/transportation/{pickup}", a.protected(a.savePickup))
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/guests/{guest}", a.protected(a.saveGuest))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/snapshot.xlsx", a.protected(a.weddingSnapshot))
 }
@@ -287,6 +289,8 @@ func (a *workspaceHTTP) action(w http.ResponseWriter, r *http.Request, actor str
 	switch r.PathValue("action") {
 	case "guests":
 		a.saveGuest(w, r, actor)
+	case "transportation":
+		a.savePickup(w, r, actor)
 	case "people":
 		var input struct{ Name string }
 		if readJSON(w, r, &input) {

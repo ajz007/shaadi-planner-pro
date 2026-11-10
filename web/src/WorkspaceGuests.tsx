@@ -15,9 +15,9 @@ const choices = [
 ] as const
 const guestFilters = [...choices, { field: 'arrivalDate', label: 'Arrival date', options: [] }] as const
 const displayDate = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeZone: 'UTC' })
-const shownDate = (date: string) => date ? displayDate.format(new Date(date + 'T00:00:00Z')) : ''
+export const shownDate = (date: string) => date ? displayDate.format(new Date(date + 'T00:00:00Z')) : ''
 
-function localDay(zone: string) {
+export function localDay(zone: string) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts()
   return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type)?.value).join('-')
 }

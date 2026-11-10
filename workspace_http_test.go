@@ -207,6 +207,19 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 			t.Fatal("member could not see the imported assignment")
 		}
 		request("GET", path+"/imported-sections", "", "", brotherSession, 404)
+		pickupList := func() []savedPickup {
+			t.Helper()
+			response := request("GET", path+"/transportation", "", "", owner, 200)
+			var pickups []savedPickup
+			if err := json.Unmarshal(response.Body.Bytes(), &pickups); err != nil {
+				t.Fatal(err)
+			}
+			return pickups
+		}
+		originalPickups := pickupList()
+		if len(originalPickups) != 3 || originalPickups[0].NeedsReview || len(originalPickups[0].Passengers) != 4 {
+			t.Fatalf("workbook pickups did not seed with current arrival details: %+v", originalPickups)
+		}
 		guestsResponse := request("GET", path+"/guests", "", "", owner, 200)
 		var guests []liveGuest
 		if err := json.Unmarshal(guestsResponse.Body.Bytes(), &guests); err != nil || len(guests) != 14 {
@@ -221,11 +234,56 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 				}
 			}
 		}
-		update := `{"name":"Rajiv Sharma","arrivalDate":"2027-02-14","arrivalTime":"11:37","transportRequired":"Yes","revision":1}`
+		update := `{"name":"Rajiv Sharma","household":"Sharma Family","side":"Groom","rsvp":"Confirmed","arrivalDate":"2027-02-14","arrivalTime":"11:37","arrivalMode":"Flight","transportRequired":"Yes","revision":1}`
 		request("POST", path+"/guests/"+guestID, update, origin, brotherSession, 404)
 		request("GET", path+"/guests", "", "", brotherSession, 404)
 		request("POST", path+"/guests/"+guestID, update, origin, owner, 200)
 		request("POST", path+"/guests/"+guestID, update, origin, owner, 409)
+		changed := pickupList()[0]
+		if !changed.NeedsReview || changed.Time != "08:30" || changed.Passengers[0].Arrival.Time != "11:37" || changed.Passengers[0].Reviewed.Time != "08:30" {
+			t.Fatalf("arrival change should flag the original pickup without moving it: %+v", changed)
+		}
+		passengers := make([]map[string]any, 0, len(changed.Passengers))
+		for _, passenger := range changed.Passengers {
+			passengers = append(passengers, map[string]any{"id": passenger.ID, "revision": passenger.Revision})
+		}
+		pickupBody := map[string]any{"date": changed.Date, "time": "11:50", "pickupPoint": changed.PickupPoint,
+			"dropPoint": changed.DropPoint, "vehicle": "Review test van", "status": "Confirmed",
+			"revision": changed.Revision, "passengers": passengers}
+		payload, err := json.Marshal(pickupBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request("GET", path+"/transportation", "", "", brotherSession, 404)
+		request("POST", path+"/transportation/"+changed.ID, string(payload), origin, brotherSession, 404)
+		request("POST", path+"/transportation/"+changed.ID, string(payload), origin, owner, 200)
+		request("POST", path+"/transportation/"+changed.ID, string(payload), origin, owner, 409)
+		foundReviewed := false
+		for _, pickup := range pickupList() {
+			if pickup.ID == changed.ID && !pickup.NeedsReview && pickup.Time == "11:50" {
+				foundReviewed = true
+			}
+		}
+		if !foundReviewed {
+			t.Fatal("reviewed pickup time and cleared flag were not saved")
+		}
+		pickupBody["time"] = "12:30"
+		passengers[0]["revision"] = 1
+		payload, err = json.Marshal(pickupBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request("POST", path+"/transportation", string(payload), origin, owner, 409)
+		if len(pickupList()) != 3 {
+			t.Fatal("failed passenger check left a partial pickup")
+		}
+		passengers[0]["revision"] = changed.Passengers[0].Revision
+		pickupBody["pickupPoint"] = "Test arrival gate"
+		payload, err = json.Marshal(pickupBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request("POST", path+"/transportation", string(payload), origin, owner, 201)
 		request("POST", path+"/guests", `{"name":"Additional guest","side":"Bride"}`, origin, owner, 201)
 		request("GET", path+"/snapshot.xlsx", "", "", outsider, 404)
 		request("GET", path+"/snapshot.xlsx", "", "", brotherSession, 404)
@@ -234,7 +292,7 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		found := false
+		found, foundTransport := false, false
 		for _, part := range archive.File {
 			if !strings.HasPrefix(part.Name, "xl/worksheets/") {
 				continue
@@ -252,9 +310,16 @@ func TestPrivateWorkspaceHTTP(t *testing.T) {
 			if strings.Contains(text, "Additional guest") && strings.Contains(text, "11:37") && strings.Contains(text, "G001") {
 				found = true
 			}
+			if strings.Contains(text, "Test arrival gate") && strings.Contains(text, "Review test van") &&
+				strings.Contains(text, "11:50") && strings.Contains(text, "12:30") {
+				foundTransport = true
+			}
 		}
 		if !found {
 			t.Fatal("downloaded workbook did not contain the new guest and edited arrival")
+		}
+		if !foundTransport {
+			t.Fatal("downloaded workbook did not contain the saved transportation changes")
 		}
 	}
 }

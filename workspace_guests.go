@@ -90,7 +90,7 @@ func (a *workspaceHTTP) guestPlanLinks(ctx context.Context, wedding, actor strin
 		return json.Unmarshal(payload, section)
 	}, `SELECT i.payload FROM wedding_imported_sections i JOIN wedding_memberships m ON m.wedding_id = i.wedding_id
 		WHERE i.wedding_id = $1 AND m.account_id = $2 AND m.role IN ('owner', 'co-organizer')
-		AND i.section_name IN ('Accommodation', 'Transportation', 'RSVP Follow-up') ORDER BY i.position`, wedding, actor)
+		AND i.section_name IN ('Accommodation', 'RSVP Follow-up') ORDER BY i.position`, wedding, actor)
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +103,6 @@ func (a *workspaceHTTP) guestPlanLinks(ctx context.Context, wedding, actor strin
 			case "Accommodation":
 				link.Label = values[0] + " · Room " + values[1]
 				link.Detail = strings.Trim(strings.Join([]string{values[10], values[11]}, " – "), " –")
-			case "Transportation":
-				link.Label, link.Detail = values[2]+" → "+values[3], strings.TrimSpace(values[0]+" "+values[1])
 			case "RSVP Follow-up":
 				link.Label, link.Detail = values[7], strings.TrimSpace(values[4]+" "+values[5])
 			}
@@ -115,6 +113,23 @@ func (a *workspaceHTTP) guestPlanLinks(ctx context.Context, wedding, actor strin
 					seen[id] = true
 				}
 			}
+		}
+	}
+	pickups, err := listPickups(ctx, a.store.db, wedding, actor)
+	if err != nil {
+		return nil, err
+	}
+	for _, pickup := range pickups {
+		if pickup.Status == "Cancelled" {
+			continue
+		}
+		detail := strings.TrimSpace(pickup.Date + " " + pickup.Time)
+		if pickup.NeedsReview {
+			detail += " · Needs review"
+		}
+		link := guestPlanLink{Section: "Transportation", Label: pickup.PickupPoint + " → " + pickup.DropPoint, Detail: detail}
+		for _, passenger := range pickup.Passengers {
+			links[passenger.WorkbookID] = append(links[passenger.WorkbookID], link)
 		}
 	}
 	return links, nil
