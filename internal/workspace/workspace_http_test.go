@@ -500,6 +500,66 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		if download.Body.String() != pdf || !strings.HasPrefix(download.Header().Get("Content-Disposition"), "attachment;") {
 			t.Fatal("vendor document download did not return the saved file as an attachment")
 		}
+		readGuest := func(workbookID, name string) liveGuest {
+			t.Helper()
+			var rows []liveGuest
+			if err := json.Unmarshal(request("GET", path+"/guests", "", "", owner, 200).Body.Bytes(), &rows); err != nil {
+				t.Fatal(err)
+			}
+			for _, guest := range rows {
+				if (workbookID != "" && guest.WorkbookID == workbookID) || (name != "" && guest.Name == name) {
+					return guest
+				}
+			}
+			t.Fatal("guest is missing from the live list")
+			return liveGuest{}
+		}
+		bulkPath := path + "/guests/bulk"
+		importedGuest := readGuest("G001", "")
+		newGuest := readGuest("", "Additional guest")
+		if importedGuest.StayRequired != "Yes" || newGuest.StayRequired != "" {
+			t.Fatal("stay requirements were not initialized for imported and manual guests")
+		}
+		bulk := guestBulkEdit{Field: "stayRequired", Value: "No", BlanksOnly: true, Guests: []guestBulkTarget{
+			{ID: importedGuest.ID, Revision: importedGuest.Revision},
+			{ID: newGuest.ID, Revision: newGuest.Revision},
+		}}
+		sendBulk := func(cookie *http.Cookie, status int) {
+			t.Helper()
+			body, err := json.Marshal(bulk)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request("POST", bulkPath, string(body), origin, cookie, status)
+		}
+		sendBulk(brotherSession, 404)
+		bulk.Guests[0].Revision--
+		sendBulk(owner, 409)
+		if readGuest("", "Additional guest").Revision != newGuest.Revision {
+			t.Fatal("a stale selection partially updated guests")
+		}
+		bulk.Guests[0].Revision++
+		sendBulk(owner, 200)
+		if readGuest("G001", "").StayRequired != "Yes" || readGuest("", "Additional guest").StayRequired != "No" {
+			t.Fatal("fill blanks only overwrote an existing value or skipped a blank")
+		}
+		bulk = guestBulkEdit{Field: "transportRequired", Value: "No", Guests: bulk.Guests[:1]}
+		sendBulk(owner, 200)
+		var linkedPickupNeedsReview bool
+		for _, pickup := range pickupList() {
+			if pickup.ID == changed.ID {
+				linkedPickupNeedsReview = pickup.NeedsReview
+			}
+		}
+		if !linkedPickupNeedsReview {
+			t.Fatal("a bulk transport change did not flag the linked pickup")
+		}
+		bulk.Field, bulk.Value = "side", "Bride"
+		bulk.Guests[0].Revision++
+		sendBulk(owner, 200)
+		if readGuest("G001", "").Side != "Bride" {
+			t.Fatal("bulk wedding-side change was not saved")
+		}
 		snapshot := request("GET", path+"/snapshot.xlsx", "", "", owner, 200)
 		request("POST", filePath, "", origin, owner, 204)
 		request("GET", filePath, "", "", owner, 404)

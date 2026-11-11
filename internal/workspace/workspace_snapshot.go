@@ -182,6 +182,7 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 			copy(values, originals[guest.WorkbookID])
 			values[0], values[1], values[2], values[3] = guest.WorkbookID, guest.Name, guest.Household, guest.Side
 			values[7], values[10], values[11], values[12], values[13] = guest.RSVP, guest.TransportRequired, guest.ArrivalDate, guest.ArrivalTime, guest.ArrivalMode
+			values[9] = guest.StayRequired
 			values[20] = guest.WorkbookID + " | " + guest.Name
 			byGuest[guest.WorkbookID] = guest
 			result = append(result, importRow{Values: values})
