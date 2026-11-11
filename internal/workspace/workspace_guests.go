@@ -22,6 +22,7 @@ type liveGuest struct {
 	ArrivalTime       string          `json:"arrivalTime"`
 	ArrivalMode       string          `json:"arrivalMode"`
 	TransportRequired string          `json:"transportRequired"`
+	StayRequired      string          `json:"stayRequired"`
 	Revision          int             `json:"revision"`
 	Links             []guestPlanLink `json:"links,omitempty"`
 }
@@ -34,11 +35,11 @@ type guestPlanLink struct {
 
 const guestColumns = `g.id, g.workbook_id, g.name, g.household, g.side, g.wedding_rsvp,
 	COALESCE(g.arrival_date::text, ''), COALESCE(to_char(g.arrival_time, 'HH24:MI'), ''),
-	g.arrival_mode, g.transport_required, g.revision`
+	g.arrival_mode, g.transport_required, g.stay_required, g.revision`
 
 func scanGuest(row *sql.Rows, guest *liveGuest) error {
 	return row.Scan(&guest.ID, &guest.WorkbookID, &guest.Name, &guest.Household, &guest.Side, &guest.RSVP,
-		&guest.ArrivalDate, &guest.ArrivalTime, &guest.ArrivalMode, &guest.TransportRequired, &guest.Revision)
+		&guest.ArrivalDate, &guest.ArrivalTime, &guest.ArrivalMode, &guest.TransportRequired, &guest.StayRequired, &guest.Revision)
 }
 
 func listLiveGuests(ctx context.Context, db workspaceRowsQueryer, wedding, actor string) ([]liveGuest, error) {
@@ -148,9 +149,20 @@ func (a *workspaceHTTP) saveGuest(w http.ResponseWriter, r *http.Request, actor 
 		workspaceFailure(w, errWorkspaceNotFound)
 		return
 	}
-	var guest liveGuest
-	if !httpx.ReadJSON(w, r, &guest) {
+	var input struct {
+		liveGuest
+		StayRequired *string `json:"stayRequired"`
+	}
+	if !httpx.ReadJSON(w, r, &input) {
 		return
+	}
+	guest := input.liveGuest
+	if input.StayRequired != nil {
+		*input.StayRequired = strings.TrimSpace(*input.StayRequired)
+		if utf8.RuneCountInString(*input.StayRequired) > 120 {
+			workspaceFailure(w, errWorkspaceInput)
+			return
+		}
 	}
 	if !guest.valid() || (id != "" && guest.Revision < 1) || guest.ID != "" || guest.WorkbookID != "" || guest.Links != nil {
 		workspaceFailure(w, errWorkspaceInput)
@@ -158,13 +170,13 @@ func (a *workspaceHTTP) saveGuest(w http.ResponseWriter, r *http.Request, actor 
 	}
 	ctx := r.Context()
 	args := []any{wedding, actor, guest.Name, guest.Household, guest.Side, guest.RSVP, guest.ArrivalDate,
-		guest.ArrivalTime, guest.ArrivalMode, guest.TransportRequired}
+		guest.ArrivalTime, guest.ArrivalMode, guest.TransportRequired, input.StayRequired}
 	if id == "" {
 		err := scanWorkspace(a.store.db.QueryRowContext(ctx, `
 			INSERT INTO wedding_guests (wedding_id, workbook_id, name, household, side, wedding_rsvp,
-				arrival_date, arrival_time, arrival_mode, transport_required)
+				arrival_date, arrival_time, arrival_mode, transport_required, stay_required)
 			SELECT wedding_id, 'G-' || gen_random_uuid()::text, $3, $4, $5, $6,
-				NULLIF($7, '')::date, NULLIF($8, '')::time, $9, $10
+				NULLIF($7, '')::date, NULLIF($8, '')::time, $9, $10, COALESCE($11, '')
 			FROM wedding_memberships WHERE wedding_id = $1 AND account_id = $2 AND role IN ('owner', 'co-organizer')
 			RETURNING id`, args...), &id)
 		workspaceCreated(w, id, err)
@@ -175,9 +187,9 @@ func (a *workspaceHTTP) saveGuest(w http.ResponseWriter, r *http.Request, actor 
 	err := scanWorkspace(a.store.db.QueryRowContext(ctx, `
 		UPDATE wedding_guests g SET name = $3, household = $4, side = $5, wedding_rsvp = $6,
 			arrival_date = NULLIF($7, '')::date, arrival_time = NULLIF($8, '')::time,
-			arrival_mode = $9, transport_required = $10, revision = g.revision + 1
+			arrival_mode = $9, transport_required = $10, stay_required = COALESCE($11, g.stay_required), revision = g.revision + 1
 		FROM wedding_memberships m
-		WHERE g.wedding_id = $1 AND g.id = $11 AND g.revision = $12
+		WHERE g.wedding_id = $1 AND g.id = $12 AND g.revision = $13
 		AND m.wedding_id = g.wedding_id AND m.account_id = $2 AND m.role IN ('owner', 'co-organizer')
 		RETURNING g.revision`, args...), &revision)
 	if err == errWorkspaceNotFound {

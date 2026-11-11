@@ -130,9 +130,9 @@ func writeImportedSections(ctx context.Context, tx *sql.Tx, wedding string, plan
 				}
 				_, err = tx.ExecContext(ctx, `
 					INSERT INTO wedding_guests (wedding_id, workbook_id, name, wedding_rsvp, household, side,
-						arrival_date, arrival_time, arrival_mode, transport_required)
-					VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, NULLIF($8, '')::time, $9, $10)`,
-					wedding, v[0], v[1], v[7], v[2], v[3], v[11], clock, v[13], v[10])
+						arrival_date, arrival_time, arrival_mode, transport_required, stay_required)
+					VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, NULLIF($8, '')::time, $9, $10, $11)`,
+					wedding, v[0], v[1], v[7], v[2], v[3], v[11], clock, v[13], v[10], v[9])
 			case "Functions & Events":
 				owner, err := person(v[7])
 				if err != nil {
