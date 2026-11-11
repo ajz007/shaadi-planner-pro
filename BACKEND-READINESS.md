@@ -2,6 +2,8 @@
 
 The prototype is ready to guide backend implementation. The two layouts cover the workbook's planning areas, and the key interaction patterns are established. Treat the sample preview, the RSVP sandbox, and a private wedding as separate workspaces.
 
+This document records the original backend plan. See the [current roadmap](WORKBOOK-TO-WEB.md#current-roadmap-after-the-sample-review) for the live planner baseline and the remaining sample-to-product work.
+
 ## Coverage and remaining work
 
 | Workflow | What exists in the demo | What the shared workspace needs |

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { ImportedPlanningRecords, useImportedPlanningRecords, WorkspaceImport } from './WorkspaceImport'
-import { WorkspaceGuests } from './WorkspaceGuests'
+import { needsReply, shownDate, WorkspaceGuests } from './WorkspaceGuests'
 import type { Guest } from './WorkspaceGuests'
-import { FocusNavigation, focusGroups, focusLink, PlanningSection } from './FocusPages'
+import { focusLink, PlanningSection } from './FocusPages'
 import { ScheduleChart, scheduleEntries } from './ScheduleBoard'
 import { WorkspaceTransport } from './WorkspaceTransport'
 import { WorkspaceLogistics } from './WorkspaceLogistics'
@@ -11,30 +11,20 @@ import { WorkspaceFinance } from './WorkspaceFinance'
 import { VoiceField, VoiceNotice } from './VoiceField'
 import { functionLocalTime, WorkspaceFunctionReadiness, WorkspacePlaces } from './WorkspacePlanning'
 import type { Planning } from './WorkspacePlanning'
+import { useWorkspaceData, workspaceRequest } from './WorkspaceData'
+import { WeddingNavigation } from './WeddingNavigation'
 
 type Session = { configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
 type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
 type Person = { id: string; name: string }
 type WeddingFunction = { id: string; name: string; venue: string; startsAt: string }
 type Task = { id: string; title: string; assignee: string | null; function: string | null; due: string | null; claimable: boolean; done: boolean; revision: number }
-type Plan = { wedding: Wedding; people: Person[]; functions: WeddingFunction[]; tasks: Task[] }
+export type Plan = { wedding: Wedding; people: Person[]; functions: WeddingFunction[]; tasks: Task[] }
 const root = '/api/workspace'
 const pendingInviteKey = 'shaadi-pending-invite'
 
-const weddingPage = (id: string, section?: string, workbook = false) => '#workspace/' + id +
+const weddingPage = (id: string, section?: string, workbook = false, preview = false) => (preview ? '#demo' : '#workspace/' + id) +
   (section ? '/' + (section === 'Import history' ? 'import-history' : focusLink(section).slice(7)) : '') + (workbook ? '?layout=workbook' : '')
-
-async function workspaceRequest<T>(path: string, body?: object, signal?: AbortSignal): Promise<T> {
-  const result = await fetch(root + path, body === undefined ? { signal } : {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (result.status === 204) return undefined as T
-  const data = await result.json()
-  if (!result.ok) throw new Error(data.error || 'The workspace request could not be completed.')
-  return data
-}
 
 const field = (data: FormData, name: string) => String(data.get(name) ?? '').trim()
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong.'
@@ -74,15 +64,17 @@ function TextField({ name, label, type = 'text', required = true, value, maxLeng
   return <label className="focus-field">{label}<input name={name} type={type} required={required} defaultValue={value} maxLength={maxLength} /></label>
 }
 
-type WeddingLayout = 'cards' | 'workbook'
+export type WeddingLayout = 'cards' | 'workbook'
 
 function storeWeddingLayout(key: string, layout: WeddingLayout) {
   try { localStorage.setItem(key, layout) } catch { /* The current view still works. */ }
 }
 
-function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
-  plan: Plan; refresh: () => Promise<void>; section?: string; layout?: WeddingLayout; guestSearch: string
+export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, awaitingReply, accountBar }: {
+  plan: Plan; refresh: () => Promise<void>; section?: string; layout?: WeddingLayout
+  guestSearch: string; awaitingReply: boolean; accountBar?: ReactNode
 }) {
+  const { preview, request } = useWorkspaceData()
   const { wedding, people, functions, tasks } = plan
   const [invite, setInvite] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -117,20 +109,21 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
     if (!showPlanning) return
     const controller = new AbortController()
     setPlanningError('')
-    workspaceRequest<Planning>(path + '/planning', undefined, controller.signal)
+    request<Planning>(path + '/planning', undefined, controller.signal)
       .then(data => { if (!controller.signal.aborted) setPlanning(data) })
       .catch(error => { if (!controller.signal.aborted) setPlanningError(errorText(error)) })
     return () => controller.abort()
-  }, [path, showPlanning])
+  }, [path, request, showPlanning])
   useEffect(() => {
     if (!organizer || section !== undefined) return
     const controller = new AbortController()
-    workspaceRequest<Guest[]>(path + '/guests', undefined, controller.signal)
+    request<Guest[]>(path + '/guests', undefined, controller.signal)
       .then(items => { if (!controller.signal.aborted) setGuests(items) })
       .catch(() => { if (!controller.signal.aborted) setGuests(undefined) })
     return () => controller.abort()
-  }, [organizer, path, section])
-  const href = (page?: string) => weddingPage(wedding.id, page, workbookView)
+  }, [organizer, path, request, section])
+  const href = (page?: string) => weddingPage(wedding.id, page, workbookView, preview)
+  const awaitingCount = guests?.filter(needsReply).length ?? 0
   const canSee = (page: string) => owner || page === 'Functions & Events' || page === 'Family Responsibilities' ||
     (organizer && ['Guest List', 'Schedule Board', 'Settings', 'Transportation', 'Accommodation', 'RSVP Follow-up', 'Places'].includes(page))
   const personName = (id: string | null) => people.find(person => person.id === id)?.name ?? 'Unassigned'
@@ -147,9 +140,9 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
       String(details?.duration ?? ''), details?.people ? JSON.stringify(details.people.map(person => person.personId)) : '']
   })
   async function savePlanning(kind: string, id: string, data: object) {
-    await workspaceRequest(path + '/planning/' + kind + '/' + id, data)
+    await request(path + '/planning/' + kind + '/' + id, data)
     try {
-      setPlanning(await workspaceRequest<Planning>(path + '/planning'))
+      setPlanning(await request<Planning>(path + '/planning'))
       await refresh()
     } catch { setFeedback('Saved. Reload the page to see the latest records.') }
   }
@@ -169,7 +162,7 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
   })
 
   async function mutate(action: string, body: object) {
-    await workspaceRequest(path + '/' + action, body)
+    await request(path + '/' + action, body)
     await refresh().catch(() => setFeedback('Saved. Select Refresh plan to see the latest records.'))
   }
 
@@ -187,10 +180,10 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
   }
 
   function taskList(title: string, items: Task[], claim = false) {
-    const action = (task: Task) => <button disabled={busy} className="focus-secondary" onClick={() => void update(claim ? 'claim' : 'complete', {
+    const action = (task: Task) => <button disabled={busy || preview} className="focus-secondary" onClick={() => void update(claim ? 'claim' : 'complete', {
       task: task.id, ...(claim ? {} : { revision: task.revision, done: !task.done }),
     })}>{claim ? 'I’ll do it' : task.done ? 'Reopen' : 'Mark done'}</button>
-    const reassign = (task: Task) => organizer && <details className="focus-completed">
+    const reassign = (task: Task) => organizer && !preview && <details className="focus-completed">
       <summary>Reassign<span className="focus-sr-only"> {task.title}</span></summary>
       <form key={task.revision} onSubmit={event => {
         event.preventDefault()
@@ -219,12 +212,17 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
     </section>
   }
 
-  return <>
-    <header className="focus-hero wedding-hero">
-      <div><p className="focus-kicker">{section ?? (organizer ? 'WEDDING OVERVIEW' : 'MY WEDDING TASKS')}</p>
-        <h1>{wedding.name}</h1><p>{wedding.date} · {wedding.timeZone}</p></div>
+  const overviewLabel = organizer ? 'Overview' : 'My wedding tasks'
+  return <div className="wedding-workspace">
+    <WeddingNavigation section={section} href={href} canSee={canSee} overviewLabel={overviewLabel} />
+    <main className="focus wedding-content">
+    {accountBar}
+    <header className="planner-hero wedding-hero">
+      <div>
+        <h1>{section ?? overviewLabel}</h1>
+        <p>{wedding.name} · {shownDate(wedding.date)}</p>
+      </div>
       <div className="focus-actions">
-        {owner && <a className="focus-secondary" href={href('Invitations')}>Invite family</a>}
         {organizer && <a className="focus-secondary" href={layoutTarget} onClick={event => {
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
           event.preventDefault()
@@ -232,25 +230,29 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
           storeWeddingLayout(preferenceKey, nextLayout)
           window.location.hash = layoutTarget
         }}>{workbookView ? 'Card view' : 'Workbook view'}</a>}
-        {owner && <a className="focus-secondary" href={root + path + '/snapshot.xlsx'} download>Download current Excel snapshot</a>}
+        {owner && !preview && <details className="wedding-tools" key={section}>
+          <summary className="focus-secondary">Wedding tools</summary>
+          <div>
+            <a href={href('Invitations')}>Invite family</a>
+            <a href={root + path + '/snapshot.xlsx'} download>Download Excel snapshot</a>
+          </div>
+        </details>}
+        {preview && <a className="package-button" href="#workspace">Start planning</a>}
       </div>
     </header>
-    <FocusNavigation section={section} hrefFor={href} home={href()} canSee={canSee} includePlaces={organizer} />
-    {workbookView && <nav className="workbook-tabs" aria-label="Workbook sheets">
-      <a href={href()} aria-current={overview ? 'page' : undefined}>Dashboard</a>
-      {focusGroups.flatMap(group => group.pages).filter(page => page !== 'Schedule Board' && canSee(page))
-        .map(page => <a key={page} href={href(page)} aria-current={section === page ? 'page' : undefined}>{page}</a>)}
-    </nav>}
+    {preview && <p className="wedding-preview-note"><strong>Sample wedding.</strong> Explore with fictional data.
+      Open your own wedding to save changes, invite family or export your plan. <a href="#dashboard">Explore the Excel workbook example</a>.</p>}
     {feedback && <p role="alert">{feedback}</p>}
     {section && !canSee(section) ? <p role="status">This page is unavailable for your role. <a href={href()}>Return to overview</a>.</p>
-      : section === 'Guest List' ? <WorkspaceGuests key={guestSearch} wedding={wedding} initialSearch={guestSearch} workbookView={workbookView} />
+      : section === 'Guest List' ? <WorkspaceGuests key={JSON.stringify([guestSearch, awaitingReply])} wedding={wedding}
+        initialSearch={guestSearch} awaitingReply={awaitingReply} workbookView={workbookView} />
       : section === 'Transportation' ? <WorkspaceTransport wedding={wedding} people={people} workbookView={workbookView}
         places={planning?.places ?? []} placesHref={href('Places')} />
       : section === 'Accommodation' || section === 'RSVP Follow-up' ? <WorkspaceLogistics key={section} section={section}
-        wedding={wedding} people={people} workbookView={workbookView} request={workspaceRequest} guestHref={href('Guest List')}
+        wedding={wedding} people={people} workbookView={workbookView} request={request} guestHref={href('Guest List')}
         places={planning?.places ?? []} placesHref={href('Places')} />
       : section === 'Vendor Comparison' || section === 'Vendor Payments' ? <WorkspaceFinance key={section} section={section}
-        wedding={wedding} workbookView={workbookView} request={workspaceRequest} vendorsHref={href('Vendor Comparison')} />
+        wedding={wedding} workbookView={workbookView} request={request} vendorsHref={href('Vendor Comparison')} />
       : organizer && (section === 'Functions & Events' || section === 'Places') ? (
         planningError ? <p role="alert">{planningError}</p> : !planning ? <p role="status">Loading the wedding plan…</p>
           : section === 'Places' ? <WorkspacePlaces data={planning} save={savePlanning} />
@@ -258,14 +260,14 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
               workbookView={workbookView} placesHref={href('Places')} />
       )
       : section === 'Schedule Board' ? <>
-        <p><a href={href('Functions & Events')}>Edit functions and required people</a> · <a href={href('Places')}>Manage places</a></p>
+        <p><a href={href('Functions & Events')}>{preview ? 'View functions and required people' : 'Edit functions and required people'}</a>
+          {' · '}<a href={href('Places')}>{preview ? 'View places' : 'Manage places'}</a></p>
         {planningError ? <p role="alert">{planningError}</p> : !planning ? <p role="status">Loading the wedding plan…</p>
           : <ScheduleChart actual={scheduleEntries(functionRows, timeline)} weddingName={wedding.name}
             personLabel={id => people.find(person => person.id === id)?.name ?? id} />}
       </>
       : section === 'Import history' ? <><p><a href={href('Settings')}>← Wedding settings</a></p><ImportedPlanningRecords {...imported} /></>
       : section && !showTasks && !showFunctions && section !== 'Settings' && section !== 'Invitations' ? <>
-        <h2>{section}</h2>
         {imported.error ? <p role="alert">{imported.error}</p>
           : !imported.data ? <p role="status">Loading planning records…</p>
           : activeSection ? <>
@@ -276,31 +278,19 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
               weddingName={wedding.name} hrefFor={href} workbookView={workbookView} />
           </> : <p>No {section.toLowerCase()} records have been imported for this wedding.</p>}
       </> : <>
-    {workbookView && overview && <section className="focus-card">
-      <h2>Wedding workbook</h2>
-      <p>Choose a sheet to see the wedding records in a table.</p>
-      <div className="table-scroll"><table className="imported-records">
-        <thead><tr><th scope="col">Sheet</th><th scope="col">Summary</th></tr></thead>
-        <tbody>
-          <tr><th scope="row"><a href={href('Guest List')}>Guest List</a></th><td>{guests ? guests.length + ' guests' : 'Open sheet'}</td></tr>
-          <tr><th scope="row"><a href={href('Functions & Events')}>Functions &amp; Events</a></th><td>{functions.length} scheduled</td></tr>
-          <tr><th scope="row"><a href={href('Family Responsibilities')}>Family Responsibilities</a></th><td>{tasks.filter(task => !task.done).length} open tasks</td></tr>
-          {owner && <tr><th scope="row"><a href={href('Budget vs Actual')}>Budget vs Actual</a></th><td>{imported.data ? displayMoney(imported.data.totals.paidPaise) + ' paid' : 'Open sheet'}</td></tr>}
-        </tbody>
-      </table></div>
-    </section>}
-    {organizer && overview && !workbookView && <>
+    {organizer && overview && <>
       <div className="focus-summary wedding-overview-metrics">
         <a className="focus-card" href={href('Guest List')}><strong>Guests</strong><span>{guests ? guests.length + ' guests · ' + guests.filter(guest => guest.rsvp === 'Confirmed').length + ' confirmed' : 'Open Guest List'}</span></a>
         <a className="focus-card" href={href('Functions & Events')}><strong>Functions</strong><span>{functions.length} scheduled</span></a>
         <a className="focus-card" href={href('Family Responsibilities')}><strong>Family tasks</strong><span>{tasks.filter(task => !task.done).length} open</span></a>
         {owner && <a className="focus-card" href={href('Budget vs Actual')}><strong>Budget</strong><span>{imported.data?.sections.length
-          ? displayMoney(imported.data.totals.paidPaise) + ' paid' : 'Open budget'}</span></a>}
+          ? displayMoney(imported.data.totals.paidPaise) + ' imported actuals' : 'Open budget'}</span></a>}
       </div>
       <div className="focus-record-grid">
         <section className="focus-card"><div className="focus-heading"><h2>Needs attention</h2><a href={href('Family Responsibilities')}>See tasks →</a></div>
-          {guests?.some(guest => guest.rsvp === 'Pending' || guest.rsvp === 'Maybe') &&
-            <p><a href={href('Guest List')}>{guests.filter(guest => guest.rsvp === 'Pending' || guest.rsvp === 'Maybe').length} guests awaiting a reply →</a></p>}
+          {awaitingCount > 0 &&
+            <p><a href={href('Guest List') + (workbookView ? '&' : '?') + 'rsvp=awaiting'}>
+              {awaitingCount} {awaitingCount === 1 ? 'guest' : 'guests'} awaiting a reply →</a></p>}
           {tasks.filter(task => !task.done).slice(0, 4).map(task => <div className="focus-item" key={task.id}><span><strong>{task.title}</strong>
             <small>{personName(task.assignee)}{task.due && ' · Due ' + task.due}</small></span></div>)}
           {!tasks.some(task => !task.done) && <p>No open tasks.</p>}
@@ -330,12 +320,12 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
           weddingName={wedding.name} workbookView={workbookView} /> : <><h2>Wedding settings</h2><p>{wedding.name} · {wedding.date} · {wedding.timeZone}</p></>}
         {owner && <div className="focus-actions"><a href={href('Import history')}>Import history →</a><a href={href('Invitations')}>Invite family →</a></div>}
       </section>}
-      {organizer && (section === 'Settings' || section === 'Invitations') &&
+      {organizer && !preview && (section === 'Settings' || section === 'Invitations') &&
         <WorkspaceForm title="Add a planning person" label="Add person" voice onSave={data => mutate('people', { name: field(data, 'name') })}>
           <p>Add a name now and invite the person when you’re ready.</p>
           <TextField name="name" label="Planning name" />
         </WorkspaceForm>}
-      {organizer && section === 'Family Responsibilities' &&
+      {organizer && !preview && section === 'Family Responsibilities' &&
         <WorkspaceForm title="Add a task" label="Add task" voice onSave={data => mutate('tasks', {
           title: field(data, 'title'), assignee: field(data, 'assignee') || null, function: field(data, 'function') || null,
           due: field(data, 'due') || null, claimable: data.has('claimable'),
@@ -348,9 +338,13 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
           <TextField name="due" label="Due date" type="date" required={false} />
           <label><input name="claimable" type="checkbox" /> Let a family member claim this unassigned task</label>
         </WorkspaceForm>}
-      {owner && section === 'Invitations' && <>
+      {preview && section === 'Invitations' && <section className="focus-card">
+        <h2>Invite your planning team</h2><p>Wedding owners can invite family members and co-organizers to plan together.</p>
+        <a href="#workspace">Open your wedding to invite family</a>
+      </section>}
+      {owner && !preview && section === 'Invitations' && <>
         <WorkspaceForm title="Invite someone" label="Create invite link" onSave={async data => {
-          const result = await workspaceRequest<{ token: string }>(path + '/invite', { person: field(data, 'person'), role: field(data, 'role') })
+          const result = await request<{ token: string }>(path + '/invite', { person: field(data, 'person'), role: field(data, 'role') })
           setInvite(result.token)
           setFeedback('')
         }}>
@@ -372,17 +366,18 @@ function WeddingWorkspace({ plan, refresh, section, layout, guestSearch }: {
               setFeedback('Select the invite link field to copy it manually.')
             }
           }}>Copy invite link</button>
-          <button className="focus-secondary" disabled={busy} onClick={() => void workspaceRequest(path + '/revoke', { token: invite })
+          <button className="focus-secondary" disabled={busy} onClick={() => void request(path + '/revoke', { token: invite })
             .then(() => setInvite('')).catch(error => setFeedback(errorText(error)))}>Revoke invite</button>
         </section>}
       </>}
     </div>}
     </>}
-  </>
+    </main>
+  </div>
 }
 
-export function Workspace({ loginFailed, weddingID, section, layout, guestSearch, setup, inviteCode }: {
-  loginFailed: boolean; weddingID?: string; section?: string; layout?: WeddingLayout; guestSearch: string; setup: boolean; inviteCode: string
+export function Workspace({ loginFailed, weddingID, section, layout, guestSearch, awaitingReply, setup, inviteCode }: {
+  loginFailed: boolean; weddingID?: string; section?: string; layout?: WeddingLayout; guestSearch: string; awaitingReply: boolean; setup: boolean; inviteCode: string
 }) {
   const [session, setSession] = useState<Session>()
   const [weddings, setWeddings] = useState<Wedding[]>([])
@@ -432,19 +427,31 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
     }
   }
 
+  const accountBar = session?.name && <div className="focus-heading workspace-topline">
+    {(weddingID || setup) && <a href="#workspace">← My weddings</a>}
+    <span><span className="wedding-account-name">Signed in as {session.name} · </span><button className="focus-secondary" disabled={busy}
+      onClick={() => void workspaceRequest('/logout', {}).then(() => window.location.assign('/')).catch(error => setError(errorText(error)))}>Sign out</button></span>
+  </div>
+  if (session?.name && weddingID && plan?.wedding.id === weddingID) {
+    return <WeddingWorkspace key={weddingID} plan={plan} section={section} layout={layout}
+      guestSearch={guestSearch} awaitingReply={awaitingReply} refresh={() => refreshPlan(weddingID)}
+      accountBar={<>{accountBar}{error && <p role="alert">{error}</p>}</>} />
+  }
+
+  const title = session?.name ? (setup ? 'Set up a wedding' : 'My weddings') : pendingInvite ? 'Join a wedding' : 'Your wedding planner'
   return <main className="focus">
-    {!weddingID && <header className="focus-hero">
-      <div><p className="focus-kicker">SHAADI PLANNER PRO</p><h1>{session?.name ? (setup ? 'Set up a wedding' : 'My weddings') : 'Private workspace'}</h1></div>
-      <a className="focus-secondary" href="#dashboard">Open sample planner</a>
+    {(!weddingID || (session && !session.name)) && <header className="focus-hero">
+      <div><p className="focus-kicker">SHAADI PLANNER PRO</p><h1>{title}</h1></div>
+      <a className="focus-secondary" href="#demo">Explore a sample wedding</a>
     </header>}
     {error && <p role="alert">{error}</p>}
-    {!session && !error && <p>Opening workspace…</p>}
+    {!session && !error && <p>Opening your wedding planner…</p>}
     {session && !session.configured && <section className="focus-card">
-      <h2>Workspace setup required</h2><p>Set up PostgreSQL and Google sign-in to create or join a private wedding. The sample planner is available above.</p>
+      <h2>Wedding sign-in is unavailable</h2><p>You can still explore the sample wedding.</p>
     </section>}
-    {session?.workspaceURL && <p><a href={session.workspaceURL}>Open the configured workspace address →</a></p>}
+    {session?.workspaceURL && <p><a href={session.workspaceURL}>Open your wedding planner →</a></p>}
     {session?.configured && !session.workspaceURL && !session.name && <section className="focus-card">
-      <h2>Sign in to plan together</h2>
+      <h2>{pendingInvite ? 'Sign in to accept your invitation' : 'Sign in to get started'}</h2>
       {loginFailed && <p role="alert">Sign-in could not finish. Try again.</p>}
       {session.localTest ? <>
         <p>Local test accounts share this computer’s test database. Use sample data.</p>
@@ -455,17 +462,14 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
               .then(result => { if (!result.ok) throw new Error('Could not open the test account.'); window.location.reload() })
               .catch(error => { setError(errorText(error)); setBusy(false) })
           }}>{label}</button>)}</div>
-      </> : <><p>{pendingInvite ? 'Sign in with Google to accept your wedding invitation.' : 'Use your Google account to create a wedding or accept a family invite.'}</p>
-        <a className="focus-secondary" href="/auth/google/start" onClick={() => {
+      </> : <><p>{pendingInvite ? 'Use your Google account to join the wedding and see your tasks.'
+        : 'Use your Google account to create a wedding, open one you’re planning, or accept a family invitation.'}</p>
+        <a className="package-button" href="/auth/google/start" onClick={() => {
           if (pendingInvite) try { sessionStorage.setItem(pendingInviteKey, pendingInvite) } catch { /* Reopen the link after sign-in. */ }
         }}>Continue with Google</a></>}
     </section>}
     {session?.name && <>
-      <div className="focus-heading workspace-topline">
-        {(weddingID || setup) && <a href="#workspace">← My weddings</a>}
-        <span>Signed in as {session.name} · <button className="focus-secondary" disabled={busy}
-          onClick={() => void workspaceRequest('/logout', {}).then(() => window.location.assign('/')).catch(error => setError(errorText(error)))}>Sign out</button></span>
-      </div>
+      {accountBar}
       {!weddingID && pendingInvite ? <WorkspaceForm title="Wedding invitation" label="Accept invitation" onSave={async () => {
         const result = await workspaceRequest<{ id: string }>('/join', { token: pendingInvite })
         clearInvite()
@@ -473,12 +477,9 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
       }}>
         <p>Accept to join this wedding with the Google account shown above.</p>
         <a href="#workspace" onClick={clearInvite}>Back to My weddings</a>
-      </WorkspaceForm> : weddingID ? <>
-        {plan?.wedding.id === weddingID
-          ? <WeddingWorkspace key={weddingID} plan={plan} section={section} layout={layout}
-            guestSearch={guestSearch} refresh={() => refreshPlan(weddingID)} />
-          : planError ? <p role="alert">{planError}</p> : <p role="status">Opening wedding…</p>}
-      </> : !setup ? <>
+      </WorkspaceForm> : weddingID ? (
+        planError ? <p role="alert">{planError}</p> : <p role="status">Opening wedding…</p>
+      ) : !setup ? <>
         <p><a className="focus-secondary" href="#workspace/setup">Start or join a wedding</a></p>
         <section className="focus-card">
           <h2>Your weddings</h2>

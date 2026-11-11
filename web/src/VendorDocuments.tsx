@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, Ref } from 'react'
 
 type Document = { id: string; name: string; size: number }
 async function documentRequest(url: string, init?: RequestInit) {
@@ -11,8 +11,8 @@ async function documentRequest(url: string, init?: RequestInit) {
   return response
 }
 
-export function VendorDocuments({ weddingId, vendorId, vendorName, close }: {
-  weddingId: string; vendorId: string; vendorName: string; close: () => void
+export function VendorDocuments({ weddingId, vendorId, vendorName, headingRef, close }: {
+  weddingId: string; vendorId: string; vendorName: string; headingRef: Ref<HTMLHeadingElement>; close: () => void
 }) {
   const endpoint = '/api/workspace/weddings/' + weddingId + '/vendors/' + vendorId + '/documents'
   const [documents, setDocuments] = useState<Document[]>()
@@ -60,7 +60,7 @@ export function VendorDocuments({ weddingId, vendorId, vendorName, close }: {
   }
 
   return <section className="focus-card" aria-label={'Documents for ' + vendorName}>
-    <div className="focus-heading"><h3>Documents · {vendorName}</h3>
+    <div className="focus-heading"><h3 ref={headingRef} tabIndex={-1}>Documents · {vendorName}</h3>
       <button disabled={busy} className="focus-secondary" onClick={close}>Close documents</button></div>
     <p>PDF, JPG or PNG. Up to 5 MB each, 10 files per vendor and 50 MB per wedding. Wedding owners can download these documents.</p>
     {error && <p role="alert">{error}</p>}

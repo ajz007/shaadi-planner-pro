@@ -4,6 +4,8 @@ import { PrintSection } from './PlanActions'
 import { VoiceField, VoiceNotice } from './VoiceField'
 import type { Guest } from './WorkspaceGuests'
 import { localDay, shownDate } from './WorkspaceGuests'
+import { useEditorFocus } from './useEditorFocus'
+import { useWorkspaceData } from './WorkspaceData'
 import { PlaceDetails } from './WorkspacePlanning'
 import type { Place } from './WorkspacePlanning'
 
@@ -33,19 +35,11 @@ const vehicleDetails = (pickup: Pickup) => [pickup.vehicle, pickup.vehicleNumber
 const byPickupTime = (a: Pickup, b: Pickup) => (a.date || '9999').localeCompare(b.date || '9999') ||
   (a.time || '99').localeCompare(b.time || '99') || pickupRoute(a).localeCompare(pickupRoute(b))
 
-async function transportRequest<T>(url: string, body?: object, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, body === undefined ? { signal } : {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  })
-  const data = await response.json()
-  if (!response.ok) throw new Error(data.error || 'Transportation could not be updated.')
-  return data
-}
-
 export function WorkspaceTransport({ wedding, people, workbookView, places, placesHref }: {
   wedding: { id: string; name: string; timeZone: string }; people: { id: string; name: string }[]; workbookView: boolean
   places: Place[]; placesHref: string
 }) {
+  const { preview, request } = useWorkspaceData()
   const [data, setData] = useState<{ guests: Guest[]; pickups: Pickup[] }>()
   const [date, setDate] = useState('')
   const [sortBy, setSortBy] = useState('date')
@@ -56,13 +50,14 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [guestQuery, setGuestQuery] = useState('')
-  const base = '/api/workspace/weddings/' + wedding.id
+  const base = '/weddings/' + wedding.id
   const today = localDay(wedding.timeZone)
+  const { heading, returnTarget, fallback } = useEditorFocus(editor ? editorKey : undefined, busy)
 
   async function load(signal?: AbortSignal) {
     const [guests, pickups] = await Promise.all([
-      transportRequest<Guest[]>(base + '/guests', undefined, signal),
-      transportRequest<Pickup[]>(base + '/transportation', undefined, signal),
+      request<Guest[]>(base + '/guests', undefined, signal),
+      request<Pickup[]>(base + '/transportation', undefined, signal),
     ])
     setData({ guests, pickups })
   }
@@ -71,7 +66,7 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
     const controller = new AbortController()
     void load(controller.signal).catch(error => { if (!controller.signal.aborted) setError(error.message) })
     return () => controller.abort()
-  }, [base])
+  }, [base, request])
 
   const guests = data?.guests ?? []
   const pickups = data?.pickups ?? []
@@ -98,10 +93,10 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
       from: displayChange(field, passenger.reviewed[field]), to: displayChange(field, passenger.arrival[field]),
     }]))
 
-  function open(next: Editor) {
+  function open(next: Editor, trigger: HTMLButtonElement) {
+    returnTarget.current = trigger
     setEditorKey(current => current + 1)
     setEditor(next); setGuestQuery(''); setError(''); setFeedback('')
-    document.getElementById('pickup-editor')?.scrollIntoView()
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -119,7 +114,7 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
     if (!passengers.length) { setError('Select at least one passenger.'); return }
     setBusy(true); setError('')
     try {
-      await transportRequest(base + '/transportation' + (editor.pickup ? '/' + editor.pickup.id : ''), {
+      await request(base + '/transportation' + (editor.pickup ? '/' + editor.pickup.id : ''), {
         ...raw, passengers, revision: editor.pickup?.revision ?? 0,
       })
       setEditor(undefined); setFeedback('Pickup saved.')
@@ -131,8 +126,8 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
     }
   }
 
-  function editPickup(pickup: Pickup) {
-    open({ pickup, guestIds: pickup.passengers.map(guest => guest.id), date: pickup.date, time: pickup.time })
+  function editPickup(pickup: Pickup, trigger: HTMLButtonElement) {
+    open({ pickup, guestIds: pickup.passengers.map(guest => guest.id), date: pickup.date, time: pickup.time }, trigger)
   }
 
   const printable = visible.filter(pickup => pickup.status !== 'Cancelled')
@@ -151,9 +146,10 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
 
   return <>
     <section className="focus-card">
-      <div className="focus-heading"><div><h2>Transportation</h2><p>Assign arrivals to pickups and share the saved plan.</p></div>
+      <div className="focus-heading"><div><h2 className="workspace-section-title" ref={fallback} tabIndex={-1}>Transportation</h2><p>Assign arrivals to pickups and share the saved plan.</p></div>
         <div className="focus-actions">
-          <button disabled={!data || busy} onClick={() => open({ guestIds: [], date: date === 'missing' ? '' : date, time: '' })}>Add pickup</button>
+          <button disabled={!data || busy || preview}
+            onClick={event => open({ guestIds: [], date: date === 'missing' ? '' : date, time: '' }, event.currentTarget)}>Add pickup</button>
           <button className="focus-secondary" disabled={busy} onClick={() => {
             setEditor(undefined); setError(''); setFeedback('')
             void load().catch(error => setError(error.message))
@@ -177,14 +173,16 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
         <option value="date">Pickup date and time</option><option value="review">Needs review first</option><option value="route">Route</option>
       </select></label>
       <label className="transport-review-filter"><input type="checkbox" checked={reviewOnly} onChange={event => setReviewOnly(event.target.checked)} /> Only pickups needing review</label>
+      {data && <div className="filter-summary">
+        <p role="status">{visible.length} pickups · {visible.filter(pickup => pickup.needsReview).length} need review · {pending.length} guests still need transport</p>
+        <button className="focus-secondary" disabled={!date && !reviewOnly} onClick={() => { setDate(''); setReviewOnly(false) }}>Clear filters</button>
+      </div>}
       </div>
       {feedback && <p role="status">{feedback}</p>}
       {error && <p role="alert">{error}</p>}
-      {data && <p>{visible.length} pickups · {visible.filter(pickup => pickup.needsReview).length} need review · {pending.length} guests still need transport</p>}
     </section>
-    <div id="pickup-editor" />
     {editor && <form key={editorKey} className="focus-card transport-panel" onSubmit={event => void save(event)}>
-      <h2>{current ? (current.needsReview ? 'Review pickup' : 'Edit pickup') : 'Add pickup'}</h2>
+      <h2 ref={heading} tabIndex={-1}>{current ? (current.needsReview ? 'Review pickup' : 'Edit pickup') : 'Add pickup'}</h2>
       {current?.needsReview && <><p>Compare these changes with the pickup time. Saving confirms you reviewed the selected passengers’ latest details.</p>
         <ul>{changes(current).map(change => <li key={change.key}>{change.name} · {change.label}: {change.from} → {change.to}</li>)}</ul></>}
       <fieldset className="workspace-fields" disabled={busy}>
@@ -239,7 +237,8 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
             <td>{vehicleDetails(pickup)}{pickup.driverConfirmed && <small>Driver confirmed: {pickup.driverConfirmed}</small>}</td><td>{pickup.owner}</td>
             <td>{pickup.needsReview ? <><span className="focus-chip pickup-review">Needs review</span>
               <details className="focus-completed"><summary>Arrival changes</summary>{pickupChanges(pickup)}</details></> : pickup.status}</td>
-            <td><button className="focus-secondary" disabled={busy} onClick={() => editPickup(pickup)}>{pickup.needsReview ? 'Review pickup' : 'Edit pickup'}</button></td>
+            <td><button className="focus-secondary" disabled={busy || preview}
+              onClick={event => editPickup(pickup, event.currentTarget)}>{pickup.needsReview ? 'Review pickup' : 'Edit pickup'}</button></td>
           </tr>)}</tbody></table>
       </div> : <div className="focus-record-grid">{visible.map(pickup => <article className="focus-card" key={pickup.id}>
         <div className="focus-heading"><h3>{pickupRoute(pickup)}</h3>
@@ -248,7 +247,8 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
         <p>{pickup.passengers.length} passengers · {pickup.passengers.map(guest => guest.name).join(', ')}</p>
         {routeDetails(pickup)}
         {pickup.needsReview && pickupChanges(pickup)}
-        <button className="focus-secondary" disabled={busy} onClick={() => editPickup(pickup)}>{pickup.needsReview ? 'Review pickup' : 'Edit pickup'}</button>
+        <button className="focus-secondary" disabled={busy || preview}
+          onClick={event => editPickup(pickup, event.currentTarget)}>{pickup.needsReview ? 'Review pickup' : 'Edit pickup'}</button>
       </article>)}</div>}
     </section>
     <section className="focus-card transport-panel">
@@ -257,10 +257,10 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
         {waiting.map(group => <article className="focus-card" key={group[0].id}>
           <h3>{group[0].household || group[0].name}</h3><p>{shownDate(group[0].arrivalDate) || 'Arrival date not recorded'}</p>
           <ul>{group.map(guest => <li key={guest.id}>{guest.name} · {groupArrival(guest)}</li>)}</ul>
-          <button className="focus-secondary" disabled={busy} onClick={() => open({
+          <button className="focus-secondary" disabled={busy || preview} onClick={event => open({
             guestIds: group.map(guest => guest.id), date: group[0].arrivalDate,
             time: group.every(guest => guest.arrivalTime === group[0].arrivalTime) ? group[0].arrivalTime : '',
-          })}>Assign pickup</button>
+          }, event.currentTarget)}>Assign pickup</button>
         </article>)}</div>}
     </section>
   </>

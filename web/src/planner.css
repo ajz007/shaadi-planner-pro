@@ -14,14 +14,14 @@
 .planner-hero { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin: 0 0 .8rem; padding: clamp(1.1rem, 3vw, 2.25rem); border: 1px solid #edd5c8; border-radius: 1rem; background: linear-gradient(120deg,#fae0d5,#fff3e5 72%,#fbe0c7); }
 .planner-hero h1 { color: #411929; margin: 0 0 .45rem; }
 .planner-hero p:last-child { margin: 0; color: #683a4a; }
-.package-button { display: inline-block; background: #762747; color: white; text-decoration: none; padding: .65rem .9rem; border-radius: .55rem; font-size: .87rem; font-weight: 650; }
+.package-button { display: inline-block; background: var(--planner-accent); color: white; text-decoration: none; padding: .65rem .9rem; border-radius: .55rem; font-size: .87rem; font-weight: 650; }
 .snapshot-note { font-size: .86rem; color: #6c4855; margin: 0 0 1.15rem; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .85rem; margin-bottom: 1rem; }
 .metric-card, .planner-card { background: #fffdf9; border: 1px solid #eddbd1; border-radius: .8rem; padding: 1rem; }
 .metric-card { color: #412131; text-decoration: none; display: flex; flex-direction: column; gap: .28rem; }
 .metric-card:hover { border-color: #b57389; }
 .metric-card > span { font-weight: 680; font-size: .85rem; }
-.metric-card strong { font: 700 clamp(1.45rem, 3vw, 2.2rem) Georgia, serif; overflow-wrap: anywhere; }
+.metric-card strong { font: 700 clamp(1.4rem, 2.2vw, 2.1rem) Georgia, serif; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .metric-card small, .paid-value small, .planner-list small, .planner-list li > span, .table-tools span { color: #70545b; font-size: .82rem; }
 .dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
 .planner-card { min-width: 0; padding: clamp(1rem, 2.2vw, 1.35rem); }
@@ -64,13 +64,19 @@
 .setup-panel details { padding: .7rem; border-radius: .45rem; background: #faf1eb; }
 .setup-panel summary { cursor: pointer; font-weight: 650; }
 .setup-panel details p:first-of-type { margin-top: .6rem; }
+.wedding-workspace { display: grid; min-height: 100vh; grid-template-columns: clamp(12rem, 18vw, 15.5rem) minmax(0, 1fr); }
+.wedding-sidebar { position: sticky; top: 0; height: 100dvh; overflow: auto; scrollbar-width: thin; }
+.wedding-sidebar .planner-brand { position: sticky; top: 0; background: #3e1929; z-index: 1; }
+.wedding-sidebar .nav-group a { padding-block: .42rem; }
+.wedding-sidebar :is(a, button):focus-visible { outline: 2px solid #ffd7ad; outline-offset: -2px; }
+.wedding-workspace .wedding-content { width: 100%; min-width: 0; margin: 0; padding: clamp(.9rem, 2.5vw, 2rem); background: #fbf7f2; }
 
 @media (max-width: 1060px) {
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 740px) {
-  .planner { display: block; }
+  .planner, .wedding-workspace { display: block; }
   .planner-brand { padding: .85rem 1rem; }
   .planner-menu { display: inline-block; padding: .35rem .65rem; border-color: #efb7ad; background: transparent; }
   .planner-nav { display: none; }
@@ -78,4 +84,7 @@
   .nav-group a { padding: .48rem .6rem; }
   .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
   .setup-options, .import-counts { grid-template-columns: minmax(0, 1fr); }
+  .wedding-sidebar { position: static; height: auto; overflow: visible; }
+  .wedding-sidebar .planner-brand { position: static; }
+  .wedding-sidebar .nav-group a { padding-block: .65rem; }
 }

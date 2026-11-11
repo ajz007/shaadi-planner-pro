@@ -4,6 +4,7 @@ import { BlankSetup, SetupOptions, WorkbookSetup } from './Onboarding'
 import { FocusPlanner } from './FocusPlanner'
 import { focusSection } from './FocusPages'
 import { Workspace } from './Workspace'
+import { WorkspaceDemo } from './WorkspaceDemo'
 import { PlanProvider, usePlan } from './PlanData'
 import { PrintSection } from './PlanActions'
 import './planner.css'
@@ -21,6 +22,8 @@ const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR
 const metrics = workbook.metrics
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z]+/g, '-').replace(/-$/, '')
 const sectionLink = (name: string) => '#' + slug(name)
+const workspaceSection = (key: string) => key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history'
+  : key === 'invitations' ? 'Invitations' : key === 'places' ? 'Places' : focusSection(key)
 
 function table(name: string) {
   const result = workbook.tables.find(entry => entry.name === name)
@@ -152,24 +155,27 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
     return () => window.removeEventListener('hashchange', navigate)
   }, [])
   const [page, params] = route.slice(1).split('?')
+  const query = new URLSearchParams(params)
   const sandbox = !hosted && page === 'rsvp-sandbox'
   const setup = page === 'setup-upload' || page === 'setup-blank'
   const section = navigation.flatMap(group => group.sections).find(name => slug(name) === page) || 'Dashboard'
-  const filter = new URLSearchParams(params).get('guest') || ''
-  const sampleImported = section === 'Dashboard' && new URLSearchParams(params).get('import') === 'sample'
+  const filter = query.get('guest') || ''
+  const sampleImported = section === 'Dashboard' && query.get('import') === 'sample'
+  const layoutParam = query.get('layout')
+  const layout = layoutParam === 'workbook' || layoutParam === 'cards' ? layoutParam : undefined
+  const awaitingReply = query.get('rsvp') === 'awaiting'
   const settings = Object.fromEntries(table('Settings').rows)
 
   if (page === 'focus' || page.startsWith('focus/')) return <FocusPlanner section={focusSection(page.slice(6))} filter={filter} />
+  if (page === 'demo' || page.startsWith('demo/')) {
+    return <WorkspaceDemo section={workspaceSection(page.slice(5))} layout={layout} guestSearch={filter} awaitingReply={awaitingReply} />
+  }
   const workspacePage = /^workspace(?:\/([0-9a-f-]{36})(?:\/([a-z-]+))?)?$/i.exec(page)
   if (workspacePage || page === 'workspace/setup') {
-    const key = workspacePage?.[2] ?? ''
-    const section = key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history'
-      : key === 'invitations' ? 'Invitations' : key === 'places' ? 'Places' : focusSection(key)
-    const query = new URLSearchParams(params)
-    const layout = query.get('layout')
-    return <Workspace weddingID={workspacePage?.[1]} section={section} guestSearch={filter} setup={page === 'workspace/setup'}
+    return <Workspace weddingID={workspacePage?.[1]} section={workspaceSection(workspacePage?.[2] ?? '')} guestSearch={filter}
+      awaitingReply={awaitingReply} setup={page === 'workspace/setup'}
       inviteCode={page === 'workspace/setup' ? query.get('invite') ?? '' : ''}
-      layout={layout === 'workbook' || layout === 'cards' ? layout : undefined} loginFailed={query.get('login') === 'failed'} />
+      layout={layout} loginFailed={query.get('login') === 'failed'} />
   }
 
   return <div className="planner">
@@ -185,7 +191,8 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
           <p>{group.label}</p>
           {group.sections.map(name => <a href={sectionLink(name)} key={name} aria-current={!sandbox && (setup ? name === 'Start Here' : section === name) ? 'page' : undefined}>{name}</a>)}
         </div>)}
-        <div className="nav-group"><p>Workspaces</p><a href="#workspace">Private workspace</a>{!hosted && <a href="#rsvp-sandbox" aria-current={sandbox ? 'page' : undefined}>RSVP sandbox</a>}</div>
+        <div className="nav-group"><p>Wedding planner</p><a href="#demo">Sample wedding</a><a href="#workspace">Start planning</a></div>
+        {!hosted && <div className="nav-group"><p>Local prototypes</p><a href="#rsvp-sandbox" aria-current={sandbox ? 'page' : undefined}>RSVP sandbox</a></div>}
       </nav>
     </aside>
     {sandbox ? <div className="planner-sandbox">{rsvpDemo}</div> : <main className="planner-content">
@@ -195,16 +202,15 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
           <h1>{setup ? (page === 'setup-upload' ? 'Start from Excel' : 'Start a blank wedding') : section === 'Dashboard' ? 'Aarav & Meera' : section}</h1>
           <p>{setup ? <a href="#start-here">← Back to Start Here</a> : section === 'Dashboard' ? `${settings.City} · ${displayDate(settings['Wedding Date'])}` : settings['Wedding Name']}</p>
         </div>
-        {hosted && <a className="package-button" href="#workspace">Open private planner</a>}
+        {hosted && <a className="package-button" href="#workspace">Start planning</a>}
         {!hosted && !setup && <a className="package-button" href={packageURL} download>Download Excel package</a>}
       </header>
       <p className="snapshot-note">{setup
         ? 'Use fictional details. Prototype changes disappear when you leave the setup flow or refresh.'
-        : hosted ? 'Explore the filled sample, or sign in to create your own private wedding.'
-        : 'Explore the sample wedding in your browser. The Excel package includes the editable planner, filled example and guides.'}</p>
+        : 'Browse the filled Excel workbook in your browser. This example uses the workbook’s sheets and saved totals.'}</p>
       {sampleImported && <p className="setup-success" role="status">Sample import complete. You’re viewing the filled wedding dashboard.</p>}
       {setup ? (page === 'setup-upload' ? <WorkbookSetup /> : <BlankSetup />)
-        : section === 'Dashboard' ? <><p className="planner-links"><a href="#start-here">Set up my wedding →</a><a href="#focus">Try the alternate dashboard →</a></p><Dashboard /></>
+        : section === 'Dashboard' ? <><p className="planner-links"><a href="#demo">Explore the planner demo →</a><a href="#start-here">Try setup walkthrough →</a><a href="#focus">Try the alternate prototype →</a></p><Dashboard /></>
         : section === 'Start Here' ? <StartHere /> : <WorkbookTable key={route} section={section} initialFilter={filter} />}
     </main>}
   </div>

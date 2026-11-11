@@ -1,10 +1,10 @@
 .focus { width: min(100% - 2rem, 76rem); color: #232d29; }
 .focus-hero { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; padding: clamp(1.25rem, 4vw, 3rem); border-radius: 1.35rem; background: #20372f; color: #fff9ed; }
-.focus-hero h1 { font-size: clamp(2.6rem, 7vw, 5.5rem); }
+.focus-hero h1 { font-size: clamp(2.6rem, 7vw, 5.5rem); overflow-wrap: anywhere; }
 .focus-hero p { margin-bottom: .25rem; }
 .focus-kicker { letter-spacing: .13em; font-size: .68rem; font-weight: 800; color: #456553; }
 .focus-hero .focus-kicker { color: #d3dfbd; }
-.focus-note { font-size: .84rem; color: #4a5c53; margin: .75rem 0; }
+.focus-note { font-size: .9rem; color: #4a5c53; margin: .75rem 0; }
 .focus-columns { display: grid; grid-template-columns: 1.1fr 1fr; gap: 1rem; }
 .focus-stack { display: grid; align-content: start; gap: 1rem; min-width: 0; }
 .focus-card { padding: clamp(1rem, 3vw, 1.6rem); border: 1px solid #deded2; border-radius: 1.1rem; background: #fffefa; }
@@ -20,12 +20,15 @@
 .focus-item span { min-width: 0; overflow-wrap: anywhere; }
 a.focus-item { text-decoration: none; }
 a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: underline; }
-.focus button, .focus-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem; padding: .45rem .8rem; border: 1px solid #34594a; border-radius: .6rem; background: #34594a; color: white; font-size: .86rem; font-weight: 700; text-decoration: none; }
-.focus .focus-secondary { background: #fffdf7; color: #294c3c; flex-shrink: 0; }
-.focus a:focus-visible, .focus button:focus-visible, .focus input:focus-visible, .focus textarea:focus-visible, .focus summary:focus-visible { outline: 3px solid #82622d; outline-offset: 2px; }
-.focus-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-.focus-field { display: grid; gap: .3rem; font-weight: 650; margin: .65rem 0; font-size: .86rem; min-width: 0; }
-.focus-field textarea, .focus-field input { width: 100%; min-width: 0; color: inherit; padding: .55rem .7rem; border: 1px solid #acb7a5; background: #fffefa; border-radius: .5rem; font: inherit; font-size: 1rem; }
+.focus button, .focus-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem; max-width: 100%; padding: .45rem .8rem; border: 1px solid var(--planner-accent); border-radius: .6rem; background: var(--planner-accent); color: white; font-size: .9rem; font-weight: 700; text-align: center; text-decoration: none; }
+.focus button:where(:not(:disabled):hover) { background: var(--planner-accent-hover); }
+.focus .focus-secondary { background: #fffdf7; color: var(--planner-accent); flex-shrink: 0; }
+.focus .focus-secondary:not(:disabled):hover { background: var(--planner-accent-tint); }
+.focus :is(a, button, input, textarea, select, summary):focus-visible { outline: 3px solid #82622d; outline-offset: 2px; }
+.focus :is(h2, h3)[tabindex="-1"] { scroll-margin-top: 1rem; }
+.focus-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.focus-field { display: grid; gap: .3rem; font-weight: 650; margin: .65rem 0; font-size: .9rem; min-width: 0; }
+.focus-field :is(textarea, input, select) { width: 100%; min-width: 0; min-height: 2.75rem; color: inherit; padding: .5rem .65rem; border: 1px solid #acb7a5; background: #fffefa; border-radius: .5rem; font: inherit; font-size: 1rem; }
 .focus-draft { margin-top: .9rem; padding: .85rem; border-radius: .7rem; background: #fffdfa; border: 1px solid #e5d7b7; }
 .focus-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
 .focus-feedback, .focus-completed { margin-top: .6rem; }
@@ -42,16 +45,35 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .focus-nav-links { position: absolute; z-index: 2; top: calc(100% + .35rem); left: 0; width: max-content; max-width: min(14rem, calc(100vw - 2rem)); padding: .3rem; background: #fffefa; border: 1px solid #c8d2c5; border-radius: .6rem; box-shadow: 0 .35rem 1rem #1f33251f; }
 .focus-nav-links a { display: block; border-radius: .35rem; padding: .55rem .65rem; color: #294c3c; }
 .focus-nav-links a:hover { background: #f0f2e6; }
-.workbook-tabs { display: flex; gap: .3rem; overflow-x: auto; margin-bottom: 1rem; padding: .25rem; }
-.workbook-tabs a { flex: 0 0 auto; padding: .45rem .65rem; border: 1px solid #c8d2c5; border-radius: .4rem; color: #294c3c; background: #fffefa; }
-.workbook-tabs [aria-current] { background: #deeadc; font-weight: 700; }
 .focus-page-intro { margin-bottom: .85rem; }
 .focus-summary { display: flex; flex-wrap: wrap; gap: .65rem; margin: 0 0 .85rem; }
 .focus-summary div { flex: 1 1 9rem; border-radius: .7rem; padding: .7rem 1rem; background: #e9efdf; }
 .focus-summary dd { font-size: 1.3rem; font-weight: 750; margin: 0; }
 .focus-filters { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem 1rem; margin-bottom: .85rem; padding: .8rem 1rem; }
 .focus-filters .focus-field, .focus-filters .focus-note { margin: 0; }
-.focus-filters select { background: #fffefa; color: inherit; border: 1px solid #acb7a5; border-radius: .5rem; padding: .55rem; min-height: 2.75rem; }
+.focus-filters > .focus-note { flex: 1 0 100%; }
+.focus-filters > .voice-field { flex: 0 1 20rem; min-width: 0; }
+.focus-filters .section-print-button { margin: 0; }
+.filter-summary { display: flex; flex: 1 0 100%; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; padding-block-start: .65rem; border-top: 1px solid #e8ebe1; }
+.filter-summary p { margin: 0; font-size: .9rem; }
+.filter-summary button { margin-inline-start: auto; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.filter-chips li { padding: .2rem .55rem; border-radius: .5rem; background: var(--planner-accent-tint); color: var(--planner-accent-hover); font-size: .85rem; overflow-wrap: anywhere; }
+.guest-filters { padding-inline: 0; }
+.guest-search { flex: 1 1 14rem; min-width: 0; }
+.focus .guest-filter-toggle { display: none; }
+.guest-filter-fields { flex: 1 0 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .6rem; align-items: end; }
+.guest-selection-bar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .35rem .75rem; margin: .75rem 0; padding: .4rem .65rem; background: #fff8f4; border: 1px solid #e2cad4; border-radius: .65rem; }
+.guest-select { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; vertical-align: middle; cursor: pointer; }
+.guest-select input { width: 1.15rem; height: 1.15rem; margin: 0; accent-color: var(--planner-accent); }
+.guest-card { display: flex; flex-direction: column; min-width: 0; gap: .45rem; overflow-wrap: anywhere; }
+.guest-card-heading { display: flex; align-items: flex-start; flex-wrap: wrap; gap: .4rem .65rem; }
+.guest-card-heading h3 { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: 1.15rem; }
+.guest-card-heading .guest-select { margin: -.55rem -.55rem -.55rem 0; }
+.guest-card p { margin: 0; }
+.guest-edit { align-self: flex-start; margin-top: auto; }
+.focus-chip[data-rsvp="Pending"], .focus-chip[data-rsvp="Maybe"] { background: #ffedc9; color: #694900; }
+.focus-chip[data-rsvp="Declined"] { background: #f0e8eb; color: #633346; }
 .focus-record-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
 .focus-record-grid h2 { font-size: 1.35rem; overflow-wrap: anywhere; }
 .focus-record-details { margin: .55rem 0 0; }
@@ -60,15 +82,20 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .focus-record-details dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
 .focus-task-page { max-width: 48rem; }
 .workspace-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
-.workspace-fields button { margin-top: .65rem; }
+.workspace-fields > button, .workspace-fields > .focus-actions { margin-top: .65rem; }
 .voice-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0 .4rem; }
 .voice-field .focus-field { margin-bottom: 0; }
 .voice-field small { grid-column: 1 / -1; }
-.workspace-fields select { min-height: 2.75rem; border: 1px solid #acb7a5; border-radius: .5rem; background: #fffefa; color: inherit; padding: .55rem; }
 .workspace-topline { margin-bottom: .8rem; }
 .workspace-topline > span { margin-left: auto; }
-.wedding-hero { padding: clamp(1rem, 3vw, 2rem); }
-.wedding-hero h1 { font-size: clamp(2rem, 5vw, 3.7rem); }
+.wedding-hero h1 { font-size: clamp(1.85rem, 3.5vw, 2.7rem); overflow-wrap: anywhere; }
+.wedding-hero > div:first-child { min-width: 0; }
+.wedding-tools { position: relative; }
+.wedding-tools summary { cursor: pointer; }
+.wedding-tools summary::after { content: '▾'; margin-inline-start: .4rem; }
+.wedding-tools > div { position: absolute; z-index: 3; inset-inline-end: 0; top: calc(100% + .3rem); width: max-content; max-width: min(15rem, 85vw); padding: .3rem; border: 1px solid #e2cad4; border-radius: .65rem; background: #fffdf7; box-shadow: 0 .35rem 1rem #3e19291f; }
+.wedding-tools > div a { display: flex; align-items: center; min-height: 2.75rem; padding: .4rem .65rem; }
+.wedding-preview-note { margin: .75rem 0 1rem; padding: .7rem .9rem; border-inline-start: .2rem solid var(--planner-accent); background: #fffefa; }
 .wedding-overview-metrics a { flex: 1 1 12rem; text-decoration: none; }
 .wedding-overview-metrics a span { display: block; }
 .transport-panel { margin-top: 1rem; }
@@ -83,7 +110,7 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .workspace-sheet td small { display: block; }
 .imported-records { border-collapse: collapse; text-align: left; font-size: .85rem; }
 .imported-records th, .imported-records td { border-bottom: 1px solid #dce4d8; padding: .5rem .7rem; vertical-align: top; min-width: 6rem; }
-.focus-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.focus-sr-only, .wedding-content .workspace-section-title:not(:focus) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (max-width: 740px) {
   .focus-columns { grid-template-columns: minmax(0, 1fr); }
@@ -91,8 +118,15 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
   .focus-nav > details { position: static; }
   .focus-nav { position: relative; }
   .focus-nav-links { top: calc(100% + .25rem); }
+  .guest-search { flex-basis: 9rem; }
+  .focus .guest-filter-toggle { display: inline-flex; }
+  .guest-filter-fields:not(.is-open) { display: none; }
+  .guest-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-chips { flex-basis: 100%; order: 1; }
 }
 
 @media (max-width: 420px) {
   .focus-form-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .wedding-content .wedding-account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .wedding-tools > div { position: static; margin-top: .3rem; max-width: 100%; }
 }

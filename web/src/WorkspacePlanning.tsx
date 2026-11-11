@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { PrintSection } from './PlanActions'
 import { VoiceField, VoiceNotice } from './VoiceField'
+import { useWorkspaceData } from './WorkspaceData'
 
 export type Place = { id: string; name: string; address: string; mapUrl: string; instructions: string; revision: number }
 type Person = { id: string; name: string }
@@ -44,6 +45,7 @@ export function PlaceDetails({ place }: { place: Place }) {
 }
 
 export function WorkspacePlaces({ data, save }: Pick<Props, 'data' | 'save'>) {
+  const { preview } = useWorkspaceData()
   const [editor, setEditor] = useState<Place | 'new'>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -63,8 +65,8 @@ export function WorkspacePlaces({ data, save }: Pick<Props, 'data' | 'save'>) {
     finally { setBusy(false) }
   }
   return <section>
-    <div className="focus-heading"><div><h2>Places</h2><p>Save venues, hotels and pickup points with their directions.</p></div>
-      <button disabled={busy} onClick={() => { setError(''); setEditor('new') }}>Add place</button></div>
+    <div className="focus-heading"><div><h2 className="workspace-section-title">Places</h2><p>Save venues, hotels and pickup points with their directions.</p></div>
+      <button disabled={busy || preview} onClick={() => { setError(''); setEditor('new') }}>Add place</button></div>
     {error && <p role="alert">{error}</p>}
     {editor && <form className="focus-card" key={current?.id ?? 'new'} onSubmit={event => void submit(event)}>
       <h3>{current ? 'Edit place' : 'Add place'}</h3>
@@ -81,7 +83,7 @@ export function WorkspacePlaces({ data, save }: Pick<Props, 'data' | 'save'>) {
     {!data.places.length && <p>No places saved yet.</p>}
     <div className="focus-record-grid">{data.places.map(place => <article key={place.id} className="focus-card">
       <h3>{place.name}</h3><PlaceDetails place={place} />
-      <button className="focus-secondary" disabled={busy} onClick={() => { setError(''); setEditor(place) }}>Edit place</button>
+      <button className="focus-secondary" disabled={busy || preview} onClick={() => { setError(''); setEditor(place) }}>Edit place</button>
     </article>)}</div>
   </section>
 }
@@ -188,6 +190,7 @@ function FunctionEditor({ current, data, people, wedding, save, close }: Props &
 }
 
 export function WorkspaceFunctionReadiness(props: Props & { workbookView: boolean; placesHref: string }) {
+  const { preview } = useWorkspaceData()
   const { data, people, wedding, workbookView, placesHref } = props
   const [editor, setEditor] = useState<FunctionReadiness | 'new'>()
   const [assigned, setAssigned] = useState('')
@@ -200,8 +203,8 @@ export function WorkspaceFunctionReadiness(props: Props & { workbookView: boolea
     .flatMap(entry => entry.items.filter(item => !assigned || item.personId === assigned)
       .map(item => [entry.name, ...itemCells(item)]))
   return <section>
-    <div className="focus-heading"><div><h2>Functions &amp; Events</h2><p>See who and what each function needs.</p></div>
-      <div className="focus-actions"><button onClick={() => setEditor('new')}>Add function</button><a href={placesHref}>Manage places</a></div></div>
+    <div className="focus-heading"><div><h2 className="workspace-section-title">Functions &amp; Events</h2><p>See who and what each function needs.</p></div>
+      <div className="focus-actions"><button disabled={preview} onClick={() => setEditor('new')}>Add function</button><a href={placesHref}>Manage places</a></div></div>
     {editor && <FunctionEditor key={editor === 'new' ? 'new' : editor.id} {...props}
       current={editor === 'new' ? undefined : editor} close={() => setEditor(undefined)} />}
     <label className="focus-field">Filter checklist by responsible person<select value={assigned} onChange={event => setAssigned(event.target.value)}>
@@ -225,7 +228,7 @@ export function WorkspaceFunctionReadiness(props: Props & { workbookView: boolea
           <td>{entry.duration ? entry.duration + ' min' : ''}</td>
           <td>{entry.people === null ? 'Needs review' : entry.people.map(person => personName(person.personId)).join(', ') || 'None required'}</td>
           <td>{entry.items.filter(item => item.status === 'At venue').length}/{entry.items.length}</td>
-          <td><button className="focus-secondary" onClick={() => setEditor(entry)}>Edit function</button></td>
+          <td><button className="focus-secondary" disabled={preview} onClick={() => setEditor(entry)}>Edit function</button></td>
         </tr>)}</tbody>
       </table>
     </div>}
@@ -234,7 +237,7 @@ export function WorkspaceFunctionReadiness(props: Props & { workbookView: boolea
       const items = entry.items.filter(item => !assigned || item.personId === assigned)
       return <article key={entry.id} className="focus-card">
         <div className="focus-heading"><h3>{entry.name}</h3>{!workbookView &&
-          <button className="focus-secondary" onClick={() => setEditor(entry)}>Edit function</button>}</div>
+          <button className="focus-secondary" disabled={preview} onClick={() => setEditor(entry)}>Edit function</button>}</div>
         <p>{functionLocalTime(entry.startsAt, wedding.timeZone).replace('T', ' ')}{entry.duration ? ' · ' + entry.duration + ' min' : ''}
           {entry.venue && ' · ' + entry.venue}{place && ' · ' + place.name}</p>
         {place && <PlaceDetails place={place} />}

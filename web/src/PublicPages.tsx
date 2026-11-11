@@ -26,17 +26,18 @@ export function PublicHome() {
     <header className="public-hero">
       <p className="public-kicker">SHAADI PLANNER PRO</p>
       <h1>Plan the wedding together.</h1>
-      <p>Keep guests, arrivals, rooms and family tasks in one private wedding workspace. Start from scratch or bring your existing Shaadi Planner Excel workbook.</p>
+      <p>Keep track of guests, pickups, rooms and family tasks in one place. Start from scratch or bring your Shaadi Planner Excel workbook.</p>
       <div className="public-actions">
-        <a className="public-primary" href="/#workspace">Open private planner</a>
-        <a href="/#dashboard">Explore the filled demo</a>
+        <a className="public-primary" href="/#workspace">Start planning</a>
+        <a href="/#demo">Explore a sample wedding</a>
+        <a href="/#dashboard">Explore the Excel workbook example</a>
       </div>
     </header>
     <section aria-labelledby="public-workflows">
       <h2 id="public-workflows">From the guest list to wedding day</h2>
       <div className="public-grid">
         <article><h3>Bring your workbook</h3><p>Review your import, then work in Card or Workbook view. Download a current Excel snapshot whenever you need one.</p></article>
-        <article><h3>Share the work</h3><p>Invite family to a private wedding so they can see assignments, claim open tasks and mark work complete.</p></article>
+        <article><h3>Share the work</h3><p>Invite family to help plan your wedding. They can see their assignments, claim open tasks and mark them complete.</p></article>
         <article><h3>Coordinate arrivals and stays</h3><p>Filter and print guest lists, assign rooms, plan pickups and track who needs an RSVP follow-up.</p></article>
       </div>
     </section>
@@ -67,7 +68,7 @@ export function PublicInfoPage({ path }: { path: keyof typeof publicPages }) {
       <p>Contact the wedding organizer to correct details they entered about you, or use <a href="/contact">Contact & Support</a> for privacy and deletion requests.</p>
     </> : path === '/terms' ? <>
       <h2>Using the planner</h2>
-      <p>Shaadi Planner Pro is operated by {sellerName}. It helps organizers manage wedding records, coordinate logistics and share planning tasks with invited members. The private planner requires sign-in.</p>
+      <p>Shaadi Planner Pro is operated by {sellerName}. It helps organizers manage wedding records, coordinate logistics and share planning tasks with invited members. Sign-in is required to manage a wedding.</p>
       <h2>Wedding records and sharing</h2>
       <p>Upload only information you’re permitted to use for wedding planning. Invite people who should have access, and review guest information before printing, exporting or sharing it. Confirm arrangements such as pickup times, rooms and vendor commitments with the people responsible for them.</p>
       <h2>Access and copies</h2>

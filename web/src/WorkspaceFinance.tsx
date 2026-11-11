@@ -5,6 +5,8 @@ import { PrintSection } from './PlanActions'
 import { localDay } from './WorkspaceGuests'
 import { VoiceField, VoiceNotice } from './VoiceField'
 import { VendorDocuments } from './VendorDocuments'
+import { useEditorFocus } from './useEditorFocus'
+import { useWorkspaceData } from './WorkspaceData'
 
 type RecordRow = { id: string; values: string[]; revision: number }
 type Payment = { id: string; amount: number; date: string; method: string; notes: string; voided: boolean }
@@ -23,6 +25,7 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
   section: Section; wedding: { id: string; name: string; timeZone: string }
   workbookView: boolean; request: Request; vendorsHref: string
 }) {
+  const { preview } = useWorkspaceData()
   const comparison = section === 'Vendor Comparison'
   const endpoint = '/weddings/' + wedding.id + '/finance'
   const columns = workbook.tables.find(table => table.name === section)!.columns
@@ -36,6 +39,7 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
+  const { heading, returnTarget, fallback } = useEditorFocus(editing ?? paying ?? documentVendor, busy)
 
   async function load(signal?: AbortSignal) {
     const data = await request<Finance>(endpoint, undefined, signal)
@@ -68,10 +72,12 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
     row.values.join(' ').toLowerCase().includes(query.trim().toLowerCase()),
   )
 
-  function edit(record: RecordRow | 'new') {
+  function edit(record: RecordRow | 'new', trigger: HTMLButtonElement) {
+    returnTarget.current = trigger
     setFeedback('')
     setError('')
     setPaying(undefined)
+    setDocumentVendor(undefined)
     setEditing(record)
     setSelectedVendor(record === 'new' ? '' : finance?.contracts.find(item => item.id === record.id)?.vendorId ?? '')
   }
@@ -117,10 +123,16 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
   function recordActions(record: RecordRow) {
     const item = finance?.contracts.find(contract => contract.id === record.id)
     return <div className="focus-actions">
-      <button className="focus-secondary" disabled={busy} onClick={() => edit(record)} aria-label={'Edit ' + record.values[1]}>Edit</button>
-      {comparison && <button className="focus-secondary" onClick={() => setDocumentVendor(record)}
+      <button className="focus-secondary" disabled={busy || preview} onClick={event => edit(record, event.currentTarget)}
+        aria-label={'Edit ' + record.values[1]}>Edit</button>
+      {comparison && <button className="focus-secondary" disabled={busy || preview} onClick={event => {
+        returnTarget.current = event.currentTarget
+        setEditing(undefined)
+        setDocumentVendor(record)
+      }}
         aria-label={'Documents for ' + record.values[1]}>Documents</button>}
-      {item && item.value > item.paid && <button disabled={busy} onClick={() => {
+      {item && item.value > item.paid && <button disabled={busy || preview} onClick={event => {
+        returnTarget.current = event.currentTarget
         setEditing(undefined); setError(''); setFeedback(''); setPaying(item)
       }}>Record payment</button>}
     </div>
@@ -128,10 +140,10 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
 
   return <section aria-label={section}>
     <div className="focus-heading">
-      <div><h2>{section}</h2><p className="focus-note">{comparison
+      <div><h2 className="workspace-section-title" ref={fallback} tabIndex={-1}>{section}</h2><p className="focus-note">{comparison
         ? 'Compare live quotes and keep the latest scope and negotiated price.'
         : 'Book a vendor, record payments and see the outstanding balance.'}</p></div>
-      {finance && (comparison || finance.vendors.length > 0) && <button disabled={busy} onClick={() => edit('new')}>
+      {finance && (comparison || finance.vendors.length > 0) && <button disabled={busy || preview} onClick={event => edit('new', event.currentTarget)}>
         {comparison ? 'Add vendor' : 'Add contract'}
       </button>}
     </div>
@@ -139,10 +151,10 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
     {error && <p role="alert">{error}</p>}
     {!finance && !error && <p role="status">Loading vendor records…</p>}
     {documentVendor && <VendorDocuments key={documentVendor.id} weddingId={wedding.id} vendorId={documentVendor.id}
-      vendorName={documentVendor.values[1]} close={() => setDocumentVendor(undefined)} />}
+      vendorName={documentVendor.values[1]} headingRef={heading} close={() => setDocumentVendor(undefined)} />}
     {finance && !comparison && !finance.vendors.length && <p><a href={vendorsHref}>Add a vendor in Vendor Comparison</a> before creating a contract.</p>}
     {editing && <form key={current?.id ?? 'new'} className="focus-card" onSubmit={submitRecord}>
-      <h3>{current ? 'Edit' : 'Add'} {comparison ? 'vendor' : 'contract'}</h3>
+      <h3 ref={heading} tabIndex={-1}>{current ? 'Edit ' + current.values[1] : comparison ? 'Add vendor' : 'Add contract'}</h3>
       <fieldset className="workspace-fields" disabled={busy}>
         <div className="focus-form-grid">
           {comparison ? <>
@@ -169,12 +181,12 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
           </>}
         </div>
         <VoiceNotice />
-        <div className="focus-actions"><button>{busy ? 'Saving…' : 'Save'}</button>
+        <div className="focus-actions"><button>{busy ? 'Saving…' : comparison ? 'Save vendor' : 'Save contract'}</button>
           <button type="button" className="focus-secondary" onClick={() => setEditing(undefined)}>Cancel</button></div>
       </fieldset>
     </form>}
     {paying && <form key={paying.id} className="focus-card" onSubmit={submitPayment}>
-      <h3>Record payment for {paying.values[1]}</h3>
+      <h3 ref={heading} tabIndex={-1}>Record payment for {paying.values[1]}</h3>
       <p>{inr(paying.value - paying.paid)} remaining</p>
       <fieldset className="workspace-fields" disabled={busy}>
         <div className="focus-form-grid">
@@ -190,7 +202,7 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
     </form>}
     {finance && <>
       <div className="focus-filters">
-        <div><VoiceField label="Search vendors" value={query} onValueChange={setQuery} search /><VoiceNotice /></div>
+        <VoiceField label="Search vendors" value={query} onValueChange={setQuery} search />
         {comparison && <label className="focus-field">Filter by category
           <select value={activeCategory} onChange={event => setCategory(event.target.value)}>
             <option value="">All categories</option>
@@ -200,6 +212,13 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
         </label>}
         {!!visible.length && <PrintSection title={section} columns={columns} records={visible.map(record => record.values)}
           filters={activeCategory ? 'Category: ' + categories.get(activeCategory) : undefined} weddingName={wedding.name} />}
+        <VoiceNotice />
+        <div className="filter-summary">
+          <p role="status">{visible.length} of {records.length} {comparison ? 'vendors' : 'contracts'}</p>
+          <button className="focus-secondary" disabled={!query && !category} onClick={() => { setQuery(''); setCategory('') }}>
+            Clear filters
+          </button>
+        </div>
       </div>
       {!visible.length && <p>{records.length ? 'No records match these filters.' : comparison ? 'No vendors yet.' : 'No contracts yet.'}</p>}
       {workbookView && !!visible.length && <div className="table-scroll" tabIndex={0} role="region" aria-label={section + ' table'}>
@@ -221,7 +240,7 @@ export function WorkspaceFinance({ section, wedding, workbookView, request, vend
         {item.payments.map(payment => <div key={payment.id} className="focus-item">
           <span><strong>{inr(payment.amount)} · {payment.date}{payment.voided && ' · Voided'}</strong>
             <small>{[payment.method, payment.notes].filter(Boolean).join(' · ')}</small></span>
-          {!payment.voided && <button className="focus-secondary" disabled={busy} onClick={() => {
+          {!payment.voided && <button className="focus-secondary" disabled={busy || preview} onClick={() => {
             if (window.confirm('Void this payment? It will remain visible in payment history.')) {
               void save('payments/' + item.id, { revision: item.revision, voidPayment: payment.id }, 'Payment voided.')
             }

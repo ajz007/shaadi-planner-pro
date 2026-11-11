@@ -21,7 +21,8 @@ export function SetupOptions() {
     <section className="planner-card">
       <h2>Explore the sample</h2>
       <p>See the filled Aarav & Meera wedding, including guests, budgets, rooms and transport.</p>
-      <a className="package-button" href="#dashboard">Open sample dashboard</a>
+      <a className="package-button" href="#demo">Open sample wedding</a>
+      <a href="#dashboard">Explore the Excel workbook example</a>
     </section>
   </div>
 }
@@ -33,7 +34,7 @@ export function WorkbookSetup() {
       <p className="eyebrow">Step 1 of 2 · Workbook</p>
       <h2>Choose a workbook</h2>
       <p>Try the import flow with the filled English v1.3.1 workbook for Aarav & Meera.</p>
-      <p className="subtle">This walkthrough uses the included sample. To upload your own file, sign in to the private workspace.</p>
+      <p className="subtle">This walkthrough uses the included sample. Sign in to upload your own file and create a wedding.</p>
       <div className="actions">
         <button onClick={() => setReview(true)}>Use filled sample workbook</button>
         <a href="#workspace">Upload my own workbook →</a>
