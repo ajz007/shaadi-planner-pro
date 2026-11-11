@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useWorkspaceData } from './WorkspaceData'
 
 export type ImportTotals = { guests: number; confirmed: number; rooms: number; plannedPaise: number; paidPaise: number; vendorDuePaise: number }
 type Preview = {
@@ -105,19 +106,17 @@ export function WorkspaceImport({ onCreated }: { onCreated: (id: string) => Prom
 }
 
 export function useImportedPlanningRecords(wedding: string, enabled: boolean) {
+  const { request } = useWorkspaceData()
   const [data, setData] = useState<{ sections: ImportedSection[]; totals: ImportTotals }>()
   const [error, setError] = useState('')
   useEffect(() => {
     if (!enabled) return
     const controller = new AbortController()
-    fetch('/api/workspace/weddings/' + wedding + '/imported-sections', { signal: controller.signal })
-      .then(async result => {
-        if (!result.ok) throw new Error('Could not load imported planning records.')
-        setData(await result.json())
-      })
+    request<{ sections: ImportedSection[]; totals: ImportTotals }>('/weddings/' + wedding + '/imported-sections', undefined, controller.signal)
+      .then(data => { if (!controller.signal.aborted) setData(data) })
       .catch(error => { if (!controller.signal.aborted) setError(error.message) })
     return () => controller.abort()
-  }, [wedding, enabled])
+  }, [wedding, enabled, request])
   return { data, error }
 }
 

@@ -177,7 +177,7 @@ function Organizer() {
 
   return <main>
     <header>
-      <p className="eyebrow">Shaadi Planner Pro · Local demo</p>
+      <p className="eyebrow">Shaadi Planner Pro · Local RSVP prototype</p>
       <h1>Wedding guest coordination</h1>
       <p>Import a guest list, collect RSVPs, and see the headcount for each function.</p>
     </header>

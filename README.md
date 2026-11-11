@@ -1,6 +1,6 @@
 # Shaadi Planner Pro
 
-This local preview opens the filled Aarav and Meera wedding from the English v1.3.1 launch package. It uses Go 1.24, React and TypeScript. See the [workbook-to-web plan](WORKBOOK-TO-WEB.md) for the screen map and implementation order.
+Shaadi Planner Pro has a signed-in wedding planner, a read-only sample wedding that uses the same organizer screens, a filled Excel workbook example, and a separate local RSVP sandbox. It uses Go 1.24, React and TypeScript. See the [workbook-to-web plan](WORKBOOK-TO-WEB.md) for the screen map and the [current roadmap](WORKBOOK-TO-WEB.md#current-roadmap-after-the-sample-review) for the gaps and priorities from the sample review.
 
 ## Run the demo
 
@@ -14,11 +14,11 @@ Pop-Location
 go run ./cmd/shaadi-planner
 ```
 
-Open [the local demo](http://127.0.0.1:8080).
+Open [the local sample wedding](http://127.0.0.1:8080/#demo). Try Card view, Workbook view, guest filters and bulk selection with fictional records. Use [the private planner](http://127.0.0.1:8080/#workspace) to save changes in your own wedding.
 
 The checkout contains the web sample data. To enable the original Excel downloads locally, put your English launch ZIP in `web/public/Shaadi-Planner-Pro-English.zip` and the blank workbook from that package in `web/public/Shaadi-Planner-Pro-English-Blank.xlsx` before building the web app. These customer deliverables are kept out of Git.
 
-The dashboard shows the workbook's saved totals. Open any planning section from the sidebar, or use **Sections** on a phone. Search within a section and follow guest links from room assignments, pickups or RSVP follow-ups back to the Guest List. **Download Excel package** gives you the original blank and filled workbooks and both guides.
+The [Excel workbook example](http://127.0.0.1:8080/#dashboard) shows the workbook's saved totals. Open any planning section from the sidebar, or use **Sections** on a phone. Search within a section and follow guest links from room assignments, pickups or RSVP follow-ups back to the Guest List. **Download Excel package** gives you the original blank and filled workbooks and both guides.
 
 ## Try the onboarding prototype
 
@@ -45,7 +45,7 @@ Open **RSVP sandbox** from the planner navigation.
 
 ## Local demo boundaries
 
-Phone and vehicle numbers are hidden on screen. The sample workspace and its edits belong to the current browser. Shared login and PostgreSQL storage are a later milestone. The organizer sandbox is separate and accessible to anyone using the local address. Use fictional data only. Its RSVP links work on this computer, and sandbox data and links reset on restart.
+The filled workbook preview masks sample phone and vehicle numbers on screen. Changes in the alternate planner are saved in the current browser. The RSVP sandbox is a separate loopback-only prototype. Use fictional data there. Its guest list, household links and replies reset when the server restarts. The signed-in private planner uses PostgreSQL and saves shared changes to the selected wedding.
 
 ## Shared workspace backend
 
@@ -95,7 +95,7 @@ Run the workflow test with `go test ./...`.
 
 ### Deploy to Railway
 
-The public homepage is at `/`. The filled sample remains at `/#dashboard` and the private planner at `/#workspace`. Privacy, Terms and Contact are draft previews at `/privacy`, `/terms` and `/contact`. Set `VITE_SELLER_NAME` and `VITE_SUPPORT_EMAIL` on the app service to override the defaults of Ajit Shukla and support@shaadiplannerpro.com. These are public values compiled into the frontend during the build, so changes require a rebuild.
+The public homepage is at `/`, the sample wedding at `/#demo`, the Excel workbook example at `/#dashboard`, and the private planner at `/#workspace`. Privacy, Terms and Contact are draft previews at `/privacy`, `/terms` and `/contact`. Set `VITE_SELLER_NAME` and `VITE_SUPPORT_EMAIL` on the app service to override the defaults of Ajit Shukla and support@shaadiplannerpro.com. These are public values compiled into the frontend during the build, so changes require a rebuild.
 
 Before publishing the policies, verify that the support inbox receives mail and that the proposed retention rules can be carried out. The draft proposes 90 days of access after the wedding and up to 30 days in backups after removal from the live service. Confirm the deletion workflow, backup schedules and policy wording before removing the draft notice and indexing restriction.
 

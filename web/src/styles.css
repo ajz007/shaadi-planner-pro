@@ -1,4 +1,7 @@
 :root {
+  --planner-accent: #762747;
+  --planner-accent-hover: #5e1f39;
+  --planner-accent-tint: #f5e7ee;
   font-family: system-ui, sans-serif;
   color: #30202a;
   background: #faf4ef;
@@ -34,10 +37,10 @@ h3 { font-size: 1rem; }
 .card { padding: clamp(1rem, 4vw, 1.5rem); background: #fffdfa; border: 1px solid #edddd8; border-radius: 1rem; margin-bottom: 1rem; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem 1rem; }
 .actions h2, .actions h3 { margin: 0; }
-a { color: #842649; text-underline-offset: .2em; }
+a { color: var(--planner-accent); text-underline-offset: .2em; }
 button, select, input { font: inherit; }
-button { border: 1px solid #842649; background: #842649; color: white; padding: .55rem .85rem; border-radius: .5rem; cursor: pointer; }
-button.secondary { background: white; color: #842649; }
+button { border: 1px solid var(--planner-accent); background: var(--planner-accent); color: white; padding: .55rem .85rem; border-radius: .5rem; cursor: pointer; }
+button.secondary { background: white; color: var(--planner-accent); }
 button:disabled { opacity: .55; cursor: default; }
 .file-label { display: grid; font-size: .85rem; }
 .file-label input { width: min(100%, 16rem); }
