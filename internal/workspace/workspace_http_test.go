@@ -155,6 +155,93 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		len(plan.Tasks) != 2 || !strings.Contains(view.Body.String(), "Sound check") {
 		t.Fatalf("existing task or wedding-local function time missing: %s", view.Body)
 	}
+	rsvpPath := path + "/guest-rsvp"
+	request("GET", rsvpPath, "", "", brother, 404)
+	guestID := stringValue(request("POST", path+"/guests", `{"name":"Guest A","household":"Household A"}`, origin, owner, 201), "id")
+	otherGuest := stringValue(request("POST", path+"/guests", `{"name":"Guest B","household":"Household B"}`, origin, owner, 201), "id")
+	inviteTo := func(guest, function string) string {
+		return `{"guestId":"` + guest + `","functionId":"` + function + `"}`
+	}
+	selection := func(invitations ...string) string {
+		return `{"invitations":[` + strings.Join(invitations, ",") + `]}`
+	}
+	request("POST", rsvpPath, selection(inviteTo(guestID, function), inviteTo(otherGuest, function)), origin, owner, 422)
+	created := request("POST", rsvpPath, selection(inviteTo(guestID, function)), origin, owner, 201)
+	linkPath := rsvpPath + "/links/" + stringValue(created, "id")
+	_, secret, ok := strings.Cut(stringValue(created, "url"), "/rsvp#")
+	if !ok || !rsvpToken.MatchString(secret) {
+		t.Fatal("expected a guest link with its secret in the fragment")
+	}
+	request("POST", rsvpPath, selection(inviteTo(guestID, function)), origin, owner, 409)
+	otherLink := request("POST", rsvpPath, selection(inviteTo(otherGuest, function)), origin, owner, 201)
+	_, otherSecret, _ := strings.Cut(stringValue(otherLink, "url"), "/rsvp#")
+	publicPath := "/api/guest-rsvp"
+	readRSVP := func(secret string, status int) *httptest.ResponseRecorder {
+		return request("POST", publicPath, `{"token":"`+secret+`"}`, origin, nil, status)
+	}
+	public := readRSVP(secret, 200)
+	var publicRSVP struct{ Invitations []rsvpInvitation }
+	if err := json.Unmarshal(public.Body.Bytes(), &publicRSVP); err != nil || len(publicRSVP.Invitations) != 1 ||
+		publicRSVP.Invitations[0].Guest != "Guest A" || strings.Contains(public.Body.String(), "Household A") ||
+		strings.Contains(public.Body.String(), "linkId") {
+		t.Fatalf("unexpected guest visibility: %s", public.Body)
+	}
+	replyID := publicRSVP.Invitations[0].ID
+	guestReply := func(secret, id string) string {
+		return `{"token":"` + secret + `","id":"` + id + `","reply":{"status":"attending","revision":1}}`
+	}
+	request("POST", publicPath, guestReply(otherSecret, replyID), origin, nil, 409)
+	request("POST", publicPath, guestReply(secret, replyID), "https://other.example", nil, 403)
+	request("POST", publicPath, guestReply(secret, replyID), origin, nil, 200)
+	request("POST", publicPath, guestReply(secret, replyID), origin, nil, 409)
+	replyPath := rsvpPath + "/replies/" + replyID
+	request("POST", replyPath, `{"status":"declined","revision":1}`, origin, owner, 409)
+	request("POST", replyPath, `{"status":"declined","revision":2}`, origin, owner, 204)
+	if rows := request("GET", rsvpPath, "", "", owner, 200).Body.String(); !strings.Contains(rows, `"replySource":"organizer"`) ||
+		!strings.Contains(rows, `"status":"declined"`) || strings.Contains(rows, secret) {
+		t.Fatalf("organizer should see the recorded reply, with no plaintext link: %s", rows)
+	}
+	replaced := request("POST", linkPath, `{"action":"replace","revision":1}`, origin, owner, 200)
+	_, newSecret, _ := strings.Cut(stringValue(replaced, "url"), "/rsvp#")
+	readRSVP(secret, 404)
+	if body := readRSVP(newSecret, 200).Body.String(); !strings.Contains(body, `"status":"declined"`) {
+		t.Fatalf("replacement did not preserve the reply: %s", body)
+	}
+	request("POST", linkPath, `{"action":"revoke","revision":2}`, origin, owner, 204)
+	readRSVP(newSecret, 404)
+	request("POST", publicPath, guestReply(newSecret, replyID), origin, nil, 404)
+	if _, err := store.db.ExecContext(ctx, "UPDATE wedding_rsvp_links SET expires_at=now() WHERE token_hash=$1", inviteHash(otherSecret)); err != nil {
+		t.Fatal(err)
+	}
+	readRSVP(otherSecret, 404)
+
+	timelinePath := path + "/planning/timeline/"
+	activity := `{"fields":["2027-02-14","18:30","Main Hall","Sound check and handoff","","DJ","Pending","","30","Use the side door"],"functionId":"` +
+		function + `","ownerId":"` + person + `","revision":0}`
+	request("POST", timelinePath+"new", activity, origin, brother, 404)
+	request("POST", timelinePath+"new", activity, origin, owner, 204)
+	var runSheet weddingPlanning
+	if rec := request("GET", path+"/planning", "", "", owner, 200); json.Unmarshal(rec.Body.Bytes(), &runSheet) != nil ||
+		len(runSheet.Timeline) != 1 || runSheet.Timeline[0].Function != "Sangeet" || runSheet.Timeline[0].Fields[4] != "Brother" ||
+		runSheet.Timeline[0].Fields[8] != "30 min" {
+		t.Fatalf("unexpected saved run sheet: %s", rec.Body)
+	}
+	activityPath := timelinePath + runSheet.Timeline[0].ID
+	updatedActivity := strings.Replace(strings.Replace(activity, "18:30", "18:15", 1), `"revision":0`, `"revision":1`, 1)
+	request("POST", activityPath, updatedActivity, origin, owner, 204)
+	request("POST", activityPath, updatedActivity, origin, owner, 409)
+	request("POST", activityPath, `{"remove":true,"revision":2}`, origin, owner, 204)
+	housemate := stringValue(request("POST", path+"/guests", `{"name":"Guest C","household":"Household A"}`, origin, owner, 201), "id")
+	reception := stringValue(request("POST", path+"/functions",
+		`{"name":"Reception","venue":"Hall","startsAt":"2027-02-15T19:00"}`, origin, owner, 201), "id")
+	household := request("POST", rsvpPath, selection(inviteTo(guestID, reception), inviteTo(housemate, reception),
+		inviteTo(housemate, function)), origin, owner, 201)
+	_, householdSecret, _ := strings.Cut(stringValue(household, "url"), "/rsvp#")
+	if rec := readRSVP(householdSecret, 200); json.Unmarshal(rec.Body.Bytes(), &publicRSVP) != nil ||
+		len(publicRSVP.Invitations) != 3 || publicRSVP.Invitations[0].Guest != "Guest A" ||
+		publicRSVP.Invitations[0].Function != "Reception" {
+		t.Fatalf("household link should include only the selected guest and function pairs: %s", rec.Body)
+	}
 	request("POST", path+"/claim", `{"task":"`+openTask+`"}`, origin, brother, 200)
 	request("POST", path+"/complete", `{"task":"`+openTask+`","revision":2,"done":true}`, origin, brother, 200)
 	request("POST", path+"/complete", `{"task":"`+openTask+`","revision":2,"done":false}`, origin, owner, 409)
@@ -433,6 +520,17 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		if len(planning.Places) != 1 || len(planning.Functions) == 0 || planning.Functions[0].People != nil {
 			t.Fatalf("unexpected initial planning data: %+v", planning)
 		}
+		if len(planning.Timeline) == 0 || planning.Timeline[0].Fields[1] != "08:00" || planning.Timeline[0].Fields[3] != "Haldi setup check" {
+			t.Fatalf("the original workbook timeline was not brought into the run sheet: %+v", planning.Timeline)
+		}
+		importedActivity := planning.Timeline[0]
+		importedActivity.Fields[3] = "Updated live Haldi setup check"
+		timelineBody, err := json.Marshal(runSheetInput{Fields: importedActivity.Fields, OwnerID: importedActivity.OwnerID,
+			FunctionID: planning.Functions[0].ID, Revision: importedActivity.Revision})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request("POST", planningPath+"/timeline/"+importedActivity.ID, string(timelineBody), origin, owner, 204)
 		placeID := planning.Places[0].ID
 		functionPath := planningPath + "/functions/" + planning.Functions[0].ID
 		functionBody := `{"name":"Live Ceremony","start":"2027-02-15T10:30","venue":"Main hall","placeId":"` + placeID +
@@ -569,7 +667,7 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		}
 		found, foundTransport, foundRoom, foundFollowup := false, false, false, false
 		foundVendor, foundContract, foundLedger := false, false, false
-		foundPlace, foundItems, foundDocuments := false, false, false
+		foundPlace, foundItems, foundDocuments, foundTimeline := false, false, false, false
 		for _, part := range archive.File {
 			if !strings.HasPrefix(part.Name, "xl/worksheets/") {
 				continue
@@ -587,6 +685,7 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 			foundPlace = foundPlace || strings.Contains(text, "123 Wedding Lane")
 			foundItems = foundItems || strings.Contains(text, "Gift tray") && strings.Contains(text, "Live Ceremony")
 			foundDocuments = foundDocuments || strings.Contains(text, "menu.pdf") && strings.Contains(text, "quote.pdf")
+			foundTimeline = foundTimeline || strings.Contains(text, "Updated live Haldi setup check") && strings.Contains(text, "Linked function")
 			foundVendor = foundVendor || strings.Contains(text, "Live Test Caterer") && strings.Contains(text, "1200.5")
 			foundContract = foundContract || strings.Contains(text, "Live Test Caterer") && strings.Contains(text, "900.25")
 			foundLedger = foundLedger || strings.Contains(text, "Live deposit") && strings.Contains(text, "Voided instalment") && strings.Contains(text, "Imported opening balance")
@@ -614,6 +713,9 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		}
 		if !foundPlace || !foundItems || !foundDocuments {
 			t.Fatal("downloaded workbook did not include places, required items and document filenames")
+		}
+		if !foundTimeline {
+			t.Fatal("downloaded workbook did not include the saved timeline and its linked function")
 		}
 		// Simulate an older import with numeric and AM/PM values, including an
 		// explicitly cleared arrival. Reapply the repair to the saved records.

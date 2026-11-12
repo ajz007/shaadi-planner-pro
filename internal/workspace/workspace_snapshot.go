@@ -260,6 +260,16 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		}
 		return result
 	})
+	liveSection("Wedding Timeline", func(_ importSection) []importRow {
+		result := make([]importRow, 0, len(planning.Timeline))
+		for _, activity := range planning.Timeline {
+			result = append(result, importRow{Values: append(activity.Fields[:], activity.Function)})
+		}
+		return result
+	})
+	timeline := byName["Wedding Timeline"]
+	timeline.Columns = append(timeline.Columns, "Linked function")
+	byName[timeline.Name] = timeline
 	openTasks := 0
 	liveSection("Family Responsibilities", func(section importSection) []importRow {
 		originals := make(map[int][]string)

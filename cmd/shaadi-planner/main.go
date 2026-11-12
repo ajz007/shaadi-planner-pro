@@ -96,9 +96,12 @@ func routes(assets http.FileSystem, sandbox bool) *http.ServeMux {
 	mux := http.NewServeMux()
 	files := http.FileServer(assets)
 	mux.Handle("GET /", files)
-	for _, path := range []string{"/privacy", "/terms", "/contact"} {
+	for _, path := range []string{"/privacy", "/terms", "/contact", "/rsvp"} {
 		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Robots-Tag", "noindex")
+			if path == "/rsvp" {
+				w.Header().Set("Cache-Control", "no-store")
+			}
 			r.URL.Path = "/"
 			files.ServeHTTP(w, r)
 		})
