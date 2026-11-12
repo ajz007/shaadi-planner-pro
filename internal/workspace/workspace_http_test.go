@@ -267,8 +267,20 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 	}
 	schedulePath := rsvpPath + "/schedule"
 	request("POST", schedulePath, `{"date":"2027-02-15"}`, origin, brother, 404)
+	request("GET", schedulePath, "", "", brother, 404)
 	scheduleLink := request("POST", schedulePath, `{"date":"2027-02-15"}`, origin, owner, 201)
-	_, scheduleSecret, _ := strings.Cut(stringValue(scheduleLink, "url"), "/wedding-schedule#")
+	scheduleURL := stringValue(scheduleLink, "url")
+	scheduleID := stringValue(scheduleLink, "id")
+	reused := request("POST", schedulePath, `{"date":"2027-02-15"}`, origin, owner, 200)
+	if stringValue(reused, "url") != scheduleURL || stringValue(reused, "id") != scheduleID {
+		t.Fatal("the same active schedule scope should reuse the existing record and URL")
+	}
+	var scheduleLinks []guestScheduleLink
+	if rec := request("GET", schedulePath, "", "", owner, 200); json.Unmarshal(rec.Body.Bytes(), &scheduleLinks) != nil ||
+		len(scheduleLinks) != 1 || scheduleLinks[0].URL != scheduleURL {
+		t.Fatalf("the organizer should be able to copy the active link again: %s", rec.Body)
+	}
+	_, scheduleSecret, _ := strings.Cut(scheduleURL, "/wedding-schedule#")
 	scheduleBody := `{"token":"` + scheduleSecret + `"}`
 	shared := request("POST", "/api/guest-schedule", scheduleBody, origin, nil, 200)
 	if body := shared.Body.String(); !strings.Contains(body, "Reception") || strings.Contains(body, "Sangeet") ||
@@ -276,8 +288,29 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		t.Fatalf("schedule link should show only the date's public events: %s", body)
 	}
 	readRSVP(scheduleSecret, 404)
-	request("POST", schedulePath+"/"+stringValue(scheduleLink, "id"), "{}", origin, owner, 204)
+	request("POST", schedulePath+"/"+scheduleID, "{}", origin, owner, 204)
 	request("POST", "/api/guest-schedule", scheduleBody, origin, nil, 404)
+	replacement := request("POST", schedulePath, `{"date":"2027-02-15"}`, origin, owner, 201)
+	if stringValue(replacement, "url") == scheduleURL {
+		t.Fatal("a revoked schedule address must stay revoked")
+	}
+	legacySecret := newRSVPToken()
+	if _, err := store.db.ExecContext(ctx, `INSERT INTO wedding_guest_schedule_links(wedding_id,function_id,token_hash,expires_at)
+		VALUES ($1,$2,$3,now()+interval '1 day')`, wedding, function, inviteHash(legacySecret)); err != nil {
+		t.Fatal(err)
+	}
+	legacy := request("POST", schedulePath, `{"functionId":"`+function+`"}`, origin, owner, 200)
+	_, copySecret, _ := strings.Cut(stringValue(legacy, "url"), "/wedding-schedule#")
+	for _, secret := range []string{legacySecret, copySecret} {
+		rec := request("POST", "/api/guest-schedule", `{"token":"`+secret+`"}`, origin, nil, 200)
+		if !strings.Contains(rec.Body.String(), "Sangeet") || strings.Contains(rec.Body.String(), "Reception") {
+			t.Fatalf("both addresses should resolve to the same scoped schedule: %s", rec.Body)
+		}
+	}
+	request("POST", schedulePath+"/"+stringValue(legacy, "id"), "{}", origin, owner, 204)
+	for _, secret := range []string{legacySecret, copySecret} {
+		request("POST", "/api/guest-schedule", `{"token":"`+secret+`"}`, origin, nil, 404)
+	}
 
 	first, second := publicRSVP.Invitations[0].ID, publicRSVP.Invitations[1].ID
 	batch := `{"token":"` + householdSecret + `","replies":[{"id":"` + first +

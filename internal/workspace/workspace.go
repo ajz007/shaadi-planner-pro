@@ -55,6 +55,9 @@ var workspaceRunSheetMigration string
 //go:embed migrations/013_guest_wedding_page.sql
 var workspaceGuestPageMigration string
 
+//go:embed migrations/014_reusable_guest_schedules.sql
+var workspaceReusableScheduleMigration string
+
 var (
 	errWorkspaceNotFound = errors.New("record not found or access denied")
 	errWorkspaceConflict = errors.New("record changed or no longer available")
@@ -93,7 +96,7 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 		initialWorkspaceMigration, workspaceSessionMigration, workspaceImportMigration, workspaceGuestMigration,
 		workspaceTransportMigration, workspaceArrivalRepairMigration, workspaceLogisticsMigration, workspaceFinanceMigration,
 		workspaceReadinessMigration, workspaceGuestStayMigration, workspaceGuestRSVPMigration, workspaceRunSheetMigration,
-		workspaceGuestPageMigration,
+		workspaceGuestPageMigration, workspaceReusableScheduleMigration,
 	}
 	for i, migration := range migrations {
 		version := i + 1

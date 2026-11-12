@@ -6,7 +6,7 @@ import { WeddingInvitationHeader, weddingDay } from './GuestWeddingPage'
 import type { GuestPage } from './GuestWeddingPage'
 
 type PageSettings = GuestPage & { revision: number }
-type ScheduleLink = { id: string; date: string; functionId: string; expiresAt: string }
+type ScheduleLink = { id: string; date: string; functionId: string; expiresAt: string; url: string }
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong. Try again.'
 
 export function whatsappShare(message: string, url: string) {
@@ -118,10 +118,10 @@ export function WorkspaceGuestPage({ path, wedding, functions }: {
 function ScheduleLinks({ path, wedding, functions }: { path: string; wedding: Plan['wedding']; functions: Plan['functions'] }) {
   const { request } = useWorkspaceData()
   const [links, setLinks] = useState<ScheduleLink[]>([])
-  const [addresses, setAddresses] = useState<Record<string, string>>({})
   const [scope, setScope] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const days = [...new Set(functions.map(fn => weddingDay(fn.startsAt, wedding.timeZone)))].sort()
   useEffect(() => {
     const controller = new AbortController()
@@ -134,38 +134,46 @@ function ScheduleLinks({ path, wedding, functions }: { path: string; wedding: Pl
   async function change(id?: string) {
     setBusy(true)
     setError('')
+    setNotice('')
     try {
       if (id) await request<void>(path + '/' + id, {})
       else {
         const [kind, value] = scope.split(':')
-        const created = await request<{ id: string; url: string }>(path, kind === 'day' ? { date: value } : kind === 'function' ? { functionId: value } : {})
-        setAddresses(current => ({ ...current, [created.id]: created.url }))
+        await request(path, kind === 'day' ? { date: value } : kind === 'function' ? { functionId: value } : {})
       }
       setLinks(await request<ScheduleLink[]>(path))
+      if (!id) setNotice('The schedule link is ready below.')
     } catch (error) { setError(errorText(error)) }
     finally { setBusy(false) }
   }
   return <details className="focus-card guest-page-editor">
     <summary>Share a read-only schedule</summary>
-    <p>Anyone with this link can see the selected functions, venues, and cover. Use it in group chats. Household replies and arrival plans stay private.</p>
+    <p>Use this link in group chats to share the schedule, venues, and cover. You can copy it again any time it’s active.</p>
     {error && <p role="alert">{error}</p>}
+    {notice && <p role="status">{notice}</p>}
     {functions.length > 0 ? <div className="focus-actions">
       <label className="focus-field">Include<select value={scope} onChange={event => setScope(event.target.value)}>
         <option value="">All wedding functions</option>
         {days.map(day => <option key={day} value={'day:' + day}>{day}</option>)}
         {functions.map(fn => <option key={fn.id} value={'function:' + fn.id}>{fn.name} · {weddingDay(fn.startsAt, wedding.timeZone)}</option>)}
       </select></label>
-      <button type="button" disabled={busy} onClick={() => void change()}>Create schedule link</button>
+      <button type="button" disabled={busy} onClick={() => void change()}>Get schedule link</button>
     </div> : <p>Add a function before creating a schedule link.</p>}
     {links.map(link => {
-      const address = addresses[link.id]
+      const address = link.url
       return <div className="rsvp-link" key={link.id}>
         <strong>{functions.find(fn => fn.id === link.functionId)?.name ?? (link.date || 'Whole wedding')}</strong>
         <p>Expires {weddingDay(link.expiresAt, wedding.timeZone)}</p>
-        {address && <label className="focus-field">Schedule link<input readOnly value={address} onFocus={event => event.target.select()} /></label>}
+        <label className="focus-field">Schedule link<input readOnly value={address} onFocus={event => event.target.select()} /></label>
         <div className="focus-actions">
-          {address && <><a href={address} target="_blank" rel="noreferrer">Open schedule</a>
-            <a href={whatsappShare('Here’s the schedule for ' + wedding.name + '.', address)} target="_blank" rel="noreferrer">Share on WhatsApp</a></>}
+          <button type="button" className="focus-secondary" onClick={event => {
+            const input = event.currentTarget.closest('.rsvp-link')?.querySelector('input')
+            const selectLink = () => { input?.focus(); input?.select() }
+            if (navigator.clipboard) void navigator.clipboard.writeText(address).then(() => setNotice('Schedule link copied.')).catch(selectLink)
+            else selectLink()
+          }}>Copy link</button>
+          <a href={address} target="_blank" rel="noreferrer">Open schedule</a>
+          <a href={whatsappShare('Here’s the schedule for ' + wedding.name + '.', address)} target="_blank" rel="noreferrer">Share on WhatsApp</a>
           <button className="focus-secondary" type="button" disabled={busy} onClick={() => {
             if (window.confirm('Revoke this schedule link?')) void change(link.id)
           }}>Revoke link</button>

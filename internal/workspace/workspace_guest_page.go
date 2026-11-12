@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"image/jpeg"
 	"net/http"
 	"strings"
@@ -101,6 +102,13 @@ type guestScheduleLink struct {
 	Date       string    `json:"date"`
 	FunctionID string    `json:"functionId"`
 	ExpiresAt  time.Time `json:"expiresAt"`
+	URL        string    `json:"url"`
+}
+
+const activeSchedule = `revoked_at IS NULL AND expires_at>now()`
+
+func (a *workspaceHTTP) scheduleURL(token string) string {
+	return a.origin + "/wedding-schedule#" + token
 }
 
 func (a *workspaceHTTP) guestScheduleLinks(w http.ResponseWriter, r *http.Request, actor string) {
@@ -108,9 +116,14 @@ func (a *workspaceHTTP) guestScheduleLinks(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	links, err := queryWorkspace(r.Context(), a.store.db, func(row *sql.Rows, link *guestScheduleLink) error {
-		return row.Scan(&link.ID, &link.Date, &link.FunctionID, &link.ExpiresAt)
-	}, `SELECT id,COALESCE(scope_date::text,''),COALESCE(function_id::text,''),expires_at FROM wedding_guest_schedule_links
-		WHERE wedding_id=$1 AND revoked_at IS NULL AND expires_at>now() AND `+planningOrganizer+` ORDER BY expires_at DESC,id`,
+		var token string
+		if err := row.Scan(&link.ID, &link.Date, &link.FunctionID, &link.ExpiresAt, &token); err != nil {
+			return err
+		}
+		link.URL = a.scheduleURL(token)
+		return nil
+	}, `SELECT id,COALESCE(scope_date::text,''),COALESCE(function_id::text,''),expires_at,share_token FROM wedding_guest_schedule_links
+		WHERE wedding_id=$1 AND `+activeSchedule+` AND `+planningOrganizer+` ORDER BY expires_at DESC,id`,
 		r.PathValue("wedding"), actor)
 	if err != nil {
 		workspaceFailure(w, err)
@@ -137,23 +150,52 @@ func (a *workspaceHTTP) createGuestScheduleLink(w http.ResponseWriter, r *http.R
 		workspaceFailure(w, errWorkspaceInput)
 		return
 	}
-	token := newRSVPToken()
-	var id string
-	err := scanWorkspace(a.store.db.QueryRowContext(r.Context(), `
-		INSERT INTO wedding_guest_schedule_links(wedding_id,scope_date,function_id,token_hash,expires_at)
-		SELECT w.id,NULLIF($3,'')::date,NULLIF($4,'')::uuid,$5,GREATEST(now()+interval '30 days',max(f.starts_at)+interval '2 days')
-		FROM weddings w JOIN wedding_functions f ON f.wedding_id=w.id
-		WHERE w.id=$1 AND `+guestScheduleScope+` AND `+planningOrganizer+` GROUP BY w.id RETURNING id`,
-		r.PathValue("wedding"), actor, input.Date, input.FunctionID, inviteHash(token)), &id)
+	ctx := r.Context()
+	tx, err := a.store.db.BeginTx(ctx, nil)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
 	}
-	httpx.Reply(w, http.StatusCreated, map[string]string{"id": id, "url": a.origin + "/wedding-schedule#" + token})
+	defer tx.Rollback()
+	var wedding string
+	// Serialize creation for the wedding so simultaneous requests reuse the same scope.
+	err = scanWorkspace(tx.QueryRowContext(ctx, `SELECT id FROM weddings WHERE id=$1 AND `+planningOrganizer+` FOR UPDATE`,
+		r.PathValue("wedding"), actor), &wedding)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	var id, token string
+	err = scanWorkspace(tx.QueryRowContext(ctx, `SELECT id,share_token FROM wedding_guest_schedule_links
+		WHERE wedding_id=$1 AND scope_date IS NOT DISTINCT FROM NULLIF($2,'')::date
+		AND function_id IS NOT DISTINCT FROM NULLIF($3,'')::uuid AND `+activeSchedule+`
+		ORDER BY expires_at DESC,id LIMIT 1 FOR UPDATE`, wedding, input.Date, input.FunctionID), &id, &token)
+	status := http.StatusOK
+	if errors.Is(err, errWorkspaceNotFound) {
+		token = newRSVPToken()
+		status = http.StatusCreated
+		err = scanWorkspace(tx.QueryRowContext(ctx, `
+			INSERT INTO wedding_guest_schedule_links(wedding_id,scope_date,function_id,token_hash,share_token,expires_at)
+			SELECT w.id,NULLIF($2,'')::date,NULLIF($3,'')::uuid,$4,$5,GREATEST(now()+interval '30 days',max(f.starts_at)+interval '2 days')
+			FROM weddings w JOIN wedding_functions f ON f.wedding_id=w.id
+			WHERE w.id=$1 AND `+guestScheduleScope+` GROUP BY w.id RETURNING id`,
+			wedding, input.Date, input.FunctionID, inviteHash(token), token), &id)
+	}
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	httpx.Reply(w, status, map[string]string{"id": id, "url": a.scheduleURL(token)})
 }
 
-const guestScheduleScope = `($3='' OR (f.starts_at AT TIME ZONE w.time_zone)::date=NULLIF($3,'')::date)
-	AND ($4='' OR f.id=NULLIF($4,'')::uuid)`
+const guestScheduleScope = `($2='' OR (f.starts_at AT TIME ZONE w.time_zone)::date=NULLIF($2,'')::date)
+	AND ($3='' OR f.id=NULLIF($3,'')::uuid)`
+
+const guestScheduleToken = `(l.token_hash=$1 OR l.share_token=$2)`
 
 func (a *workspaceHTTP) revokeGuestScheduleLink(w http.ResponseWriter, r *http.Request, actor string) {
 	if !a.rsvpOrganizer(w, r, actor) {
@@ -207,12 +249,12 @@ func (a *workspaceHTTP) guestSchedule(w http.ResponseWriter, r *http.Request) {
 	hash := inviteHash(input.Token)
 	var page guestPageDetails
 	err = scanGuestPage(tx.QueryRowContext(ctx, `SELECT `+guestPageColumns+` FROM weddings w JOIN wedding_guest_schedule_links l
-		ON l.wedding_id=w.id WHERE l.token_hash=$1 AND l.revoked_at IS NULL AND l.expires_at>now()`, hash), &page)
+		ON l.wedding_id=w.id WHERE `+guestScheduleToken+` AND `+activeSchedule, hash, input.Token), &page)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
 	}
-	events, err := listGuestSchedule(ctx, tx, hash)
+	events, err := listGuestSchedule(ctx, tx, hash, input.Token)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
@@ -223,11 +265,11 @@ func (a *workspaceHTTP) guestSchedule(w http.ResponseWriter, r *http.Request) {
 	}{page, events})
 }
 
-func listGuestSchedule(ctx context.Context, db workspaceRowsQueryer, hash []byte) ([]guestScheduleEvent, error) {
+func listGuestSchedule(ctx context.Context, db workspaceRowsQueryer, hash []byte, token string) ([]guestScheduleEvent, error) {
 	return queryWorkspace(ctx, db, func(row *sql.Rows, event *guestScheduleEvent) error {
 		return row.Scan(&event.Name, &event.StartsAt, &event.Venue, &event.MapURL)
 	}, `SELECT f.name,f.starts_at,`+guestVenue+`,COALESCE(p.map_url,'') FROM wedding_guest_schedule_links l
 		JOIN weddings w ON w.id=l.wedding_id JOIN wedding_functions f ON f.wedding_id=l.wedding_id `+guestPlaceJoin+`
-		WHERE l.token_hash=$1 AND (l.scope_date IS NULL OR (f.starts_at AT TIME ZONE w.time_zone)::date=l.scope_date)
-		AND (l.function_id IS NULL OR f.id=l.function_id) ORDER BY f.starts_at,f.id`, hash)
+		WHERE `+guestScheduleToken+` AND (l.scope_date IS NULL OR (f.starts_at AT TIME ZONE w.time_zone)::date=l.scope_date)
+		AND (l.function_id IS NULL OR f.id=l.function_id) ORDER BY f.starts_at,f.id`, hash, token)
 }

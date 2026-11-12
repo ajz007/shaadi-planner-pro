@@ -4,7 +4,7 @@ import type { Plan } from './Workspace'
 import type { Guest } from './WorkspaceGuests'
 import { useWorkspaceData } from './WorkspaceData'
 import { WorkspaceGuestPage, whatsappShare } from './WorkspaceGuestPage'
-import { weddingDay } from './GuestWeddingPage'
+import { formatDay, weddingDay } from './GuestWeddingPage'
 import type { GuestTravel } from './GuestWeddingPage'
 
 type Status = 'pending' | 'attending' | 'declined'
@@ -32,6 +32,64 @@ function exportCounts(rows: (string | number)[][]) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+function InvitationPicker({ guests, functions, timeZone, existing }: {
+  guests: Guest[]; functions: Plan['functions']; timeZone: string; existing: OrganizerInvitation[]
+}) {
+  const alreadyInvited = new Set(existing.map(row => row.guestId + ':' + row.functionId))
+  const days = new Map<string, Plan['functions']>()
+  for (const fn of functions) {
+    const date = weddingDay(fn.startsAt, timeZone)
+    const events = days.get(date) ?? []
+    events.push(fn)
+    days.set(date, events)
+  }
+  const available = functions.flatMap(fn => guests.map(guest => guest.id + ':' + fn.id)).filter(key => !alreadyInvited.has(key))
+  const [excluded, setExcluded] = useState<Set<string>>(() => new Set())
+  const selected = available.filter(key => !excluded.has(key))
+  function toggle(keys: string[], checked: boolean) {
+    setExcluded(current => {
+      const next = new Set(current)
+      for (const key of keys) {
+        if (checked) next.delete(key)
+        else next.add(key)
+      }
+      return next
+    })
+  }
+  return <div className="rsvp-functions">
+    <p><strong>{guests.map(guest => guest.name).join(', ')}</strong></p>
+    {available.length < guests.length * functions.length && <p>Guests already invited to a function stay on their existing household link.</p>}
+    <fieldset className="rsvp-picker-days"><legend>Days to include</legend>
+      {[...days].sort(([left], [right]) => left.localeCompare(right)).map(([date, events]) => {
+        const pairs = events.flatMap(fn => guests.map(guest => guest.id + ':' + fn.id)).filter(key => !alreadyInvited.has(key))
+        const count = pairs.filter(key => !excluded.has(key)).length
+        return <label className="rsvp-picker-day" key={date}>
+          <input type="checkbox" checked={pairs.length > 0 && count === pairs.length} disabled={!pairs.length}
+            ref={node => { if (node) node.indeterminate = count > 0 && count < pairs.length }}
+            onChange={event => toggle(pairs, event.target.checked)} />
+          <span><strong>{formatDay(date)}</strong><small>{events.map(fn => fn.name).join(' · ')}</small></span>
+        </label>
+      })}
+    </fieldset>
+    {available.length > 0 && <details className="rsvp-picker-details"><summary>Adjust by guest or function</summary>
+      {[...days].sort(([left], [right]) => left.localeCompare(right)).map(([date, events]) =>
+        <details key={date}><summary>{formatDay(date)}</summary>
+          {events.map(fn => <fieldset key={fn.id}><legend>{fn.name}</legend>
+            <div className="rsvp-choices">{guests.map(guest => {
+              const key = guest.id + ':' + fn.id
+              return <label key={key}><input type="checkbox" checked={!excluded.has(key)} disabled={alreadyInvited.has(key)}
+                onChange={event => toggle([key], event.target.checked)} /> {guest.name}{alreadyInvited.has(key) && ' (invited)'}</label>
+            })}</div>
+          </fieldset>)}
+        </details>)}
+    </details>}
+    {selected.map(key => <input key={key} type="hidden" name="invitations" value={key} />)}
+    {!available.length && <p>Everyone already has invitations for these functions.</p>}
+    {selected.length > 1000 && <p>Select up to 1,000 guest and function combinations per link.</p>}
+    <button disabled={!selected.length || selected.length > 1000}>Create RSVP link</button>
+  </div>
+}
+
 export function WorkspaceRSVP({ wedding, functions, guestsHref, functionsHref }: {
   wedding: Plan['wedding']; functions: Plan['functions']; guestsHref: string; functionsHref: string
 }) {
@@ -41,8 +99,6 @@ export function WorkspaceRSVP({ wedding, functions, guestsHref, functionsHref }:
   const [data, setData] = useState<OrganizerData>()
   const [guests, setGuests] = useState<Guest[]>([])
   const [group, setGroup] = useState('')
-  const [selected, setSelected] = useState<string[]>([])
-  const [selectDay, setSelectDay] = useState('')
   const [linkScopes, setLinkScopes] = useState<Record<string, string>>({})
   const [links, setLinks] = useState<Record<string, string>>({})
   const [functionFilter, setFunctionFilter] = useState('')
@@ -89,8 +145,6 @@ export function WorkspaceRSVP({ wedding, functions, guestsHref, functionsHref }:
       setLinks(current => ({ ...current, [result.id]: result.url }))
       form.reset()
       setGroup('')
-      setSelected([])
-      setSelectDay('')
       setFeedback('RSVP link created. Copy it from Household links.')
     })
   }
@@ -109,20 +163,15 @@ export function WorkspaceRSVP({ wedding, functions, guestsHref, functionsHref }:
       ...(['attending', 'pending', 'declined'] as const).map(status => invited.filter(row => row.status === status).length)]
   })
   const headings = ['Function', 'Starts', 'Invited', 'Attending', 'Awaiting reply', 'Declined']
-  function selectInvitations(day: string) {
-    const choices = functions.filter(fn => !day || weddingDay(fn.startsAt, wedding.timeZone) === day)
-      .flatMap(fn => (currentGroup?.guests ?? []).map(guest => guest.id + ':' + fn.id))
-    setSelected(current => [...new Set([...current, ...choices])])
-  }
   const visible = replies.filter(row => (!functionFilter || row.functionId === functionFilter) && (!statusFilter || row.status === statusFilter))
   return <div className="workspace-rsvp">
     {error && <p role="alert">{error}</p>}
     {feedback && <p role="status">{feedback}</p>}
     {!data && !error && <p role="status">Loading guest RSVPs…</p>}
     <WorkspaceGuestPage path={path} wedding={wedding} functions={functions} />
-    <section className="focus-card">
-      <div className="focus-heading"><h2>Headcounts by function</h2><button className="focus-secondary" disabled={!data || busy}
-        onClick={() => void perform()}>Refresh replies</button></div>
+    <details className="focus-card guest-page-editor">
+      <summary>Headcounts by function</summary>
+      <button className="focus-secondary" disabled={!data || busy} onClick={() => void perform()}>Refresh replies</button>
       {data && functions.length > 0 && <>
         <div className="table-scroll" tabIndex={0} role="region" aria-label="Function headcounts"><table className="imported-records">
           <thead><tr>{headings.map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
@@ -136,7 +185,7 @@ export function WorkspaceRSVP({ wedding, functions, guestsHref, functionsHref }:
           })}
         </details>
       </>}
-    </section>
+    </details>
     <form className="focus-card" onSubmit={create}>
       <h2>Create a guest RSVP link</h2>
       <p>Share one private link with the selected household. Guests can RSVP and send arrival plans without signing in.</p>
@@ -144,34 +193,13 @@ export function WorkspaceRSVP({ wedding, functions, guestsHref, functionsHref }:
       {!guests.length && data && <p><a href={guestsHref}>Add guests to the Guest List</a> to create a link.</p>}
       {!functions.length && <p><a href={functionsHref}>Add a wedding function</a> to collect replies.</p>}
       {guests.length > 0 && functions.length > 0 && <fieldset className="workspace-fields" disabled={busy || !data}>
-        <label className="focus-field">Household or individual<select value={group} onChange={event => {
-          setGroup(event.target.value); setSelected([]); setSelectDay('')
-        }} required>
+        <label className="focus-field">Household or individual<select value={group} onChange={event => setGroup(event.target.value)} required>
           <option value="">Choose a household or guest</option>
           {[...groups].sort(([, a], [, b]) => a.label.localeCompare(b.label)).map(([key, item]) =>
             <option key={key} value={key}>{item.label}{item.guests.length > 1 ? ' (' + item.guests.length + ')' : ''}</option>)}
         </select></label>
-        {currentGroup && <div key={group} className="rsvp-functions">
-          <p>Select the guests invited to each function.</p>
-          <div className="focus-actions">
-            <button type="button" className="focus-secondary" onClick={() => selectInvitations('')}>Select all functions</button>
-            <label className="focus-field">Wedding day<select value={selectDay} onChange={event => setSelectDay(event.target.value)}>
-              <option value="">Choose a day</option>{days.map(day => <option key={day}>{day}</option>)}
-            </select></label>
-            <button type="button" className="focus-secondary" disabled={!selectDay} onClick={() => selectInvitations(selectDay)}>Select this day</button>
-            <button type="button" className="focus-secondary" disabled={!selected.length} onClick={() => setSelected([])}>Clear selection</button>
-          </div>
-          {functions.map(fn => <fieldset key={fn.id}>
-            <legend>{fn.name} · {dateTime(wedding.timeZone).format(new Date(fn.startsAt))}</legend>
-            <div className="rsvp-choices">{currentGroup.guests.map(guest => <label key={guest.id}>
-              <input type="checkbox" name="invitations" value={guest.id + ':' + fn.id} checked={selected.includes(guest.id + ':' + fn.id)}
-                onChange={event => {
-                  const { value, checked } = event.target
-                  setSelected(current => checked ? [...current, value] : current.filter(item => item !== value))
-                }} /> {guest.name}</label>)}</div>
-          </fieldset>)}
-        </div>}
-        <button disabled={!selected.length}>Create RSVP link</button>
+        {currentGroup && <InvitationPicker key={group} guests={currentGroup.guests} functions={functions}
+          timeZone={wedding.timeZone} existing={replies} />}
       </fieldset>}
     </form>
     {!!data?.links.length && <section className="focus-card"><h2>Household links</h2>
