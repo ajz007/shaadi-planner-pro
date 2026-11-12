@@ -1,9 +1,11 @@
 package workspace
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"regexp"
@@ -33,6 +35,8 @@ type rsvpInvitation struct {
 	Revision    int        `json:"revision"`
 	LinkID      string     `json:"linkId,omitempty"`
 	FunctionID  string     `json:"functionId,omitempty"`
+	GuestID     string     `json:"guestId,omitempty"`
+	Venue       string     `json:"venue,omitempty"`
 	ReplySource string     `json:"replySource,omitempty"`
 	RepliedAt   *time.Time `json:"repliedAt,omitempty"`
 }
@@ -83,15 +87,20 @@ func (a *workspaceHTTP) organizerRSVP(w http.ResponseWriter, r *http.Request, ac
 	}
 	invitations, err := queryWorkspace(ctx, a.store.db, func(row *sql.Rows, i *rsvpInvitation) error {
 		return row.Scan(&i.ID, &i.Guest, &i.Function, &i.StartsAt, &i.Status, &i.Revision,
-			&i.LinkID, &i.FunctionID, &i.ReplySource, &i.RepliedAt)
-	}, `SELECT i.id,g.name,f.name,f.starts_at,i.status,i.revision,i.link_id,i.function_id,
+			&i.LinkID, &i.FunctionID, &i.GuestID, &i.ReplySource, &i.RepliedAt)
+	}, `SELECT i.id,g.name,f.name,f.starts_at,i.status,i.revision,i.link_id,i.function_id,i.guest_id,
 		COALESCE(i.reply_source,''),i.replied_at FROM wedding_rsvp_invitations i `+rsvpInvitationDetails+`
 		WHERE i.wedding_id=$1 AND `+planningOrganizer+` ORDER BY f.starts_at,g.name,i.id`, wedding, actor)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
 	}
-	httpx.Reply(w, http.StatusOK, map[string]any{"links": links, "invitations": invitations})
+	travel, err := listRSVPTravel(ctx, a.store.db, wedding, actor, "")
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	httpx.Reply(w, http.StatusOK, map[string]any{"links": links, "invitations": invitations, "travel": travel})
 }
 
 func (a *workspaceHTTP) createRSVP(w http.ResponseWriter, r *http.Request, actor string) {
@@ -131,7 +140,7 @@ func (a *workspaceHTTP) createRSVP(w http.ResponseWriter, r *http.Request, actor
 			JOIN wedding_functions f ON f.wedding_id=$1 AND f.id=pairs.function_id::uuid
 		), link AS (
 			INSERT INTO wedding_rsvp_links(wedding_id,label,token_hash,expires_at)
-			SELECT $1,COALESCE(NULLIF(min(household),''),min(name)),$5,now()+interval '30 days' FROM selected
+			SELECT $1,COALESCE(NULLIF(min(household),''),min(name)),$5,`+rsvpAccessEnd+` FROM selected
 			HAVING count(*)=cardinality($3::text[]) AND (count(DISTINCT guest_id)=1 OR
 				(count(DISTINCT lower(btrim(household)))=1 AND bool_and(btrim(household)<>'')))
 				AND `+planningOrganizer+`
@@ -157,6 +166,8 @@ func (a *workspaceHTTP) createRSVP(w http.ResponseWriter, r *http.Request, actor
 func (a *workspaceHTTP) sendRSVPLink(w http.ResponseWriter, status int, id, token string) {
 	httpx.Reply(w, status, map[string]string{"id": id, "url": a.origin + "/rsvp#" + token})
 }
+
+const rsvpAccessEnd = `GREATEST(now()+interval '30 days', (SELECT (wedding_date+3)::timestamp AT TIME ZONE time_zone FROM weddings WHERE id=$1))`
 
 func (a *workspaceHTTP) changeRSVPLink(w http.ResponseWriter, r *http.Request, actor string) {
 	if !a.rsvpOrganizer(w, r, actor) {
@@ -185,7 +196,7 @@ func (a *workspaceHTTP) changeRSVPLink(w http.ResponseWriter, r *http.Request, a
 		UPDATE wedding_rsvp_links SET revision=revision+1,
 			revoked_at=CASE WHEN $5 THEN now() ELSE NULL END,
 			token_hash=CASE WHEN $5 THEN token_hash ELSE $6 END,
-			expires_at=CASE WHEN $5 THEN expires_at ELSE now()+interval '30 days' END
+			expires_at=CASE WHEN $5 THEN expires_at ELSE `+rsvpAccessEnd+` END
 		WHERE wedding_id=$1 AND id=$3 AND revision=$4 AND `+planningOrganizer+` RETURNING id`,
 		wedding, actor, id, input.Revision, input.Action == "revoke", inviteHash(token)), &updated)
 	if errors.Is(err, errWorkspaceNotFound) {
@@ -240,9 +251,11 @@ func (a *workspaceHTTP) guestRSVP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Token string
-		ID    string
-		Reply *rsvpReply
+		Token   string
+		ID      string
+		Reply   *rsvpReply
+		Replies []guestRSVPUpdate
+		Travel  *guestTravelReply
 	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return
@@ -253,41 +266,54 @@ func (a *workspaceHTTP) guestRSVP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, hash := r.Context(), inviteHash(input.Token)
 	if input.Reply != nil {
-		if !workspaceUUID.MatchString(input.ID) || !input.Reply.valid(false) {
-			workspaceFailure(w, errWorkspaceInput)
-			return
-		}
-		var revision int
-		err := scanWorkspace(a.store.db.QueryRowContext(ctx, `
-			WITH link AS (
-				SELECT id,wedding_id FROM wedding_rsvp_links WHERE token_hash=$1 AND revoked_at IS NULL
-					AND expires_at>now() FOR UPDATE
-			), updated AS (
-				UPDATE wedding_rsvp_invitations i SET status=$3, revision=i.revision+1, reply_source='guest', replied_at=now()
-				FROM link WHERE i.wedding_id=link.wedding_id AND i.link_id=link.id AND i.id=$2 AND i.revision=$4
-				RETURNING i.revision
-			)
-			SELECT COALESCE((SELECT revision FROM updated),0) FROM link`,
-			hash, input.ID, input.Reply.Status, input.Reply.Revision), &revision)
-		if err == nil && revision == 0 {
-			err = errWorkspaceConflict
-		}
-		if err != nil {
+		if err := a.store.saveGuestRSVP(ctx, hash, []guestRSVPUpdate{{ID: input.ID, rsvpReply: *input.Reply}}); err != nil {
 			workspaceFailure(w, err)
 			return
 		}
-		httpx.Reply(w, http.StatusOK, rsvpReply{Status: input.Reply.Status, Revision: revision})
+		httpx.Reply(w, http.StatusOK, rsvpReply{Status: input.Reply.Status, Revision: input.Reply.Revision + 1})
 		return
 	}
-	var name, zone string
-	invitations, err := queryWorkspace(ctx, a.store.db, func(row *sql.Rows, i *rsvpInvitation) error {
-		return row.Scan(&name, &zone, &i.ID, &i.Guest, &i.Function, &i.StartsAt, &i.Status, &i.Revision)
-	}, `SELECT w.name,w.time_zone,i.id,g.name,f.name,f.starts_at,i.status,i.revision
-		FROM wedding_rsvp_invitations i `+rsvpInvitationDetails+`
-		JOIN wedding_rsvp_links l ON l.wedding_id=i.wedding_id AND l.id=i.link_id
-		JOIN weddings w ON w.id=i.wedding_id
-		WHERE l.token_hash=$1 AND l.revoked_at IS NULL AND l.expires_at>now()
-		ORDER BY g.name,f.starts_at,i.id`, hash)
+	if input.Replies != nil {
+		if err := a.store.saveGuestRSVP(ctx, hash, input.Replies); err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if input.Travel != nil {
+		if err := a.store.saveRSVPTravel(ctx, hash, *input.Travel); err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	tx, err := a.store.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	defer tx.Rollback()
+	var page guestPageDetails
+	err = scanGuestPage(tx.QueryRowContext(ctx, `SELECT `+guestPageColumns+`
+		FROM weddings w JOIN wedding_rsvp_links l ON l.wedding_id=w.id
+		WHERE l.token_hash=$1 AND l.revoked_at IS NULL AND l.expires_at>now()`, hash), &page)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	var wedding, link string
+	err = scanWorkspace(tx.QueryRowContext(ctx, "SELECT wedding_id,id FROM wedding_rsvp_links WHERE token_hash=$1", hash), &wedding, &link)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	invitations, err := queryWorkspace(ctx, tx, func(row *sql.Rows, i *rsvpInvitation) error {
+		return row.Scan(&i.ID, &i.GuestID, &i.Guest, &i.FunctionID, &i.Function, &i.StartsAt, &i.Venue, &i.Status, &i.Revision)
+	}, `SELECT i.id,g.id,g.name,f.id,f.name,f.starts_at,`+guestVenue+`,i.status,i.revision
+		FROM wedding_rsvp_invitations i `+rsvpInvitationDetails+` `+guestPlaceJoin+`
+		WHERE i.wedding_id=$1 AND i.link_id=$2 ORDER BY g.name,f.starts_at,i.id`, wedding, link)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
@@ -296,5 +322,76 @@ func (a *workspaceHTTP) guestRSVP(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, http.StatusNotFound, "This RSVP link has expired or is unavailable. Ask the organizer for a new link.")
 		return
 	}
-	httpx.Reply(w, http.StatusOK, map[string]any{"name": name, "timeZone": zone, "invitations": invitations})
+	travel, err := listRSVPTravel(ctx, tx, wedding, "", link)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	httpx.Reply(w, http.StatusOK, struct {
+		guestPageDetails
+		Invitations []rsvpInvitation   `json:"invitations"`
+		Travel      []guestTravelReply `json:"travel"`
+	}{page, invitations, travel})
+}
+
+type guestRSVPUpdate struct {
+	ID string `json:"id"`
+	rsvpReply
+}
+
+func (s *workspaceStore) withRSVPLink(ctx context.Context, hash []byte, work func(*sql.Tx, string, string) error) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var wedding, link string
+	err = scanWorkspace(tx.QueryRowContext(ctx, `SELECT wedding_id,id FROM wedding_rsvp_links
+		WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now() FOR UPDATE`, hash), &wedding, &link)
+	if err != nil {
+		return err
+	}
+	if err := work(tx, wedding, link); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *workspaceStore) saveGuestRSVP(ctx context.Context, hash []byte, replies []guestRSVPUpdate) error {
+	if len(replies) == 0 || len(replies) > 1000 {
+		return errWorkspaceInput
+	}
+	seen := make(map[string]bool, len(replies))
+	for _, reply := range replies {
+		id := strings.ToLower(reply.ID)
+		if !workspaceUUID.MatchString(id) || !reply.valid(false) || seen[id] {
+			return errWorkspaceInput
+		}
+		seen[id] = true
+	}
+	payload, err := json.Marshal(replies)
+	if err != nil {
+		return err
+	}
+	return s.withRSVPLink(ctx, hash, func(tx *sql.Tx, wedding, link string) error {
+		result, err := tx.ExecContext(ctx, `UPDATE wedding_rsvp_invitations i
+			SET status=r.status, revision=i.revision+1, reply_source='guest', replied_at=now()
+			FROM jsonb_to_recordset($3::jsonb) AS r(id uuid,status text,revision integer)
+			WHERE i.wedding_id=$1 AND i.link_id=$2 AND i.id=r.id AND i.revision=r.revision`, wedding, link, payload)
+		if err != nil {
+			return err
+		}
+		return checkRSVPRows(result, int64(len(replies)))
+	})
+}
+
+func checkRSVPRows(result sql.Result, expected int64) error {
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != expected {
+		return errWorkspaceConflict
+	}
+	return nil
 }

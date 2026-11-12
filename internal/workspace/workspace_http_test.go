@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"image"
+	"image/jpeg"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -241,6 +243,59 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		len(publicRSVP.Invitations) != 3 || publicRSVP.Invitations[0].Guest != "Guest A" ||
 		publicRSVP.Invitations[0].Function != "Reception" {
 		t.Fatalf("household link should include only the selected guest and function pairs: %s", rec.Body)
+	}
+	pagePath := rsvpPath + "/page"
+	request("GET", pagePath, "", "", brother, 404)
+	var photo bytes.Buffer
+	if err := jpeg.Encode(&photo, image.NewRGBA(image.Rect(0, 0, 2, 2)), nil); err != nil {
+		t.Fatal(err)
+	}
+	design := guestPageDesign{Heading: "Aarav & Meera", Welcome: "Join us for the wedding", Theme: "rose", CoverPhoto: photo.Bytes()}
+	pageBody, err := json.Marshal(struct {
+		guestPageDesign
+		Revision int `json:"revision"`
+	}{design, 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request("POST", pagePath, string(pageBody), origin, owner, 200)
+	request("POST", pagePath, string(pageBody), origin, owner, 409)
+	var publicPage guestPageDetails
+	if rec := readRSVP(householdSecret, 200); json.Unmarshal(rec.Body.Bytes(), &publicPage) != nil ||
+		publicPage.Design.Heading != design.Heading || publicPage.Design.Theme != "rose" || !bytes.Equal(publicPage.Design.CoverPhoto, photo.Bytes()) {
+		t.Fatal("the private invitation did not show the saved wedding page")
+	}
+	schedulePath := rsvpPath + "/schedule"
+	request("POST", schedulePath, `{"date":"2027-02-15"}`, origin, brother, 404)
+	scheduleLink := request("POST", schedulePath, `{"date":"2027-02-15"}`, origin, owner, 201)
+	_, scheduleSecret, _ := strings.Cut(stringValue(scheduleLink, "url"), "/wedding-schedule#")
+	scheduleBody := `{"token":"` + scheduleSecret + `"}`
+	shared := request("POST", "/api/guest-schedule", scheduleBody, origin, nil, 200)
+	if body := shared.Body.String(); !strings.Contains(body, "Reception") || strings.Contains(body, "Sangeet") ||
+		strings.Contains(body, "Guest A") || strings.Contains(body, "invitations") {
+		t.Fatalf("schedule link should show only the date's public events: %s", body)
+	}
+	readRSVP(scheduleSecret, 404)
+	request("POST", schedulePath+"/"+stringValue(scheduleLink, "id"), "{}", origin, owner, 204)
+	request("POST", "/api/guest-schedule", scheduleBody, origin, nil, 404)
+
+	first, second := publicRSVP.Invitations[0].ID, publicRSVP.Invitations[1].ID
+	batch := `{"token":"` + householdSecret + `","replies":[{"id":"` + first +
+		`","status":"attending","revision":1},{"id":"` + second + `","status":"declined","revision":9}]}`
+	request("POST", publicPath, batch, origin, nil, 409)
+	request("POST", publicPath, strings.Replace(batch, `"revision":9`, `"revision":1`, 1), origin, nil, 204)
+	if rec := readRSVP(householdSecret, 200); json.Unmarshal(rec.Body.Bytes(), &publicRSVP) != nil ||
+		publicRSVP.Invitations[0].Status != "attending" || publicRSVP.Invitations[1].Status != "declined" ||
+		publicRSVP.Invitations[2].Status != "pending" {
+		t.Fatalf("batch replies should only update the selected invitations: %s", rec.Body)
+	}
+	travelBody := `{"token":"` + householdSecret + `","travel":{"guestId":"` + guestID +
+		`","arrivalDate":"2027-02-14","arrivalTime":"17:30","pickup":"yes","stay":"no","revision":0}}`
+	request("POST", publicPath, strings.Replace(travelBody, guestID, otherGuest, 1), origin, nil, 409)
+	request("POST", publicPath, travelBody, origin, nil, 204)
+	request("POST", publicPath, travelBody, origin, nil, 409)
+	if rec := request("GET", rsvpPath, "", "", owner, 200); !strings.Contains(rec.Body.String(), `"arrivalTime":"17:30"`) {
+		t.Fatal("guest arrival plans are missing from the organizer view")
 	}
 	request("POST", path+"/claim", `{"task":"`+openTask+`"}`, origin, brother, 200)
 	request("POST", path+"/complete", `{"task":"`+openTask+`","revision":2,"done":true}`, origin, brother, 200)

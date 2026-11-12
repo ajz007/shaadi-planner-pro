@@ -61,7 +61,6 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .rsvp-choices { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
 .rsvp-choices label { display: inline-flex; align-items: center; gap: .35rem; }
 .rsvp-link { border-top: 1px solid #e6d5d8; padding: .75rem 0; }
-.live-guest-rsvp { max-width: 64rem; margin: 0 auto; }
 .filter-summary { display: flex; flex: 1 0 100%; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; padding-block-start: .65rem; border-top: 1px solid #e8ebe1; }
 .filter-summary p { margin: 0; font-size: .9rem; }
 .filter-summary button { margin-inline-start: auto; }

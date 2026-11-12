@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './styles.css'
 import { Planner } from './Planner'
 import { PublicFooter, PublicHome, PublicInfoPage, publicPages } from './PublicPages'
-import { LiveGuestRSVP } from './WorkspaceRSVP'
+import { LiveGuestRSVP, LiveWeddingSchedule } from './GuestWeddingPage'
 
 type Status = 'pending' | 'accepted' | 'declined'
 type Invitation = {
@@ -260,9 +260,13 @@ function App() {
   let page
   if (Object.hasOwn(publicPages, path)) {
     page = <PublicInfoPage path={path as keyof typeof publicPages} />
-  } else if (path === '/rsvp') {
-    const token = /^#([A-Za-z0-9_-]{43})$/.exec(hash)?.[1]
-    page = token ? <LiveGuestRSVP key={token} token={token} /> : <main><h1>RSVP link unavailable</h1></main>
+  } else if (path === '/rsvp' || path === '/wedding-schedule') {
+    const [secret, scope] = hash.slice(1).split('?')
+    const filter = new URLSearchParams(scope)
+    const token = /^[A-Za-z0-9_-]{43}$/.test(secret) ? secret : ''
+    page = !token ? <main><h1>Wedding link unavailable</h1></main> : path === '/wedding-schedule'
+      ? <LiveWeddingSchedule key={token} token={token} />
+      : <LiveGuestRSVP key={hash} token={token} initialDay={filter.get('day') ?? ''} initialFunction={filter.get('function') ?? ''} />
   } else if (path.startsWith('/r/')) {
     const token = /^\/r\/([a-f0-9]{48})$/.exec(path)?.[1]
     page = token ? <GuestPage token={token} /> : <main><h1>RSVP link unavailable</h1></main>
