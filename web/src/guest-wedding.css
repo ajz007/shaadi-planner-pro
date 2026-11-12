@@ -81,6 +81,13 @@
 .invite-panel .invite-secondary, .invite-feedback .invite-secondary { color: var(--invite-accent); background: transparent; }
 .invite-panel .invite-secondary[aria-pressed="true"] { color: #fff; background: var(--invite-accent); }
 .invite-person { margin-top: 1.2rem; border-top: 1px solid var(--invite-line); padding-top: 1.05rem; }
+.invite-person h4 { margin: 0 0 .6rem; }
+.invite-day { margin-top: 1rem; padding: clamp(.8rem, 3vw, 1.25rem); border: 1px solid var(--invite-line); border-radius: .85rem; }
+.invite-day-functions { font-weight: 650; }
+.invite-day-details { margin-top: .75rem; }
+.invite-day-details summary, .invite-travel summary { color: var(--invite-accent); font-weight: 650; cursor: pointer; }
+.invite-travel { border-top: 1px solid var(--invite-line); padding: .65rem 0; }
+.invite-travel small { display: inline-block; margin-left: .5rem; font-weight: 400; }
 .invite-event { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .55rem 1rem; padding: .7rem 0; }
 .invite-event + .invite-event { border-top: 1px solid var(--invite-line); }
 .invite-event small { display: block; margin-top: .2rem; }

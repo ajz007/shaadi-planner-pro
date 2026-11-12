@@ -58,6 +58,15 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .workspace-rsvp fieldset { min-width: 0; }
 .rsvp-functions { display: grid; gap: .6rem; }
 .rsvp-functions p { margin: 0; }
+.rsvp-picker-days { display: grid; gap: .5rem; padding: .65rem; }
+.rsvp-picker-day { display: flex; align-items: start; gap: .55rem; padding: .45rem .3rem; cursor: pointer; }
+.rsvp-picker-day input { flex: none; margin-top: .28rem; }
+.rsvp-picker-day small { display: block; }
+.rsvp-picker-details { padding: .5rem 0; }
+.rsvp-picker-details details { margin: .55rem 0 .55rem .85rem; }
+.rsvp-picker-details fieldset { margin: .55rem 0; }
+.rsvp-picker-details summary { cursor: pointer; }
+.rsvp-functions > button { justify-self: start; }
 .rsvp-choices { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
 .rsvp-choices label { display: inline-flex; align-items: center; gap: .35rem; }
 .rsvp-link { border-top: 1px solid #e6d5d8; padding: .75rem 0; }
