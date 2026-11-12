@@ -54,6 +54,7 @@ type functionReadiness struct {
 type weddingPlanning struct {
 	Places    []savedPlace        `json:"places"`
 	Functions []functionReadiness `json:"functions"`
+	Timeline  []runSheetActivity  `json:"timeline"`
 }
 
 const planningOrganizer = `EXISTS (SELECT 1 FROM wedding_memberships
@@ -78,7 +79,11 @@ func listPlanning(ctx context.Context, db workspaceRowsQueryer, wedding, actor s
 	}, `SELECT id, name, venue, starts_at, COALESCE(place_id::text,''), duration_minutes,
 		COALESCE(required_people, 'null'::jsonb), required_items, revision FROM wedding_functions
 		WHERE wedding_id=$1 AND `+planningOrganizer+` ORDER BY starts_at,id`, wedding, actor)
-	return weddingPlanning{Places: places, Functions: functions}, err
+	if err != nil {
+		return weddingPlanning{}, err
+	}
+	timeline, err := listRunSheet(ctx, db, wedding, actor)
+	return weddingPlanning{Places: places, Functions: functions, Timeline: timeline}, err
 }
 
 func (a *workspaceHTTP) planning(w http.ResponseWriter, r *http.Request, actor string) {
@@ -132,6 +137,12 @@ func (a *workspaceHTTP) savePlanning(w http.ResponseWriter, r *http.Request, act
 			return
 		}
 		err = a.store.saveFunctionDetails(ctx, wedding, actor, id, input)
+	case "timeline":
+		var input runSheetInput
+		if !httpx.ReadJSON(w, r, &input) {
+			return
+		}
+		err = a.store.saveRunSheetActivity(ctx, wedding, actor, id, input)
 	default:
 		err = errWorkspaceNotFound
 	}

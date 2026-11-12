@@ -13,6 +13,8 @@ import { functionLocalTime, WorkspaceFunctionReadiness, WorkspacePlaces } from '
 import type { Planning } from './WorkspacePlanning'
 import { useWorkspaceData, workspaceRequest } from './WorkspaceData'
 import { WeddingNavigation } from './WeddingNavigation'
+import { WorkspaceRSVP } from './WorkspaceRSVP'
+import { WorkspaceRunSheet } from './WorkspaceRunSheet'
 
 type Session = { configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
 type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
@@ -104,7 +106,7 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
   const [planning, setPlanning] = useState<Planning>()
   const [planningError, setPlanningError] = useState('')
   const showPlanning = organizer && (section === 'Functions & Events' || section === 'Places' || section === 'Schedule Board'
-    || section === 'Accommodation' || section === 'Transportation')
+    || section === 'Accommodation' || section === 'Transportation' || section === 'Wedding Timeline')
   useEffect(() => {
     if (!showPlanning) return
     const controller = new AbortController()
@@ -124,8 +126,9 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
   }, [organizer, path, request, section])
   const href = (page?: string) => weddingPage(wedding.id, page, workbookView, preview)
   const awaitingCount = guests?.filter(needsReply).length ?? 0
-  const canSee = (page: string) => owner || page === 'Functions & Events' || page === 'Family Responsibilities' ||
-    (organizer && ['Guest List', 'Schedule Board', 'Settings', 'Transportation', 'Accommodation', 'RSVP Follow-up', 'Places'].includes(page))
+  const canSee = (page: string) => page === 'Guest RSVP' ? organizer && !preview
+    : owner || page === 'Functions & Events' || page === 'Family Responsibilities' ||
+    (organizer && ['Guest List', 'Wedding Timeline', 'Schedule Board', 'Settings', 'Transportation', 'Accommodation', 'RSVP Follow-up', 'Places'].includes(page))
   const personName = (id: string | null) => people.find(person => person.id === id)?.name ?? 'Unassigned'
   const functionName = (id: string | null) => functions.find(event => event.id === id)?.name
   const eventTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: wedding.timeZone })
@@ -146,7 +149,14 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
       await refresh()
     } catch { setFeedback('Saved. Reload the page to see the latest records.') }
   }
-  const timeline = imported.data?.sections.find(item => item.name === 'Wedding Timeline')?.rows.map(row => row.values) ?? []
+  const timeline = preview ? imported.data?.sections.find(item => item.name === 'Wedding Timeline')?.rows.map(row => row.values) ?? []
+    : planning?.timeline?.map(row => row.fields) ?? []
+  const activityEdit = new URLSearchParams(query).get('activity') ?? ''
+  function scheduleEditLink(id: string) {
+    if (!id.startsWith('run-')) return href('Functions & Events')
+    const row = planning?.timeline?.[Number(id.slice(4))]
+    return row ? href('Wedding Timeline') + (workbookView ? '&' : '?') + 'activity=' + row.id : href('Wedding Timeline')
+  }
   const overview = section === undefined
   const showTasks = section === 'Family Responsibilities' || (overview && !organizer)
   const showFunctions = section === 'Functions & Events' || (overview && !organizer)
@@ -246,6 +256,8 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
     {section && !canSee(section) ? <p role="status">This page is unavailable for your role. <a href={href()}>Return to overview</a>.</p>
       : section === 'Guest List' ? <WorkspaceGuests key={JSON.stringify([guestSearch, awaitingReply])} wedding={wedding}
         initialSearch={guestSearch} awaitingReply={awaitingReply} workbookView={workbookView} />
+      : section === 'Guest RSVP' ? <WorkspaceRSVP key={wedding.id} wedding={wedding} functions={functions}
+        guestsHref={href('Guest List')} functionsHref={href('Functions & Events')} />
       : section === 'Transportation' ? <WorkspaceTransport wedding={wedding} people={people} workbookView={workbookView}
         places={planning?.places ?? []} placesHref={href('Places')} />
       : section === 'Accommodation' || section === 'RSVP Follow-up' ? <WorkspaceLogistics key={section} section={section}
@@ -259,11 +271,18 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
             : <WorkspaceFunctionReadiness data={planning} people={people} wedding={wedding} save={savePlanning}
               workbookView={workbookView} placesHref={href('Places')} />
       )
+      : section === 'Wedding Timeline' && !preview ? (
+        planningError ? <p role="alert">{planningError}</p> : !planning ? <p role="status">Loading the run sheet…</p>
+          : <WorkspaceRunSheet key={wedding.id + ':' + activityEdit} data={planning} wedding={wedding} people={people}
+            editId={activityEdit} save={savePlanning} workbookView={workbookView} functionsHref={href('Functions & Events')} />
+      )
       : section === 'Schedule Board' ? <>
         <p><a href={href('Functions & Events')}>{preview ? 'View functions and required people' : 'Edit functions and required people'}</a>
-          {' · '}<a href={href('Places')}>{preview ? 'View places' : 'Manage places'}</a></p>
+          {' · '}<a href={href('Places')}>{preview ? 'View places' : 'Manage places'}</a>
+          {' · '}<a href={href('Wedding Timeline')}>{preview ? 'View wedding timeline' : 'Open wedding-day run sheet'}</a></p>
         {planningError ? <p role="alert">{planningError}</p> : !planning ? <p role="status">Loading the wedding plan…</p>
           : <ScheduleChart actual={scheduleEntries(functionRows, timeline)} weddingName={wedding.name}
+            editHref={preview ? undefined : scheduleEditLink}
             personLabel={id => people.find(person => person.id === id)?.name ?? id} />}
       </>
       : section === 'Import history' ? <><p><a href={href('Settings')}>← Wedding settings</a></p><ImportedPlanningRecords {...imported} /></>

@@ -81,6 +81,10 @@ Open **Documents** on a vendor to upload up to five PDFs, JPGs or PNGs per batch
 
 In **Schedule → Places**, save a venue, hotel or pickup point once and select it in functions, rooms or transport. Keep gate and room details on the associated record. In **Functions & Events**, edit the function duration, mark attendance reviewed, choose required people and add the item checklist. Copy items from another function to reuse a list, then update deadlines and status. Print the checklist by function or responsible person. The Schedule Board uses the saved attendance for conflict checks, and Excel includes places and readiness sheets.
 
+In **Guests & logistics → Guest RSVP**, choose guests from one household and the functions they are invited to. Copy the new link and share it directly. It expires after 30 days. Guests can reply without signing in, and organizers can record phone replies, replace or revoke the link, and download a CSV of headcounts by function. Replacing a link preserves replies and invalidates the old address. Wedding-level RSVP in Guest List stays separate from function replies.
+
+In **Wedding plan → Wedding Timeline**, add or edit run-sheet activities, link them to functions and assign an owner. The agenda includes scheduled functions and can be printed by date. Saved activities appear on the Schedule Board and in the Excel snapshot. Imported timeline rows are editable here, and the original values are available in Import history.
+
 Editable text fields and search in the private planner offer a microphone on browsers that support speech recognition. Review the text before saving. The browser may use an online recognition service, and typing remains available.
 
 For local testing without Google credentials, create a separate loopback database named `shaadi_local`, set `SHAADI_DATABASE_URL`, set `SHAADI_LOCAL_TEST_LOGIN=1`, and start the app with `go run ./cmd/shaadi-planner`. The sign-in screen offers local test accounts. Use sample data and separate browser profiles for different roles. Local test sign-in rejects remote database hosts and cannot be combined with Google credentials.

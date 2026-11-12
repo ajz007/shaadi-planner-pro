@@ -61,8 +61,9 @@ export function ScheduleBoard() {
   }} />
 }
 
-export function ScheduleChart({ actual, weddingName, saveEntry, personLabel = value => value }: {
-  actual: ScheduleEntry[]; weddingName?: string; saveEntry?: (entry: ScheduleEntry) => void; personLabel?: (id: string) => string
+export function ScheduleChart({ actual, weddingName, saveEntry, editHref, personLabel = value => value }: {
+  actual: ScheduleEntry[]; weddingName?: string; saveEntry?: (entry: ScheduleEntry) => void
+  editHref?: (id: string) => string; personLabel?: (id: string) => string
 }) {
   const [scenario, setScenario] = useState<ScheduleEntry[]>()
   const entries = scenario ?? actual
@@ -175,6 +176,8 @@ export function ScheduleChart({ actual, weddingName, saveEntry, personLabel = va
         {pairs.map(({ a, b, from, to, shared, unchecked }) => <div className="schedule-pair" key={a.id + ':' + b.id}>
           <strong>{shared.length ? shared.map(personLabel).join(', ') + ' needed in both' : unchecked ? 'Parallel · attendance needs review' : 'Parallel · no shared required people'}</strong>
           <p>{a.name} + {b.name} · {hourLabel(from)}–{hourLabel(to)}</p>
+          {editHref && <div className="focus-actions"><a href={editHref(a.id)}>Review {a.name}</a>
+            <a href={editHref(b.id)}>Review {b.name}</a></div>}
           {saveEntry && <button className="focus-secondary" onClick={() => edit(b)}>Review {b.name}</button>}
         </div>)}
       </section>

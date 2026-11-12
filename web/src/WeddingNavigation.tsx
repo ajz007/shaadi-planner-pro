@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 const groups = [
   { label: 'Wedding plan', pages: ['Functions & Events', 'Wedding Timeline', 'Schedule Board', 'Family Responsibilities', 'Places'] },
-  { label: 'Guests & logistics', pages: ['Guest List', 'RSVP Follow-up', 'Accommodation', 'Transportation'] },
+  { label: 'Guests & logistics', pages: ['Guest List', 'Guest RSVP', 'RSVP Follow-up', 'Accommodation', 'Transportation'] },
   { label: 'Budget & vendors', pages: ['Budget vs Actual', 'Vendor Comparison', 'Vendor Payments'] },
   { label: 'Final details', pages: ['Outfits & Jewellery', 'Gifts', 'Emergency Contacts'] },
   { label: 'Workspace', pages: ['Settings', 'Invitations', 'Import history'] },

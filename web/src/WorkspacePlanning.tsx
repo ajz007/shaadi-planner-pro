@@ -15,7 +15,8 @@ export type FunctionReadiness = {
   id: string; name: string; venue: string; startsAt: string; placeId: string; duration: number | null
   people: RequiredPerson[] | null; items: RequiredItem[]; revision: number
 }
-export type Planning = { places: Place[]; functions: FunctionReadiness[] }
+export type RunSheetActivity = { id: string; functionId: string; function: string; ownerId: string; fields: string[]; revision: number }
+export type Planning = { places: Place[]; functions: FunctionReadiness[]; timeline?: RunSheetActivity[] }
 type Props = {
   data: Planning; people: Person[]; wedding: { name: string; timeZone: string }
   save: (kind: string, id: string, body: object) => Promise<void>

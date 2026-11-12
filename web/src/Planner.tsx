@@ -23,7 +23,7 @@ const metrics = workbook.metrics
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z]+/g, '-').replace(/-$/, '')
 const sectionLink = (name: string) => '#' + slug(name)
 const workspaceSection = (key: string) => key === 'guests' ? 'Guest List' : key === 'import-history' ? 'Import history'
-  : key === 'invitations' ? 'Invitations' : key === 'places' ? 'Places' : focusSection(key)
+  : key === 'invitations' ? 'Invitations' : key === 'places' ? 'Places' : key === 'guest-rsvp' ? 'Guest RSVP' : focusSection(key)
 
 function table(name: string) {
   const result = workbook.tables.find(entry => entry.name === name)
