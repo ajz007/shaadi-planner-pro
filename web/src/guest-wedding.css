@@ -1,0 +1,99 @@
+.guest-wedding-page, .invite-cover {
+  --invite-ink: #4d3125;
+  --invite-accent: #793725;
+  --invite-line: #e3cab6;
+  --invite-paper: #fff9f0;
+  --invite-gold: #a9682b;
+  --invite-petal: #eac69e;
+}
+.guest-wedding-page[data-theme="rose"], .invite-cover[data-theme="rose"] {
+  --invite-ink: #492a3b;
+  --invite-accent: #783857;
+  --invite-line: #e7c6d4;
+  --invite-paper: #fff8fc;
+  --invite-gold: #9c5373;
+  --invite-petal: #e4aec6;
+}
+.guest-wedding-page { width: min(100% - 2rem, 55rem); margin: 1.5rem auto 3rem; color: var(--invite-ink); }
+.invite-cover {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: clamp(20rem, 50vw, 29rem);
+  border: 1px solid var(--invite-line);
+  border-radius: 12rem 12rem 1.15rem 1.15rem / 5rem 5rem 1.15rem 1.15rem;
+  background:
+    radial-gradient(ellipse at 0 90%, var(--invite-petal) 0, transparent 44%),
+    radial-gradient(ellipse at 100% 0, var(--invite-petal) 0, transparent 44%),
+    var(--invite-paper);
+  color: var(--invite-ink);
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.invite-cover::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: .85rem;
+  border-radius: inherit;
+  border: 1px solid var(--invite-gold);
+  opacity: .55;
+  pointer-events: none;
+}
+.invite-cover img, .invite-cover-photo::after {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -3;
+  object-fit: cover;
+}
+.invite-cover-photo { color: #fffaf4; }
+.invite-cover-photo::after { content: ""; z-index: -2; background: linear-gradient(180deg, #24121b48, #281516c9); }
+.invite-cover-photo::before { border-color: #f5d8b7; }
+.invite-cover-copy { padding: 3.25rem clamp(1.75rem, 6vw, 5rem); max-width: 48rem; overflow-wrap: anywhere; }
+.invite-cover h1, .invite-cover h3 { font: 400 clamp(2.65rem, 8vw, 5.25rem)/1 Georgia, serif; margin: .6rem 0 1rem; }
+.invite-cover h3 { font-size: clamp(2rem, 6vw, 3rem); }
+.invite-label { letter-spacing: .2em; text-transform: uppercase; font-size: .72rem; font-weight: 750; }
+.invite-date { font-weight: 650; }
+.invite-welcome { white-space: pre-line; margin: .85rem auto 0; max-width: 42ch; }
+.invite-page-nav, .invite-actions { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; }
+.invite-page-nav { justify-content: center; gap: 1.5rem; margin: 1rem 0; }
+.invite-page-nav button, .invite-panel a { color: var(--invite-accent); font-weight: 650; }
+.invite-page-nav button { border: 0; background: transparent; text-decoration: underline; text-underline-offset: .2em; }
+.invite-panel {
+  border: 1px solid var(--invite-line);
+  border-radius: 1.15rem;
+  background: var(--invite-paper);
+  padding: clamp(1.1rem, 4vw, 2.25rem);
+  margin: 1rem 0;
+  overflow-wrap: anywhere;
+}
+.invite-panel h2 { font: 400 clamp(1.75rem, 5vw, 2.5rem)/1.12 Georgia, serif; margin-bottom: .45rem; }
+.invite-panel h3 { font-size: 1.1rem; }
+.invite-toolbar { display: flex; flex-wrap: wrap; gap: .65rem 1rem; margin: 1rem 0; min-width: 0; border: 0; padding: 0; }
+.invite-toolbar label { display: grid; gap: .25rem; min-width: 0; font-size: .85rem; font-weight: 650; }
+.invite-toolbar select, .invite-toolbar input { max-width: 100%; min-width: 0; padding: .48rem .55rem; color: inherit; background: white; border: 1px solid var(--invite-line); border-radius: .45rem; }
+.invite-toolbar button { align-self: end; }
+.invite-panel button, .invite-feedback button { background: var(--invite-accent); border-color: var(--invite-accent); min-height: 2.65rem; }
+.invite-panel .invite-secondary, .invite-feedback .invite-secondary { color: var(--invite-accent); background: transparent; }
+.invite-panel .invite-secondary[aria-pressed="true"] { color: #fff; background: var(--invite-accent); }
+.invite-person { margin-top: 1.2rem; border-top: 1px solid var(--invite-line); padding-top: 1.05rem; }
+.invite-event { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .55rem 1rem; padding: .7rem 0; }
+.invite-event + .invite-event { border-top: 1px solid var(--invite-line); }
+.invite-event small { display: block; margin-top: .2rem; }
+.invite-reply-status { display: block; margin: 0 0 .2rem; font-size: .8rem; }
+.invite-save { margin-top: 1rem; }
+.invite-feedback { position: sticky; bottom: .6rem; z-index: 1; margin: .6rem auto; padding: .7rem 1rem; background: var(--invite-paper); border: 1px solid var(--invite-line); border-radius: .65rem; }
+.guest-page-editor .invite-cover { min-height: 14rem; margin-top: .9rem; }
+.guest-page-editor summary { cursor: pointer; font-weight: 700; }
+.guest-page-editor[open] summary { margin-bottom: .65rem; }
+.guest-page-editor .focus-field textarea { font: inherit; }
+@media (max-width: 480px) {
+  .guest-wedding-page { width: calc(100% - 1rem); margin-top: .5rem; }
+  .invite-cover { min-height: 21rem; }
+  .invite-toolbar label { flex: 1 1 9rem; }
+  .invite-event > div:first-child { flex-basis: 100%; }
+}
