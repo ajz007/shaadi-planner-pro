@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Guest } from './WorkspaceGuests'
 
 export type FilterMode = 'include' | 'exclude'
@@ -7,6 +8,7 @@ export type GuestRules = Partial<Record<FilterField, Partial<Record<FilterMode, 
 export type GuestFilterOptions = { field: FilterField; label: string; options: { value: string; label: string }[] }
 
 const modes = ['include', 'exclude'] as const
+const awaitingReply = ['Pending', 'Maybe']
 
 export function matchesGuestRules(guest: Guest, rules: GuestRules, fields: GuestFilterOptions[]) {
   return fields.every(({ field }) => {
@@ -27,97 +29,95 @@ export function setGuestRule(rules: GuestRules, field: FilterField, mode: Filter
   }
 }
 
-export function GuestFilters({ fields, rules, sort, onApply, countMatches, disabled }: {
+export function GuestFilters({ fields, rules, sort, onRuleChange, onSortChange, disabled, search, children }: {
   fields: GuestFilterOptions[]
   rules: GuestRules
   sort: string
-  onApply: (rules: GuestRules, sort: string) => void
-  countMatches: (rules: GuestRules) => number
+  onRuleChange: (field: FilterField, mode: FilterMode, values: string[]) => void
+  onSortChange: (sort: string) => void
   disabled: boolean
+  search: ReactNode
+  children: ReactNode
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
-  const trigger = useRef<HTMLButtonElement>(null)
-  const [isOpen, setIsOpen] = useState(false)
-  const [draft, setDraft] = useState<GuestRules>({})
-  const [draftSort, setDraftSort] = useState(sort)
-  const [expanded, setExpanded] = useState<FilterField | ''>('')
-  const [valueSearch, setValueSearch] = useState('')
+  const advancedToggle = useRef<HTMLButtonElement>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const activeCount = fields.reduce((count, { field }) => count + modes.filter(mode => rules[field]?.[mode]?.length).length, 0)
-  const count = isOpen ? countMatches(draft) : 0
+  const openClass = filtersOpen ? ' is-open' : ''
 
-  function open() {
-    setDraft(rules)
-    setDraftSort(sort)
-    setValueSearch('')
-    setIsOpen(true)
-    setExpanded(fields.find(({ field }) => modes.some(mode => rules[field]?.[mode]?.length))?.field ?? '')
-    dialog.current?.showModal()
-  }
-
-  return <>
-    <button ref={trigger} type="button" className="focus-secondary" aria-haspopup="dialog" disabled={disabled} onClick={open}>
+  return <div className="focus-filters guest-filters">
+    <div className="guest-search">{search}</div>
+    <button type="button" className="focus-secondary guest-filter-toggle" aria-controls="guest-filter-fields guest-advanced-filters"
+      aria-expanded={filtersOpen} disabled={disabled} onClick={() => setFiltersOpen(open => !open)}>
       Filters{activeCount > 0 && ' (' + activeCount + ')'}
     </button>
-    <dialog ref={dialog} className="guest-filter-dialog" aria-labelledby="guest-filter-title" onClose={() => {
-      setIsOpen(false)
-      trigger.current?.focus()
-    }}>
-      <form onSubmit={event => {
-        event.preventDefault()
-        onApply(draft, draftSort)
-        dialog.current?.close()
-      }}>
-        <div className="guest-filter-body">
-          <h2 id="guest-filter-title">Filter guests</h2>
-          <p className="focus-note">Include any selected value in each filter. A guest must match every Include filter and is removed if they match any Exclude value.</p>
-          <label className="focus-field">Sort by<select value={draftSort} onChange={event => setDraftSort(event.target.value)}>
-            <option value="arrival">Arrival date and time</option><option value="name">Guest name</option><option value="household">Household</option>
+    <div id="guest-filter-fields" className={'guest-filter-fields' + openClass}>
+      <div className="guest-filter-quick">
+        <label className="focus-field">Sort by<select value={sort} disabled={disabled} onChange={event => onSortChange(event.target.value)}>
+          <option value="arrival">Arrival date and time</option><option value="name">Guest name</option><option value="household">Household</option>
+        </select></label>
+        {fields.map(({ field, label, options }) => {
+          const included = rules[field]?.include ?? []
+          const awaiting = field === 'rsvp' && included.length === awaitingReply.length && awaitingReply.every(value => included.includes(value))
+          const selection = awaiting ? 'awaiting' : included.length > 1 ? 'multiple' : included.length ? 'value:' + included[0] : ''
+          return <label className="focus-field" key={field}>{label}<select value={selection} disabled={disabled} onChange={event => {
+            const value = event.target.value
+            onRuleChange(field, 'include', value === 'awaiting' ? awaitingReply : value ? [value.slice('value:'.length)] : [])
+          }}>
+            <option value="">{rules[field]?.exclude?.length ? 'Any except exclusions' : 'Any'}</option>
+            {field === 'rsvp' && <option value="awaiting">Awaiting reply (Pending or Maybe)</option>}
+            {selection === 'multiple' && <option value="multiple" disabled>{included.length} values included</option>}
+            {options.map(option => <option key={option.value} value={'value:' + option.value}>{option.label}</option>)}
           </select></label>
-          {fields.map(({ field, label, options }) => {
-            const rule = draft[field]
-            const counts = modes.flatMap(mode => rule?.[mode]?.length ? [rule[mode].length + ' ' + mode + 'd'] : [])
-            return <div className="guest-filter-group" key={field}>
-              <button type="button" className="focus-secondary guest-filter-group-button" aria-expanded={expanded === field}
-                aria-controls={'guest-filter-' + field} onClick={() => {
-                  setValueSearch('')
-                  setExpanded(current => current === field ? '' : field)
-                }}>
-                <span>{label}</span><span>{counts.join(' · ')} <span aria-hidden="true">{expanded === field ? '▴' : '▾'}</span></span>
-              </button>
-              <div id={'guest-filter-' + field} hidden={expanded !== field}>
-                {expanded === field && <>
-                {options.length > 10 && <label className="focus-field">Find a value
-                  <input type="search" value={valueSearch} onChange={event => setValueSearch(event.target.value)} />
-                </label>}
-                <table className="guest-filter-options" aria-label={label}>
-                  <thead><tr><th scope="col">Value</th><th scope="col">Include</th><th scope="col">Exclude</th></tr></thead>
-                  <tbody>{options.filter(option => option.label.toLowerCase().includes(valueSearch.trim().toLowerCase())).map(option => <tr key={option.value}>
-                    <th scope="row">{option.label}</th>
-                    {modes.map(mode => <td key={mode}><label className="guest-filter-checkbox">
-                      <input type="checkbox" aria-label={(mode === 'include' ? 'Include ' : 'Exclude ') + label + ': ' + option.label}
-                        checked={rule?.[mode]?.includes(option.value) ?? false}
-                        onChange={event => {
-                          const checked = event.target.checked
-                          setDraft(current => {
-                            const selected = current[field]?.[mode] ?? []
-                            return setGuestRule(current, field, mode, checked ? [...selected, option.value] : selected.filter(value => value !== option.value))
-                          })
-                        }} />
-                    </label></td>)}
-                  </tr>)}</tbody>
-                </table>
-                {valueSearch && !options.some(option => option.label.toLowerCase().includes(valueSearch.trim().toLowerCase())) &&
-                  <p className="focus-note">No matching values.</p>}
-                </>}
-              </div>
-            </div>
+        })}
+      </div>
+      <button ref={advancedToggle} type="button" className="focus-secondary guest-advanced-toggle" aria-controls="guest-advanced-filters"
+        aria-expanded={advancedOpen} disabled={disabled} onClick={() => setAdvancedOpen(open => !open)}>
+        {advancedOpen ? 'Hide advanced filters' : 'Advanced filters'} <span aria-hidden="true">{advancedOpen ? '▴' : '▾'}</span>
+      </button>
+    </div>
+    {children}
+    <section id="guest-advanced-filters" className={'guest-advanced-filters' + openClass} aria-label="Advanced filters" hidden={!advancedOpen}>
+      {advancedOpen && <>
+        <p className="focus-note">Select multiple values across categories. Guests must match at least one included value per category and are hidden if they match any excluded value.</p>
+        <div className="guest-advanced-grid">
+          {fields.map(field => <GuestFilterGroup key={field.field} {...field} rule={rules[field.field]} onRuleChange={onRuleChange} />)}
+        </div>
+        <button type="button" className="focus-secondary" onClick={() => {
+          setAdvancedOpen(false)
+          advancedToggle.current?.focus()
+        }}>Done filtering</button>
+      </>}
+    </section>
+  </div>
+}
+
+function GuestFilterGroup({ field, label, options, rule, onRuleChange }: GuestFilterOptions & {
+  rule: GuestRules[FilterField]
+  onRuleChange: (field: FilterField, mode: FilterMode, values: string[]) => void
+}) {
+  const [search, setSearch] = useState('')
+  const query = search.trim().toLowerCase()
+  const visible = options.filter(option => option.label.toLowerCase().includes(query))
+  return <section className="guest-filter-group" aria-labelledby={'guest-filter-' + field}>
+    <h3 id={'guest-filter-' + field}>{label}</h3>
+    {options.length > 10 && <input className="guest-filter-value-search" type="search" aria-label={'Find a value in ' + label}
+      placeholder="Find a value" value={search} onChange={event => setSearch(event.target.value)} />}
+    {visible.length ? <div className="guest-filter-values">
+      <table className="guest-filter-options" aria-label={label}>
+        <thead><tr><th scope="col">Value</th><th scope="col">Include</th><th scope="col">Exclude</th></tr></thead>
+        <tbody>{visible.map(option => <tr key={option.value}>
+          <th scope="row">{option.label}</th>
+          {modes.map(mode => {
+            const selected = rule?.[mode] ?? []
+            return <td key={mode}><label className="guest-filter-checkbox">
+              <input type="checkbox" aria-label={(mode === 'include' ? 'Include ' : 'Exclude ') + label + ': ' + option.label}
+                checked={selected.includes(option.value)} onChange={event => onRuleChange(field, mode,
+                  event.target.checked ? [...selected, option.value] : selected.filter(value => value !== option.value))} />
+            </label></td>
           })}
-        </div>
-        <div className="guest-filter-footer">
-          <button type="button" className="focus-secondary" onClick={() => dialog.current?.close()}>Cancel</button>
-          <button type="submit">Show {count} {count === 1 ? 'guest' : 'guests'}</button>
-        </div>
-      </form>
-    </dialog>
-  </>
+        </tr>)}</tbody>
+      </table>
+    </div> : <p className="focus-note">No matching values.</p>}
+  </section>
 }

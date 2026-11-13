@@ -262,11 +262,10 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
       <div className="focus-actions"><button disabled={busy}>{busy ? 'Saving…' : 'Save guest'}</button>
         <button className="focus-secondary" type="button" disabled={busy} onClick={() => { setEditing(undefined); setError('') }}>Cancel</button></div>
     </form>}
-    <div className="focus-filters guest-filters">
-      <div className="guest-search"><VoiceField label="Find a guest" value={search} onValueChange={setSearch} search /></div>
-      <GuestFilters fields={filterOptions} rules={filters} sort={sortBy} disabled={!guests}
-        countMatches={rules => searched.filter(guest => matchesGuestRules(guest, rules, filterOptions)).length}
-        onApply={(rules, sort) => { setFilters(rules); setSortBy(sort) }} />
+    <GuestFilters fields={filterOptions} rules={filters} sort={sortBy} disabled={!guests}
+      search={<VoiceField label="Find a guest" value={search} onValueChange={setSearch} search />}
+      onRuleChange={(field, mode, values) => setFilters(current => setGuestRule(current, field, mode, values))}
+      onSortChange={setSortBy}>
       <VoiceNotice />
       <div className="filter-summary">
         <p role="status">{guests ? filtered.length + ' of ' + guests.length + ' guests' : error ? 'Guest list unavailable' : 'Loading guests…'}</p>
@@ -281,7 +280,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
         <button className="focus-secondary" disabled={!filterLabel}
           onClick={() => { setSearch(''); setFilters({}) }}>Clear filters</button>
       </div>
-    </div>
+    </GuestFilters>
     {bulkOpen && <form className="focus-card" onSubmit={event => void applyBulk(event)}>
       <h3 ref={heading} tabIndex={-1}>Bulk edit guests</h3>
       <fieldset className="workspace-fields" disabled={busy}>
