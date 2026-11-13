@@ -173,7 +173,7 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
   const workspacePage = /^workspace(?:\/([0-9a-f-]{36})(?:\/([a-z-]+))?)?$/i.exec(page)
   if (workspacePage || page === 'workspace/setup') {
     return <Workspace weddingID={workspacePage?.[1]} section={workspaceSection(workspacePage?.[2] ?? '')} guestSearch={filter}
-      awaitingReply={awaitingReply} setup={page === 'workspace/setup'}
+      awaitingReply={awaitingReply} rsvpHousehold={query.get('household') ?? ''} setup={page === 'workspace/setup'}
       inviteCode={page === 'workspace/setup' ? query.get('invite') ?? '' : ''}
       layout={layout} loginFailed={query.get('login') === 'failed'} />
   }

@@ -4,21 +4,59 @@
   color: #20372f;
 }
 .public-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  align-items: center;
+  gap: clamp(1.5rem, 4.5vw, 3.5rem);
   background: #20372f;
   color: #fff9ed;
-  padding: clamp(1.4rem, 6vw, 4rem);
+  padding: clamp(1.35rem, 4.5vw, 3.25rem);
   border-radius: 1.35rem;
 }
 .public-kicker { color: #d3dfbd; font-size: .75rem; font-weight: 750; letter-spacing: .13em; }
-.public-hero h1 { font-size: clamp(2.6rem, 8vw, 5rem); }
-.public-hero > p:not(.public-kicker) { max-width: 42rem; font-size: 1.1rem; }
+.public-hero h1 { font-size: clamp(2.65rem, 5.1vw, 4.55rem); text-wrap: balance; }
+.public-intro { max-width: 38ch; font-size: 1.05rem; color: #fff5e4; }
 .public-actions, .public-footer, .public-footer nav { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem 1rem; }
 .public-actions { margin-top: 1.3rem; }
 .public-actions a { color: #fff9ed; }
-.public-actions .public-primary { background: #fff9ed; color: #20372f; font-weight: 750; text-decoration: none; border-radius: .65rem; padding: .7rem 1rem; }
+.public-actions .public-primary { display: inline-flex; align-items: center; min-height: 2.75rem; background: #fff9ed; color: #20372f; font-weight: 750; text-decoration: none; border-radius: .65rem; padding: .65rem 1rem; }
+.public-actions .public-primary:hover { background: #f8e6ca; }
+.public-sample-link { display: inline-flex; align-items: center; min-height: 2.75rem; font-weight: 650; }
+.public-sample-note { margin: .65rem 0 0; color: #e2e7d8; font-size: .875rem; }
+.public-preview {
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 1.6rem);
+  border: 1px solid #f4e0be;
+  border-radius: .8rem;
+  background: #fff8e9;
+  color: #30202a;
+  box-shadow: inset 0 0 0 4px #fff8e9, inset 0 0 0 5px #c29193, 0 .6rem 1.7rem #0a231a55;
+}
+.public-preview-heading { display: flex; align-items: start; justify-content: space-between; gap: .6rem; }
+.public-preview-heading h2 { margin: 0; font: 700 clamp(1.3rem, 2.5vw, 1.8rem)/1.12 Georgia, serif; }
+.public-marigold { color: #a35821; font-size: 2.25rem; line-height: 1; }
+.public-preview-date { margin: .35rem 0 .9rem; color: #64564d; font-size: .9rem; }
+.public-preview ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid #dfcdb8; }
+.public-preview li + li { border-top: 1px solid #dfcdb8; }
+.public-preview li a { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .57rem .15rem; text-decoration: none; }
+.public-preview li a:hover strong { text-decoration: underline; }
+.public-preview li strong, .public-preview li small { display: block; }
+.public-preview li small { color: #64564d; font-size: .875rem; }
+.public-home :focus-visible { outline: 2px solid #a35821; outline-offset: 3px; }
+.public-hero-copy :focus-visible { outline-color: #ffc981; }
+.public-home > section > h2, .public-workbook h2 { font: 700 clamp(1.35rem, 3vw, 1.75rem)/1.15 Georgia, serif; }
 .public-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
-.public-grid article { background: #fffefa; border: 1px solid #deded2; border-radius: 1rem; padding: 1.15rem; }
+.public-grid article { display: flex; flex-direction: column; align-items: flex-start; background: #fffefa; border: 1px solid #deded2; border-radius: 1rem; padding: 1.15rem; }
 .public-grid p { margin: 0; }
+.public-grid a { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; margin-top: auto; padding-top: .4rem; font-weight: 700; }
+.public-workbook { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .35rem 1rem; margin-top: 1.5rem; padding: 1rem 1.15rem; background: #f4ebe1; border-radius: .8rem; }
+.public-workbook p { margin: 0; }
+.public-workbook a { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; font-weight: 700; }
+@media (max-width: 740px) {
+  .public-hero { grid-template-columns: minmax(0, 1fr); }
+  .public-hero h1 { font-size: clamp(2.3rem, 9vw, 3.5rem); text-wrap: initial; }
+  .public-actions { gap: .25rem .85rem; }
+}
 .public-footer { justify-content: space-between; margin-block: 2rem 1rem; padding-block: 1rem; border-top: 1px solid #d4dacd; font-size: .9rem; }
 .public-footer a, .public-document a { color: #294c3c; }
 .public-document { max-width: 46rem; overflow-wrap: anywhere; }

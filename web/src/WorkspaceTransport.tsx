@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { PrintSection } from './PlanActions'
 import { VoiceField, VoiceNotice } from './VoiceField'
 import type { Guest } from './WorkspaceGuests'
-import { localDay, shownDate } from './WorkspaceGuests'
+import { guestLabels, localDay, shownDate } from './WorkspaceGuests'
 import { useEditorFocus } from './useEditorFocus'
 import { useWorkspaceData } from './WorkspaceData'
 import { PlaceDetails } from './WorkspacePlanning'
@@ -50,6 +50,7 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [guestQuery, setGuestQuery] = useState('')
+  const [passengerLabel, setPassengerLabel] = useState('')
   const base = '/weddings/' + wedding.id
   const today = localDay(wedding.timeZone)
   const { heading, returnTarget, fallback } = useEditorFocus(editor ? editorKey : undefined, busy)
@@ -96,7 +97,7 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
   function open(next: Editor, trigger: HTMLButtonElement) {
     returnTarget.current = trigger
     setEditorKey(current => current + 1)
-    setEditor(next); setGuestQuery(''); setError(''); setFeedback('')
+    setEditor(next); setGuestQuery(''); setPassengerLabel(''); setError(''); setFeedback('')
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -139,7 +140,11 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
     <details key={label}><summary>{label} directions</summary><PlaceDetails place={place} /></details>)
   const selectedGuests = editor ? guests.filter(guest => editor.guestIds.includes(guest.id)) : []
   const query = guestQuery.trim().toLowerCase()
-  const listedGuests = guests.filter(guest => !query || (guest.name + ' ' + guest.household).toLowerCase().includes(query))
+  const labels = guestLabels(guests)
+  const listedGuests = guests.filter(guest => (!passengerLabel || guest.labels?.includes(passengerLabel)) &&
+    (!query || (guest.name + ' ' + guest.household).toLowerCase().includes(query)))
+  const allListedSelected = listedGuests.every(guest => editor?.guestIds.includes(guest.id))
+  const selectedWithMatches = new Set([...(editor?.guestIds ?? []), ...listedGuests.map(guest => guest.id)])
   const current = editor?.pickup
   const pickupChanges = (pickup: Pickup) => <ul>{changes(pickup).map(change =>
     <li key={change.key}>{change.name} · {change.label}: {change.from} → {change.to}</li>)}</ul>
@@ -211,6 +216,16 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
         <h3>Passengers · {editor.guestIds.length} selected</h3>
         {selectedGuests.length > 0 && <p>{selectedGuests.map(guest => guest.name + ' (' + groupArrival(guest) + ')').join(' · ')}</p>}
         <VoiceField label="Find passengers" value={guestQuery} onValueChange={setGuestQuery} search />
+        {!!labels.length && <label className="focus-field">Passenger label
+          <select value={passengerLabel} onChange={event => setPassengerLabel(event.target.value)}>
+            <option value="">Any label</option>{labels.map(label => <option key={label}>{label}</option>)}
+          </select>
+        </label>}
+        {passengerLabel && <div className="focus-actions">
+          <button type="button" className="focus-secondary" disabled={allListedSelected || selectedWithMatches.size > 100}
+            onClick={() => setEditor({ ...editor, guestIds: [...selectedWithMatches] })}>Select matching passengers ({listedGuests.length})</button>
+          {selectedWithMatches.size > 100 && <p>Choose up to 100 passengers per pickup.</p>}
+        </div>}
         <p><a href={placesHref}>Manage saved places</a></p>
         <VoiceNotice />
         <div className="transport-passengers">
@@ -220,6 +235,7 @@ export function WorkspaceTransport({ wedding, people, workbookView, places, plac
               ...editor, guestIds: event.target.checked ? [...editor.guestIds, guest.id] : editor.guestIds.filter(id => id !== guest.id),
             })} />
           </label>)}
+          {!listedGuests.length && <p>No passengers match these filters.</p>}
         </div>
         <div className="focus-actions"><button disabled={busy}>{busy ? 'Saving…' : current?.needsReview ? 'Save and mark reviewed' : 'Save pickup'}</button>
           <button type="button" className="focus-secondary" onClick={() => { setEditor(undefined); setError('') }}>Cancel</button></div>

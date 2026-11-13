@@ -9,6 +9,7 @@ export type Guest = {
   id: string; workbookId: string; name: string; household: string; side: string; rsvp: string;
   arrivalDate: string; arrivalTime: string; arrivalMode: string; transportRequired: string; stayRequired: string; revision: number
   links?: { section: string; label: string; detail: string }[]
+  labels?: string[]
 }
 const choices = [
   { field: 'side', label: 'Wedding side', options: ['Bride', 'Groom', 'Both'] },
@@ -20,11 +21,26 @@ const choices = [
 const guestFilters = [...choices, { field: 'household', label: 'Household', options: [] },
   { field: 'arrivalDate', label: 'Arrival date', options: [] }] as const
 const bulkFields = choices.filter(choice => choice.field === 'side' || choice.field === 'stayRequired' || choice.field === 'transportRequired')
+type BulkField = typeof bulkFields[number]['field'] | 'addLabel' | 'removeLabel'
 const maxBulkTargets = 3500
 const filterValue = (value: string) => value ? 'recorded:' + value : 'missing'
 const displayDate = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeZone: 'UTC' })
 export const shownDate = (date: string) => date ? displayDate.format(new Date(date + 'T00:00:00Z')) : ''
 export const needsReply = (guest: Guest) => guest.rsvp === 'Pending' || guest.rsvp === 'Maybe'
+export const rsvpGroupKey = (guest: Guest) => guest.household.trim()
+  ? 'household:' + guest.household.trim().toLowerCase()
+  : 'guest:' + guest.id
+export const guestLabels = (guests: Guest[]) =>
+  [...new Set(guests.flatMap(guest => guest.labels ?? []))].sort((a, b) => a.localeCompare(b))
+
+function GuestLabels({ guest, onFilter }: { guest: Guest; onFilter: (label: string) => void }) {
+  if (!guest.labels?.length) return null
+  return <ul className="guest-labels" aria-label={'Labels for ' + guest.name}>
+    {guest.labels.map(label => <li key={label}>
+      <button className="focus-secondary" type="button" onClick={() => onFilter(label)} aria-label={'Filter by label: ' + label}>{label}</button>
+    </li>)}
+  </ul>
+}
 
 export function localDay(zone: string) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts()
@@ -51,6 +67,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
     awaitingReply ? { rsvp: 'awaiting' } : {},
   )
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [labelFilter, setLabelFilter] = useState('')
   const [search, setSearch] = useState(initialSearch)
   const [sortBy, setSortBy] = useState('arrival')
   const [message, setMessage] = useState('')
@@ -59,7 +76,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
   const [bulkOpen, setBulkOpen] = useState(false)
   const [reviewSelected, setReviewSelected] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
-  const [bulkField, setBulkField] = useState<typeof bulkFields[number]['field']>('side')
+  const [bulkField, setBulkField] = useState<BulkField>('side')
   const [bulkValue, setBulkValue] = useState('')
   const [blanksOnly, setBlanksOnly] = useState(false)
   const url = '/api/workspace/weddings/' + wedding.id + '/guests'
@@ -104,8 +121,10 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
   }
 
   const query = search.trim().toLowerCase()
+  const labels = guestLabels(guests ?? [])
   const filtered = (guests ?? []).filter(guest =>
     (!query || [guest.name, guest.household, guest.workbookId].some(value => value.toLowerCase().includes(query))) &&
+    (!labelFilter || guest.labels?.includes(labelFilter)) &&
     guestFilters.every(({ field }) => !filters[field] ||
       (field === 'rsvp' && filters.rsvp === 'awaiting' ? needsReply(guest) : filterValue(guest[field]) === filters[field])))
     .sort((a, b) => {
@@ -117,6 +136,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
     })
   const activeFilters = [
     query && 'Search: ' + search.trim(),
+    labelFilter && 'Label: ' + labelFilter,
     ...guestFilters.map(({ field, label }) => {
       const value = filters[field]
       if (!value) return ''
@@ -127,11 +147,22 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
     }),
   ].filter(Boolean)
   const filterLabel = activeFilters.join(' · ')
-  const filterCount = Object.values(filters).filter(Boolean).length
+  const filterCount = Object.values(filters).filter(Boolean).length + Number(!!labelFilter)
   const selection = (guests ?? []).filter(guest => selected.has(guest.id))
   const outsideFilter = selection.length - filtered.filter(guest => selected.has(guest.id)).length
-  const changedCount = selection.filter(guest => guest[bulkField] !== bulkValue && (!blanksOnly || !guest[bulkField])).length
-  const fieldOptions = bulkFields.find(choice => choice.field === bulkField)!
+  const labelChange = bulkField === 'addLabel' || bulkField === 'removeLabel'
+  const value = labelChange ? bulkValue.trim().replace(/\s+/g, ' ') : bulkValue
+  const changedCount = selection.filter(guest => {
+    if (bulkField === 'addLabel' || bulkField === 'removeLabel') {
+      const hasLabel = guest.labels?.some(label => label.toLowerCase() === value.toLowerCase()) ?? false
+      return bulkField === 'addLabel' ? !hasLabel : hasLabel
+    }
+    return guest[bulkField] !== value && (!blanksOnly || !guest[bulkField])
+  }).length
+  const fieldOptions = bulkFields.find(choice => choice.field === bulkField)
+  const canApply = !!value && !!changedCount && selection.length <= maxBulkTargets
+  const changeDescription = bulkField === 'addLabel' ? 'Add ' + value : bulkField === 'removeLabel' ? 'Remove ' + value
+    : 'Set ' + fieldOptions?.label.toLowerCase() + ' to ' + value
   const displayed = reviewSelected ? selection : filtered
 
   function closeBulk() {
@@ -145,14 +176,14 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
 
   async function applyBulk(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (preview || busy || !bulkValue || !changedCount || selection.length > maxBulkTargets) return
+    if (preview || busy || !canApply) return
     setBusy(true)
     setError('')
     setMessage('')
     try {
       const response = await fetchWorkspace(url + '/bulk', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ field: bulkField, value: bulkValue, blanksOnly,
+        body: JSON.stringify({ field: bulkField, value, blanksOnly: !labelChange && blanksOnly,
           guests: selection.map(({ id, revision }) => ({ id, revision })) }),
       })
       const body = await response.json()
@@ -247,6 +278,12 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
             <option value="missing">Not recorded</option>
           </select></label>
         })}
+        {(labels.length > 0 || labelFilter) && <label className="focus-field">Guest label
+          <select value={labelFilter} onChange={event => setLabelFilter(event.target.value)}>
+            <option value="">Any label</option>
+            {[...new Set([...labels, labelFilter].filter(Boolean))].map(label => <option key={label}>{label}</option>)}
+          </select>
+        </label>}
       </div>
       <VoiceNotice />
       <div className="filter-summary">
@@ -255,7 +292,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
           {activeFilters.map(label => <li key={label}>{label}</li>)}
         </ul>}
         <button className="focus-secondary" disabled={!activeFilters.length}
-          onClick={() => { setSearch(''); setFilters({}) }}>Clear filters</button>
+          onClick={() => { setSearch(''); setFilters({}); setLabelFilter('') }}>Clear filters</button>
       </div>
     </div>
     {bulkOpen && <form className="focus-card" onSubmit={event => void applyBulk(event)}>
@@ -269,20 +306,31 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
           <button type="button" className="focus-secondary" disabled={!selection.length} onClick={() => setSelected(new Set())}>Clear selection</button>
         </div>
         <div className="focus-form-grid">
-          <label className="focus-field">Field to edit<select value={bulkField} onChange={event => {
-            setBulkField(event.target.value as typeof bulkField)
+          <label className="focus-field">Change to make<select value={bulkField} onChange={event => {
+            setBulkField(event.target.value as BulkField)
             setBulkValue('')
-          }}>{bulkFields.map(choice => <option key={choice.field} value={choice.field}>{choice.label}</option>)}</select></label>
-          <label className="focus-field">New value<select value={bulkValue} required onChange={event => setBulkValue(event.target.value)}>
-            <option value="">Choose a value</option>{fieldOptions.options.map(option => <option key={option}>{option}</option>)}
+          }}>{bulkFields.map(choice => <option key={choice.field} value={choice.field}>{choice.label}</option>)}
+            <option value="addLabel">Add a guest label</option>
+            <option value="removeLabel">Remove a guest label</option>
           </select></label>
+          {bulkField === 'addLabel' ? <label className="focus-field">Label name
+            <input value={bulkValue} onChange={event => setBulkValue(event.target.value)} required maxLength={60}
+              placeholder="e.g. Grand Palace Hotel" list="guest-label-options" />
+            <datalist id="guest-label-options">{labels.map(label => <option key={label} value={label} />)}</datalist>
+          </label> : <label className="focus-field">{labelChange ? 'Label to remove' : 'New value'}
+            <select value={bulkValue} required onChange={event => setBulkValue(event.target.value)}>
+              <option value="">{labelChange ? 'Choose a label' : 'Choose a value'}</option>
+              {(labelChange ? labels : fieldOptions?.options ?? []).map(option => <option key={option}>{option}</option>)}
+            </select>
+          </label>}
         </div>
-        <label><input type="checkbox" checked={blanksOnly} onChange={event => setBlanksOnly(event.target.checked)} /> Fill blanks only</label>
-        {bulkValue && <p role="status">{changedCount ? `Set ${fieldOptions.label.toLowerCase()} to ${bulkValue} for ${changedCount} ${changedCount === 1 ? 'guest' : 'guests'}.`
+        {labelChange ? <p className="focus-note">Use labels to group guests across households. A guest can have several labels.</p>
+          : <label><input type="checkbox" checked={blanksOnly} onChange={event => setBlanksOnly(event.target.checked)} /> Fill blanks only</label>}
+        {value && <p role="status">{changedCount ? `${changeDescription} for ${changedCount} ${changedCount === 1 ? 'guest' : 'guests'}.`
           : 'No selected guests need this change.'}</p>}
         {selection.length > maxBulkTargets && <p>Select up to {maxBulkTargets.toLocaleString('en-IN')} guests per edit.</p>}
         <div className="focus-actions">
-          <button disabled={preview || !bulkValue || !changedCount || selection.length > maxBulkTargets}>
+          <button disabled={preview || !canApply}>
             {preview ? 'Saving is disabled in the sample' : busy ? 'Applying…'
               : changedCount ? 'Update ' + changedCount + (changedCount === 1 ? ' guest' : ' guests') : 'Apply bulk edit'}
           </button>
@@ -304,7 +352,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
       <table className="imported-records workspace-sheet"><thead><tr>{['Guest', 'Household', 'Side', 'RSVP', 'Arrival date', 'Time', 'Mode', 'Stay required', 'Transport', 'Linked records', 'Edit']
         .map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
         <tbody>{displayed.map(guest => <tr key={guest.id}>
-          <th scope="row">{bulkOpen && guestCheckbox(guest)} {guest.name}</th>
+          <th scope="row">{bulkOpen && guestCheckbox(guest)} {guest.name}<GuestLabels guest={guest} onFilter={setLabelFilter} /></th>
           {[guest.household, guest.side, guest.rsvp, shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode, guest.stayRequired, guest.transportRequired]
             .map((value, index) => <td key={index}>{value}</td>)}
           <td><GuestLinks guest={guest} /></td>
@@ -316,6 +364,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
       <div className="guest-card-heading"><h3>{guest.name}</h3>{guest.rsvp && <span className="focus-chip" data-rsvp={guest.rsvp}>{guest.rsvp}</span>}
         {bulkOpen && guestCheckbox(guest)}</div>
       {(guest.household || guest.side) && <p>{[guest.household, guest.side].filter(Boolean).join(' · ')}</p>}
+      <GuestLabels guest={guest} onFilter={setLabelFilter} />
       <p>{[shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode].filter(Boolean).join(' · ') || 'Arrival not recorded'}</p>
       <p>Stay required: {guest.stayRequired || 'Not recorded'} · Transport: {guest.transportRequired || 'Not recorded'}</p>
       <GuestLinks guest={guest} />

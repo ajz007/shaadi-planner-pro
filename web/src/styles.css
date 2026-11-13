@@ -10,6 +10,18 @@
 }
 
 * { box-sizing: border-box; }
+.demo-badge {
+  display: inline-block;
+  margin-bottom: .4rem;
+  padding: .2rem .55rem;
+  border-radius: .35rem;
+  background: var(--planner-accent);
+  color: #fff9ed;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
 .section-print { display: none; }
 .section-print-button { margin: .45rem 0; }
 .plan-entry { width: fit-content; max-width: 100%; }

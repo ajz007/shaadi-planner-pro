@@ -6,7 +6,7 @@ import { WeddingInvitationHeader, weddingDay } from './GuestWeddingPage'
 import type { GuestPage } from './GuestWeddingPage'
 
 type PageSettings = GuestPage & { revision: number }
-type ScheduleLink = { id: string; date: string; functionId: string; expiresAt: string; url: string }
+type ScheduleLink = { id: string; date: string; functionId: string; familyFunctionIds: string[]; expiresAt: string; url: string }
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong. Try again.'
 
 export function whatsappShare(message: string, url: string) {
@@ -36,8 +36,8 @@ async function prepareCover(file: File): Promise<string> {
   throw new Error('Could not reduce this photo enough. Try a smaller image.')
 }
 
-export function WorkspaceGuestPage({ path, wedding, functions }: {
-  path: string; wedding: Plan['wedding']; functions: Plan['functions']
+export function WorkspaceGuestPage({ path, wedding, functions, onSavedDesign }: {
+  path: string; wedding: Plan['wedding']; functions: Plan['functions']; onSavedDesign: (page: GuestPage) => void
 }) {
   const { request } = useWorkspaceData()
   const [page, setPage] = useState<PageSettings>()
@@ -48,10 +48,14 @@ export function WorkspaceGuestPage({ path, wedding, functions }: {
   useEffect(() => {
     const controller = new AbortController()
     request<PageSettings>(path + '/page', undefined, controller.signal)
-      .then(result => { if (!controller.signal.aborted) setPage(result) })
+      .then(result => {
+        if (controller.signal.aborted) return
+        setPage(result)
+        onSavedDesign(result)
+      })
       .catch(error => { if (!controller.signal.aborted) setPageError(errorText(error)) })
     return () => controller.abort()
-  }, [path, request])
+  }, [path, request, onSavedDesign])
 
   async function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget
@@ -79,6 +83,7 @@ export function WorkspaceGuestPage({ path, wedding, functions }: {
         ...design, revision: page.revision, ...(coverEdited && (coverPhoto ? { coverPhoto } : { removePhoto: true })),
       })
       setPage({ ...page, revision: result.revision })
+      onSavedDesign(page)
       setCoverEdited(false)
       setPageNotice('Guest page saved. Existing wedding links now show this design.')
     } catch (error) { setPageError(errorText(error)) }
@@ -119,10 +124,17 @@ function ScheduleLinks({ path, wedding, functions }: { path: string; wedding: Pl
   const { request } = useWorkspaceData()
   const [links, setLinks] = useState<ScheduleLink[]>([])
   const [scope, setScope] = useState('')
+  const [familyIds, setFamilyIds] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const days = [...new Set(functions.map(fn => weddingDay(fn.startsAt, wedding.timeZone)))].sort()
+  const [kind, value] = scope.split(':')
+  const inScope = functions.filter(fn => kind === 'day' ? weddingDay(fn.startsAt, wedding.timeZone) === value
+    : kind === 'function' ? fn.id === value : true)
+  const familyOptions = inScope.filter(fn => fn.familyOnly)
+  const selectedFamily = familyOptions.filter(fn => familyIds.includes(fn.id)).map(fn => fn.id)
+  const hasEvents = inScope.some(fn => !fn.familyOnly) || selectedFamily.length > 0
   useEffect(() => {
     const controller = new AbortController()
     request<ScheduleLink[]>(path, undefined, controller.signal)
@@ -138,8 +150,8 @@ function ScheduleLinks({ path, wedding, functions }: { path: string; wedding: Pl
     try {
       if (id) await request<void>(path + '/' + id, {})
       else {
-        const [kind, value] = scope.split(':')
-        await request(path, kind === 'day' ? { date: value } : kind === 'function' ? { functionId: value } : {})
+        const selection = kind === 'day' ? { date: value } : kind === 'function' ? { functionId: value } : {}
+        await request(path, { ...selection, familyFunctionIds: selectedFamily })
       }
       setLinks(await request<ScheduleLink[]>(path))
       if (!id) setNotice('The schedule link is ready below.')
@@ -148,21 +160,35 @@ function ScheduleLinks({ path, wedding, functions }: { path: string; wedding: Pl
   }
   return <details className="focus-card guest-page-editor">
     <summary>Share a read-only schedule</summary>
-    <p>Use this link in group chats to share the schedule, venues, and cover. You can copy it again any time it’s active.</p>
+    <p>Guest functions appear by default. Include family-only functions only for a group you want to share them with. Anyone with the link can view its schedule.</p>
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
-    {functions.length > 0 ? <div className="focus-actions">
-      <label className="focus-field">Include<select value={scope} onChange={event => setScope(event.target.value)}>
-        <option value="">All wedding functions</option>
+    {functions.length > 0 ? <div>
+      <label className="focus-field">Schedule scope<select value={scope} onChange={event => {
+        setScope(event.target.value)
+        setFamilyIds([])
+      }}>
+        <option value="">All guest functions</option>
         {days.map(day => <option key={day} value={'day:' + day}>{day}</option>)}
-        {functions.map(fn => <option key={fn.id} value={'function:' + fn.id}>{fn.name} · {weddingDay(fn.startsAt, wedding.timeZone)}</option>)}
+        {functions.map(fn => <option key={fn.id} value={'function:' + fn.id}>{fn.name} · {weddingDay(fn.startsAt, wedding.timeZone)}{fn.familyOnly && ' · Family only'}</option>)}
       </select></label>
-      <button type="button" disabled={busy} onClick={() => void change()}>Get schedule link</button>
+      {familyOptions.length > 0 && <fieldset className="rsvp-picker-days">
+        <legend>Also include family-only functions</legend>
+        {familyOptions.map(fn => <label key={fn.id} className="rsvp-picker-day">
+          <input type="checkbox" checked={familyIds.includes(fn.id)} onChange={event => {
+            setFamilyIds(current => event.target.checked ? [...current, fn.id] : current.filter(id => id !== fn.id))
+          }} />
+          <span>{fn.name}<small>{weddingDay(fn.startsAt, wedding.timeZone)}</small></span>
+        </label>)}
+      </fieldset>}
+      {!hasEvents && <p>Select a family-only function to share, or choose a scope with guest functions.</p>}
+      <button type="button" disabled={busy || !hasEvents} onClick={() => void change()}>Get schedule link</button>
     </div> : <p>Add a function before creating a schedule link.</p>}
     {links.map(link => {
       const address = link.url
       return <div className="rsvp-link" key={link.id}>
-        <strong>{functions.find(fn => fn.id === link.functionId)?.name ?? (link.date || 'Whole wedding')}</strong>
+        <strong>{functions.find(fn => fn.id === link.functionId)?.name ?? (link.date || 'All guest functions')}</strong>
+        {!!link.familyFunctionIds?.length && <p>Family-only functions added: {functions.filter(fn => link.familyFunctionIds.includes(fn.id)).map(fn => fn.name).join(', ') || 'None remain'}</p>}
         <p>Expires {weddingDay(link.expiresAt, wedding.timeZone)}</p>
         <label className="focus-field">Schedule link<input readOnly value={address} onFocus={event => event.target.select()} /></label>
         <div className="focus-actions">

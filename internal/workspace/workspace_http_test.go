@@ -161,6 +161,31 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 	request("GET", rsvpPath, "", "", brother, 404)
 	guestID := stringValue(request("POST", path+"/guests", `{"name":"Guest A","household":"Household A"}`, origin, owner, 201), "id")
 	otherGuest := stringValue(request("POST", path+"/guests", `{"name":"Guest B","household":"Household B"}`, origin, owner, 201), "id")
+	editLabels := func(field, name string, targets []guestBulkTarget, status int) *httptest.ResponseRecorder {
+		t.Helper()
+		payload, err := json.Marshal(guestBulkEdit{Field: field, Value: name, Guests: targets})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return request("POST", path+"/guests/bulk", string(payload), origin, owner, status)
+	}
+	guestTargets := []guestBulkTarget{{ID: guestID, Revision: 1}, {ID: otherGuest, Revision: 1}}
+	editLabels("addLabel", " Grand Palace  Hotel ", guestTargets, 200)
+	editLabels("addLabel", "Stale group", guestTargets, 409)
+	guestTargets[0].Revision++
+	guestTargets[1].Revision++
+	if rec := editLabels("addLabel", "grand palace hotel", guestTargets, 200); !strings.Contains(rec.Body.String(), `"updated":0`) {
+		t.Fatalf("reusing a label should leave existing assignments alone: %s", rec.Body)
+	}
+	editLabels("addLabel", "Friday station pickup", guestTargets[:1], 200)
+	editLabels("removeLabel", "GRAND PALACE HOTEL", guestTargets[1:], 200)
+	var labelledGuests []liveGuest
+	if rec := request("GET", path+"/guests", "", "", owner, 200); json.Unmarshal(rec.Body.Bytes(), &labelledGuests) != nil ||
+		len(labelledGuests) != 2 || strings.Join(labelledGuests[0].Labels, "|") != "Friday station pickup|Grand Palace Hotel" ||
+		len(labelledGuests[1].Labels) != 0 {
+		t.Fatalf("labels should overlap across households and be removable per guest: %s", rec.Body)
+	}
+	request("GET", path+"/guests", "", "", brother, 404)
 	inviteTo := func(guest, function string) string {
 		return `{"guestId":"` + guest + `","functionId":"` + function + `"}`
 	}
@@ -329,6 +354,43 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 	request("POST", publicPath, travelBody, origin, nil, 409)
 	if rec := request("GET", rsvpPath, "", "", owner, 200); !strings.Contains(rec.Body.String(), `"arrivalTime":"17:30"`) {
 		t.Fatal("guest arrival plans are missing from the organizer view")
+	}
+	// Existing links must respect an audience change, including guest updates.
+	defaultSchedule := request("POST", schedulePath, "{}", origin, owner, 201)
+	familyOnly := `{"name":"Sangeet","venue":"Hall","start":"2027-02-14T19:00","revision":1,"familyOnly":true}`
+	request("POST", path+"/planning/functions/"+function, familyOnly, origin, owner, 204)
+	if rec := request("GET", path, "", "", brother, 200); !strings.Contains(rec.Body.String(), `"familyOnly":true`) {
+		t.Fatal("family-only functions must stay in the wedding team's plan")
+	}
+	if rec := readRSVP(householdSecret, 200); strings.Contains(rec.Body.String(), "Sangeet") {
+		t.Fatal("a previously shared household link still exposes the family-only function")
+	}
+	hiddenID := publicRSVP.Invitations[1].ID
+	request("POST", publicPath, strings.Replace(guestReply(householdSecret, hiddenID), `"revision":1`, `"revision":2`, 1), origin, nil, 409)
+	request("POST", rsvpPath, selection(inviteTo(guestID, function)), origin, owner, 422)
+	familyInvite := strings.TrimSuffix(inviteTo(guestID, function), "}") + `,"includeFamilyOnly":true}`
+	privateRSVP := request("POST", rsvpPath, selection(familyInvite), origin, owner, 201)
+	_, familySecret, _ := strings.Cut(stringValue(privateRSVP, "url"), "/rsvp#")
+	if rec := readRSVP(familySecret, 200); !strings.Contains(rec.Body.String(), "Sangeet") {
+		t.Fatal("explicitly included family-only function is missing from the RSVP link")
+	}
+	guestSchedule := func(link *httptest.ResponseRecorder) string {
+		_, key, _ := strings.Cut(stringValue(link, "url"), "/wedding-schedule#")
+		return request("POST", "/api/guest-schedule", `{"token":"`+key+`"}`, origin, nil, 200).Body.String()
+	}
+	request("POST", schedulePath, "{}", origin, owner, 200)
+	if body := guestSchedule(defaultSchedule); strings.Contains(body, "Sangeet") || !strings.Contains(body, "Reception") {
+		t.Fatalf("default guest schedule did not limit visibility: %s", body)
+	}
+	request("POST", schedulePath, `{"functionId":"`+function+`"}`, origin, owner, 422)
+	request("POST", schedulePath, `{"date":"2027-02-15","familyFunctionIds":["`+function+`"]}`, origin, owner, 422)
+	familyScope := `{"familyFunctionIds":["` + function + `"]}`
+	familySchedule := request("POST", schedulePath, familyScope, origin, owner, 201)
+	reusedFamilySchedule := request("POST", schedulePath, familyScope, origin, owner, 200)
+	if stringValue(reusedFamilySchedule, "url") != stringValue(familySchedule, "url") ||
+		stringValue(familySchedule, "url") == stringValue(defaultSchedule, "url") ||
+		!strings.Contains(guestSchedule(familySchedule), "Sangeet") {
+		t.Fatal("a family-only selection must use its own reusable guest schedule link")
 	}
 	request("POST", path+"/claim", `{"task":"`+openTask+`"}`, origin, brother, 200)
 	request("POST", path+"/complete", `{"task":"`+openTask+`","revision":2,"done":true}`, origin, brother, 200)

@@ -1,6 +1,7 @@
 import { WeddingWorkspace } from './Workspace'
 import type { Plan, WeddingLayout } from './Workspace'
 import { WorkspacePreview } from './WorkspaceData'
+import { needsReply } from './WorkspaceGuests'
 import type { Guest } from './WorkspaceGuests'
 import type { ImportTotals } from './WorkspaceImport'
 import type { Planning } from './WorkspacePlanning'
@@ -75,7 +76,20 @@ const pickups = rows('Transportation').map((row, index) => ({
     return [{ id: guest.id, name: guest.name, arrival, reviewed: arrival }]
   }),
 }))
+
+export const sampleOverview = {
+  name: plan.wedding.name,
+  date: plan.wedding.date,
+  awaitingReplies: guests.filter(needsReply).length,
+  pickupsToConfirm: pickups.filter(pickup => pickup.driverConfirmed === 'No').length,
+  sangeet: plan.functions.find(event => event.name === 'Sangeet')!,
+  timeZone: plan.wedding.timeZone,
+}
 for (const guest of guests) {
+  guest.labels = [...new Set([
+    ...roomRows.filter(row => row.slice(3, 7).some(value => guestFor(value) === guest)).map(row => row[0]),
+    ...pickups.filter(pickup => pickup.passengers.some(passenger => passenger.id === guest.id)).map(pickup => pickup.pickupPoint),
+  ].filter(Boolean))]
   guest.links = [
     ...roomRows.filter(row => row.slice(3, 7).some(value => guestFor(value) === guest))
       .map(row => ({ section: 'Accommodation', label: row[0] + ' · Room ' + row[1], detail: row[10] + ' – ' + row[11] })),
