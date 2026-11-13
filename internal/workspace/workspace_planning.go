@@ -40,15 +40,16 @@ type requiredItem struct {
 }
 
 type functionReadiness struct {
-	ID       string           `json:"id"`
-	Name     string           `json:"name"`
-	Venue    string           `json:"venue"`
-	StartsAt time.Time        `json:"startsAt"`
-	PlaceID  string           `json:"placeId"`
-	Duration *int             `json:"duration"`
-	People   []requiredPerson `json:"people"`
-	Items    []requiredItem   `json:"items"`
-	Revision int              `json:"revision"`
+	ID         string           `json:"id"`
+	Name       string           `json:"name"`
+	Venue      string           `json:"venue"`
+	StartsAt   time.Time        `json:"startsAt"`
+	PlaceID    string           `json:"placeId"`
+	Duration   *int             `json:"duration"`
+	People     []requiredPerson `json:"people"`
+	Items      []requiredItem   `json:"items"`
+	Revision   int              `json:"revision"`
+	FamilyOnly bool             `json:"familyOnly"`
 }
 
 type weddingPlanning struct {
@@ -69,7 +70,7 @@ func listPlanning(ctx context.Context, db workspaceRowsQueryer, wedding, actor s
 	}
 	functions, err := queryWorkspace(ctx, db, func(rows *sql.Rows, entry *functionReadiness) error {
 		var people, items []byte
-		if err := rows.Scan(&entry.ID, &entry.Name, &entry.Venue, &entry.StartsAt, &entry.PlaceID, &entry.Duration, &people, &items, &entry.Revision); err != nil {
+		if err := rows.Scan(&entry.ID, &entry.Name, &entry.Venue, &entry.StartsAt, &entry.PlaceID, &entry.Duration, &people, &items, &entry.Revision, &entry.FamilyOnly); err != nil {
 			return err
 		}
 		if err := json.Unmarshal(people, &entry.People); err != nil {
@@ -77,7 +78,7 @@ func listPlanning(ctx context.Context, db workspaceRowsQueryer, wedding, actor s
 		}
 		return json.Unmarshal(items, &entry.Items)
 	}, `SELECT id, name, venue, starts_at, COALESCE(place_id::text,''), duration_minutes,
-		COALESCE(required_people, 'null'::jsonb), required_items, revision FROM wedding_functions
+		COALESCE(required_people, 'null'::jsonb), required_items, revision, family_only FROM wedding_functions
 		WHERE wedding_id=$1 AND `+planningOrganizer+` ORDER BY starts_at,id`, wedding, actor)
 	if err != nil {
 		return weddingPlanning{}, err
@@ -110,6 +111,7 @@ type functionInput struct {
 	People                      []requiredPerson
 	Items                       []requiredItem
 	Revision                    int
+	FamilyOnly                  *bool
 }
 
 func (a *workspaceHTTP) savePlanning(w http.ResponseWriter, r *http.Request, actor string) {
@@ -238,14 +240,14 @@ func (s *workspaceStore) saveFunctionDetails(ctx context.Context, wedding, actor
 		return err
 	}
 	if id == "new" {
-		return scanWorkspace(s.db.QueryRowContext(ctx, `INSERT INTO wedding_functions (wedding_id,name,venue,starts_at,place_id,duration_minutes,required_people,required_items)
-			SELECT $1,$3,$4,$5,NULLIF($6,'')::uuid,$7,$8::jsonb,$9::jsonb WHERE `+planningOrganizer+` RETURNING id`,
-			wedding, actor, f.Name, f.Venue, start, f.PlaceID, f.Duration, attendance, items), &id)
+		return scanWorkspace(s.db.QueryRowContext(ctx, `INSERT INTO wedding_functions (wedding_id,name,venue,starts_at,place_id,duration_minutes,required_people,required_items,family_only)
+			SELECT $1,$3,$4,$5,NULLIF($6,'')::uuid,$7,$8::jsonb,$9::jsonb,COALESCE($10,false) WHERE `+planningOrganizer+` RETURNING id`,
+			wedding, actor, f.Name, f.Venue, start, f.PlaceID, f.Duration, attendance, items, f.FamilyOnly), &id)
 	}
 	err = scanWorkspace(s.db.QueryRowContext(ctx, `UPDATE wedding_functions SET name=$3,venue=$4,starts_at=$5,place_id=NULLIF($6,'')::uuid,
-		duration_minutes=$7,required_people=$8::jsonb,required_items=$9::jsonb,revision=revision+1
+		duration_minutes=$7,required_people=$8::jsonb,required_items=$9::jsonb,family_only=COALESCE($12,family_only),revision=revision+1
 		WHERE wedding_id=$1 AND id=$10 AND revision=$11 AND `+planningOrganizer+` RETURNING id`,
-		wedding, actor, f.Name, f.Venue, start, f.PlaceID, f.Duration, attendance, items, id, f.Revision), &id)
+		wedding, actor, f.Name, f.Venue, start, f.PlaceID, f.Duration, attendance, items, id, f.Revision, f.FamilyOnly), &id)
 	if err == errWorkspaceNotFound {
 		return errWorkspaceConflict
 	}

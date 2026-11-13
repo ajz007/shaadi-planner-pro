@@ -25,7 +25,8 @@ func listRSVPTravel(ctx context.Context, db workspaceRowsQueryer, wedding, actor
 	filter, actorOrLink := "t.guest_id IS NOT NULL AND "+planningOrganizer, actor
 	if link != "" {
 		filter, actorOrLink = `EXISTS (SELECT 1 FROM wedding_rsvp_invitations i
-			WHERE i.wedding_id=g.wedding_id AND i.guest_id=g.id AND i.link_id=$2)`, link
+			JOIN wedding_functions f ON f.wedding_id=i.wedding_id AND f.id=i.function_id
+			WHERE i.wedding_id=g.wedding_id AND i.guest_id=g.id AND i.link_id=$2 AND `+rsvpFunctionVisible+`)`, link
 	}
 	return queryWorkspace(ctx, db, func(row *sql.Rows, reply *guestTravelReply) error {
 		return row.Scan(&reply.GuestID, &reply.Guest, &reply.ArrivalDate, &reply.ArrivalTime, &reply.Pickup, &reply.Stay, &reply.Revision, &reply.UpdatedAt)
@@ -52,7 +53,9 @@ func (s *workspaceStore) saveRSVPTravel(ctx context.Context, hash []byte, reply 
 		}
 	}
 	return s.withRSVPLink(ctx, hash, func(tx *sql.Tx, wedding, link string) error {
-		const invited = `EXISTS (SELECT 1 FROM wedding_rsvp_invitations WHERE wedding_id=$1 AND link_id=$2 AND guest_id=$3)`
+		const invited = `EXISTS (SELECT 1 FROM wedding_rsvp_invitations i
+			JOIN wedding_functions f ON f.wedding_id=i.wedding_id AND f.id=i.function_id
+			WHERE i.wedding_id=$1 AND i.link_id=$2 AND i.guest_id=$3 AND ` + rsvpFunctionVisible + `)`
 		if reply.Revision == 0 {
 			result, err := tx.ExecContext(ctx, `INSERT INTO wedding_guest_travel_replies(wedding_id,guest_id,arrival_date,arrival_time,pickup,stay)
 				SELECT $1,$3,NULLIF($4,'')::date,NULLIF($5,'')::time,$6,$7 WHERE `+invited+`

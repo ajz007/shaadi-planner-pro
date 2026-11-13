@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { PrintSection } from './PlanActions'
 import { VoiceField, VoiceNotice } from './VoiceField'
-import { localDay } from './WorkspaceGuests'
+import { guestLabels, localDay, rsvpGroupKey } from './WorkspaceGuests'
 import { useEditorFocus } from './useEditorFocus'
 import { useWorkspaceData } from './WorkspaceData'
 import type { Guest } from './WorkspaceGuests'
@@ -16,9 +16,9 @@ type Request = <T>(path: string, body?: object, signal?: AbortSignal) => Promise
 const roomFields = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 15]
 const followupFields = [0, 4, 5, 6, 7, 8]
 
-export function WorkspaceLogistics({ section, wedding, people, workbookView, request, guestHref, places, placesHref }: {
+export function WorkspaceLogistics({ section, wedding, people, workbookView, request, guestHref, rsvpHref, places, placesHref }: {
   section: Section; wedding: { id: string; name: string; timeZone: string }; people: { id: string; name: string }[]
-  workbookView: boolean; request: Request; guestHref: string; places: Place[]; placesHref: string
+  workbookView: boolean; request: Request; guestHref: string; rsvpHref: string; places: Place[]; placesHref: string
 }) {
   const { preview } = useWorkspaceData()
   const room = section === 'Accommodation'
@@ -29,6 +29,8 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
   const [editor, setEditor] = useState<RecordRow | 'new'>()
   const [placeId, setPlaceId] = useState('')
   const [query, setQuery] = useState('')
+  const [occupantLabel, setOccupantLabel] = useState('')
+  const [occupants, setOccupants] = useState<Record<number, string>>({})
   const [dueOnly, setDueOnly] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -54,6 +56,7 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
   const editing = editor === 'new' ? undefined : editor
   const guestField = (index: number) => room ? index >= 3 && index <= 6 : index === 0
   const fields = room ? roomFields : followupFields
+  const labels = room ? guestLabels(data?.guests ?? []) : []
   const visible = (data?.records ?? []).filter(record =>
     (!dueOnly || (record.values[4] && record.values[4] <= today)) &&
     record.values.join(' ').toLowerCase().includes(query.trim().toLowerCase()),
@@ -62,12 +65,22 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
   const summary = (record: RecordRow) => room
     ? [record.values[0], 'Room ' + record.values[1]].join(' · ')
     : record.values[1] || record.values[0] || 'Follow-up'
+  const replyLink = (record: RecordRow) => {
+    const guest = data?.guests.find(guest => guest.workbookId === record.guestLinks?.[0])
+    if (room || preview || !guest) return null
+    const household = guest.household.trim() || guest.name
+    return <a href={rsvpHref + (rsvpHref.includes('?') ? '&' : '?') + 'household=' + encodeURIComponent(rsvpGroupKey(guest))}>
+      View function replies<span className="focus-sr-only"> for {household}</span>
+    </a>
+  }
 
   function open(value: RecordRow | 'new', trigger: HTMLButtonElement) {
     returnTarget.current = trigger
     setError('')
     setFeedback('')
     setEditor(value)
+    setOccupantLabel('')
+    setOccupants(value === 'new' ? {} : value.guestLinks ?? {})
     setPlaceId(value === 'new' ? '' : value.placeId)
   }
 
@@ -104,16 +117,24 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
   return <>
     <div className="focus-heading"><div><h2 className="workspace-section-title" ref={fallback} tabIndex={-1}>{section}</h2><p className="focus-note">{room
       ? 'Assign guests to rooms and see occupancy from the Guest List.'
-      : 'Plan household follow-ups and see each contact’s current RSVP.'}</p></div>
+      : 'Keep track of who will contact each household, when to follow up, and what to ask.'}</p></div>
       {data && <button disabled={busy || preview} onClick={event => open('new', event.currentTarget)}>{room ? 'Add room' : 'Add follow-up'}</button>}
     </div>
+    {!room && <p className="focus-note">This list shows the contact’s wedding-wide RSVP from the Guest List.
+      {!preview && <> Open <a href={rsvpHref}>Guest RSVP</a> for invitation links and replies for each function.</>}</p>}
     {feedback && <p role="status">{feedback}</p>}
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p role="status">Loading records…</p>}
     {data && <>
       {editor && <form key={editing?.id ?? 'new'} className="focus-card" onSubmit={submit}>
         <h3 ref={heading} tabIndex={-1}>{editing ? 'Edit' : 'Add'} {room ? 'room' : 'follow-up'}</h3>
-        <fieldset className="workspace-fields" disabled={busy}><div className="focus-form-grid">
+        <fieldset className="workspace-fields" disabled={busy}>
+          {!!labels.length && <label className="focus-field">Find room guests by label
+            <select value={occupantLabel} onChange={event => setOccupantLabel(event.target.value)}>
+              <option value="">Any label</option>{labels.map(label => <option key={label}>{label}</option>)}
+            </select>
+          </label>}
+          <div className="focus-form-grid">
           {room && <label className="focus-field">Saved hotel<select value={placeId} onChange={event => setPlaceId(event.target.value)}>
             <option value="">Use hotel name below</option>{places.map(place => <option key={place.id} value={place.id}>{place.name}</option>)}
           </select></label>}
@@ -126,9 +147,11 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
               multiline={index === (room ? 15 : 8)} defaultValue={editing?.values[index]} />
             return <label key={index} className="focus-field">{columns[index]}
               {guestField(index)
-                ? <select name={String(index)} required={!room} defaultValue={editing?.guestLinks?.[index] ?? ''}>
+                ? <select name={String(index)} required={!room} value={occupants[index] ?? ''}
+                    onChange={event => setOccupants(current => ({ ...current, [index]: event.target.value }))}>
                   <option value="">{room ? 'No guest selected' : 'Choose a contact'}</option>
-                  {data.guests.map(guest => <option key={guest.id} value={guest.workbookId}>
+                  {data.guests.filter(guest => !occupantLabel || guest.labels?.includes(occupantLabel) || occupants[index] === guest.workbookId)
+                    .map(guest => <option key={guest.id} value={guest.workbookId}>
                     {guest.name} · {guest.household || guest.workbookId}
                   </option>)}
                 </select>
@@ -146,7 +169,7 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
             }}>Remove</button>}
           </div>
         </fieldset>
-        {!room && <p className="focus-note">Update the household contact’s RSVP in <a href={guestHref}>Guest List</a>.</p>}
+        {!room && <p className="focus-note">Update the contact’s wedding-wide RSVP in <a href={guestHref}>Guest List</a>.</p>}
       </form>}
       <div className="focus-filters">
         <VoiceField label={room ? 'Search hotels, rooms or guests' : 'Search households, guests or actions'}
@@ -168,8 +191,8 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
         <thead><tr>{columns.map(column => <th key={column}>{column}</th>)}<th>Actions</th></tr></thead>
         <tbody>{visible.map(record => <tr key={record.id}>{record.values.map((value, i) => <td key={i}>{value}
           {i === 0 && places.filter(place => place.id === record.placeId).map(place => <PlaceDetails key={place.id} place={place} />)}</td>)}
-          <td><button className="focus-secondary" disabled={busy || preview} onClick={event => open(record, event.currentTarget)}
-            aria-label={'Edit ' + summary(record)}>Edit</button></td></tr>)}</tbody>
+          <td><div className="focus-actions"><button className="focus-secondary" disabled={busy || preview} onClick={event => open(record, event.currentTarget)}
+            aria-label={'Edit ' + summary(record)}>Edit</button>{replyLink(record)}</div></td></tr>)}</tbody>
       </table></div>}
       {!workbookView && <div className="focus-record-grid">{visible.map(record => {
         const values = record.values
@@ -180,8 +203,8 @@ export function WorkspaceLogistics({ section, wedding, people, workbookView, req
           <dl className="focus-record-details">{detailFields.filter(index => values[index]).map(index => <div key={index}>
             <dt>{columns[index].replace(' (Auto)', '')}</dt><dd>{values[index]}</dd>
           </div>)}</dl>
-          <button className="focus-secondary" disabled={busy || preview} onClick={event => open(record, event.currentTarget)}
-            aria-label={'Edit ' + summary(record)}>Edit</button>
+          <div className="focus-actions"><button className="focus-secondary" disabled={busy || preview} onClick={event => open(record, event.currentTarget)}
+            aria-label={'Edit ' + summary(record)}>Edit</button>{replyLink(record)}</div>
         </article>
       })}</div>}
     </>}

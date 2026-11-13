@@ -27,18 +27,19 @@ type rsvpLink struct {
 }
 
 type rsvpInvitation struct {
-	ID          string     `json:"id"`
-	Guest       string     `json:"guest"`
-	Function    string     `json:"function"`
-	StartsAt    time.Time  `json:"startsAt"`
-	Status      string     `json:"status"`
-	Revision    int        `json:"revision"`
-	LinkID      string     `json:"linkId,omitempty"`
-	FunctionID  string     `json:"functionId,omitempty"`
-	GuestID     string     `json:"guestId,omitempty"`
-	Venue       string     `json:"venue,omitempty"`
-	ReplySource string     `json:"replySource,omitempty"`
-	RepliedAt   *time.Time `json:"repliedAt,omitempty"`
+	ID              string     `json:"id"`
+	Guest           string     `json:"guest"`
+	Function        string     `json:"function"`
+	StartsAt        time.Time  `json:"startsAt"`
+	Status          string     `json:"status"`
+	Revision        int        `json:"revision"`
+	LinkID          string     `json:"linkId,omitempty"`
+	FunctionID      string     `json:"functionId,omitempty"`
+	GuestID         string     `json:"guestId,omitempty"`
+	Venue           string     `json:"venue,omitempty"`
+	ReplySource     string     `json:"replySource,omitempty"`
+	RepliedAt       *time.Time `json:"repliedAt,omitempty"`
+	HiddenFromGuest bool       `json:"hiddenFromGuest,omitempty"`
 }
 
 type rsvpReply struct {
@@ -72,6 +73,8 @@ func (a *workspaceHTTP) rsvpOrganizer(w http.ResponseWriter, r *http.Request, ac
 const rsvpInvitationDetails = `JOIN wedding_guests g ON g.wedding_id=i.wedding_id AND g.id=i.guest_id
 	JOIN wedding_functions f ON f.wedding_id=i.wedding_id AND f.id=i.function_id`
 
+const rsvpFunctionVisible = `(NOT f.family_only OR i.allow_family_only)`
+
 func (a *workspaceHTTP) organizerRSVP(w http.ResponseWriter, r *http.Request, actor string) {
 	if !a.rsvpOrganizer(w, r, actor) {
 		return
@@ -87,9 +90,9 @@ func (a *workspaceHTTP) organizerRSVP(w http.ResponseWriter, r *http.Request, ac
 	}
 	invitations, err := queryWorkspace(ctx, a.store.db, func(row *sql.Rows, i *rsvpInvitation) error {
 		return row.Scan(&i.ID, &i.Guest, &i.Function, &i.StartsAt, &i.Status, &i.Revision,
-			&i.LinkID, &i.FunctionID, &i.GuestID, &i.ReplySource, &i.RepliedAt)
+			&i.LinkID, &i.FunctionID, &i.GuestID, &i.ReplySource, &i.RepliedAt, &i.HiddenFromGuest)
 	}, `SELECT i.id,g.name,f.name,f.starts_at,i.status,i.revision,i.link_id,i.function_id,i.guest_id,
-		COALESCE(i.reply_source,''),i.replied_at FROM wedding_rsvp_invitations i `+rsvpInvitationDetails+`
+		COALESCE(i.reply_source,''),i.replied_at,NOT `+rsvpFunctionVisible+` FROM wedding_rsvp_invitations i `+rsvpInvitationDetails+`
 		WHERE i.wedding_id=$1 AND `+planningOrganizer+` ORDER BY f.starts_at,g.name,i.id`, wedding, actor)
 	if err != nil {
 		workspaceFailure(w, err)
@@ -108,7 +111,10 @@ func (a *workspaceHTTP) createRSVP(w http.ResponseWriter, r *http.Request, actor
 		return
 	}
 	var input struct {
-		Invitations []struct{ GuestID, FunctionID string }
+		Invitations []struct {
+			GuestID, FunctionID string
+			IncludeFamilyOnly   bool
+		}
 	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return
@@ -118,6 +124,7 @@ func (a *workspaceHTTP) createRSVP(w http.ResponseWriter, r *http.Request, actor
 		return
 	}
 	guests, functions := make([]string, 0, len(input.Invitations)), make([]string, 0, len(input.Invitations))
+	explicit := make([]bool, 0, len(input.Invitations))
 	seen := make(map[string]bool, len(input.Invitations))
 	for _, invitation := range input.Invitations {
 		pair := strings.ToLower(invitation.GuestID + invitation.FunctionID)
@@ -128,16 +135,25 @@ func (a *workspaceHTTP) createRSVP(w http.ResponseWriter, r *http.Request, actor
 		seen[pair] = true
 		guests = append(guests, invitation.GuestID)
 		functions = append(functions, invitation.FunctionID)
+		explicit = append(explicit, invitation.IncludeFamilyOnly)
 	}
 	ctx, wedding := r.Context(), r.PathValue("wedding")
 	token := newRSVPToken()
+	tx, err := a.store.db.BeginTx(ctx, nil)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	defer tx.Rollback()
 	var linkID string
-	err := scanWorkspace(a.store.db.QueryRowContext(ctx, `
+	var savedCount int
+	err = scanWorkspace(tx.QueryRowContext(ctx, `
 		WITH selected AS (
-			SELECT g.id AS guest_id,f.id AS function_id,g.name,g.household
-			FROM unnest($3::text[],$4::text[]) AS pairs(guest_id,function_id)
+			SELECT g.id AS guest_id,f.id AS function_id,g.name,g.household,(f.family_only AND pairs.explicit) AS allow_family_only
+			FROM unnest($3::text[],$4::text[],$6::boolean[]) AS pairs(guest_id,function_id,explicit)
 			JOIN wedding_guests g ON g.wedding_id=$1 AND g.id=pairs.guest_id::uuid
 			JOIN wedding_functions f ON f.wedding_id=$1 AND f.id=pairs.function_id::uuid
+			WHERE NOT f.family_only OR pairs.explicit
 		), link AS (
 			INSERT INTO wedding_rsvp_links(wedding_id,label,token_hash,expires_at)
 			SELECT $1,COALESCE(NULLIF(min(household),''),min(name)),$5,`+rsvpAccessEnd+` FROM selected
@@ -146,19 +162,27 @@ func (a *workspaceHTTP) createRSVP(w http.ResponseWriter, r *http.Request, actor
 				AND `+planningOrganizer+`
 			RETURNING id,wedding_id
 		), invitations AS (
-			INSERT INTO wedding_rsvp_invitations(wedding_id,link_id,guest_id,function_id)
-			SELECT link.wedding_id,link.id,selected.guest_id,selected.function_id FROM link CROSS JOIN selected
+			INSERT INTO wedding_rsvp_invitations AS existing(wedding_id,link_id,guest_id,function_id,allow_family_only)
+			SELECT link.wedding_id,link.id,selected.guest_id,selected.function_id,selected.allow_family_only FROM link CROSS JOIN selected WHERE true
+			ON CONFLICT (wedding_id,guest_id,function_id) DO UPDATE
+			SET link_id=EXCLUDED.link_id,allow_family_only=true,revision=existing.revision+1
+			WHERE EXCLUDED.allow_family_only AND NOT existing.allow_family_only
+			RETURNING id
 		)
-		SELECT id FROM link`, wedding, actor, guests, functions, inviteHash(token)), &linkID)
+		SELECT id,(SELECT count(*) FROM invitations) FROM link`, wedding, actor, guests, functions, inviteHash(token), explicit), &linkID, &savedCount)
 	var dbError *pgconn.PgError
 	switch {
 	case errors.Is(err, errWorkspaceNotFound):
-		httpx.Fail(w, http.StatusUnprocessableEntity, "Choose guests from one household and functions from this wedding.")
-	case errors.As(err, &dbError) && dbError.Code == "23505":
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Choose guests from one household and explicitly include any family-only functions.")
+	case (errors.As(err, &dbError) && dbError.Code == "23505") || (err == nil && savedCount != len(guests)):
 		httpx.Fail(w, http.StatusConflict, "A selected guest already has an invitation for a selected function. Choose a different combination or manage the existing link.")
 	case err != nil:
 		workspaceFailure(w, err)
 	default:
+		if err := tx.Commit(); err != nil {
+			workspaceFailure(w, err)
+			return
+		}
 		a.sendRSVPLink(w, http.StatusCreated, linkID, token)
 	}
 }
@@ -313,7 +337,7 @@ func (a *workspaceHTTP) guestRSVP(w http.ResponseWriter, r *http.Request) {
 		return row.Scan(&i.ID, &i.GuestID, &i.Guest, &i.FunctionID, &i.Function, &i.StartsAt, &i.Venue, &i.Status, &i.Revision)
 	}, `SELECT i.id,g.id,g.name,f.id,f.name,f.starts_at,`+guestVenue+`,i.status,i.revision
 		FROM wedding_rsvp_invitations i `+rsvpInvitationDetails+` `+guestPlaceJoin+`
-		WHERE i.wedding_id=$1 AND i.link_id=$2 ORDER BY g.name,f.starts_at,i.id`, wedding, link)
+		WHERE i.wedding_id=$1 AND i.link_id=$2 AND `+rsvpFunctionVisible+` ORDER BY g.name,f.starts_at,i.id`, wedding, link)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
@@ -376,8 +400,9 @@ func (s *workspaceStore) saveGuestRSVP(ctx context.Context, hash []byte, replies
 	return s.withRSVPLink(ctx, hash, func(tx *sql.Tx, wedding, link string) error {
 		result, err := tx.ExecContext(ctx, `UPDATE wedding_rsvp_invitations i
 			SET status=r.status, revision=i.revision+1, reply_source='guest', replied_at=now()
-			FROM jsonb_to_recordset($3::jsonb) AS r(id uuid,status text,revision integer)
-			WHERE i.wedding_id=$1 AND i.link_id=$2 AND i.id=r.id AND i.revision=r.revision`, wedding, link, payload)
+			FROM jsonb_to_recordset($3::jsonb) AS r(id uuid,status text,revision integer), wedding_functions f
+			WHERE i.wedding_id=$1 AND i.link_id=$2 AND i.id=r.id AND i.revision=r.revision
+			AND f.wedding_id=i.wedding_id AND f.id=i.function_id AND `+rsvpFunctionVisible, wedding, link, payload)
 		if err != nil {
 			return err
 		}

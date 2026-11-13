@@ -104,3 +104,11 @@
   .invite-toolbar label { flex: 1 1 9rem; }
   .invite-event > div:first-child { flex-basis: 100%; }
 }
+.rsvp-share { margin-top: .8rem; padding: .65rem .85rem; border: 1px solid #e3cab6; border-radius: .7rem; background: #fff9f0; }
+.rsvp-share summary { min-height: 2.75rem; align-content: center; color: var(--planner-accent); font-weight: 750; cursor: pointer; }
+.rsvp-share-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(12rem, 19rem); align-items: start; gap: 1rem; }
+.rsvp-share-content img { display: block; width: 100%; max-width: 19rem; aspect-ratio: 1; border-radius: .55rem; margin: .65rem 0; }
+@media (max-width: 740px) {
+  .rsvp-share-content { grid-template-columns: minmax(0, 1fr); }
+  .rsvp-share-content > div:last-child { grid-row: 1; }
+}

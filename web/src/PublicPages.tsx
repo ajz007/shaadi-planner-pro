@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import { sampleOverview } from './WorkspaceDemo'
+import { shownDate } from './WorkspaceGuests'
 import './public.css'
 
 const sellerName = import.meta.env.VITE_SELLER_NAME?.trim() || 'Ajit Shukla'
@@ -22,24 +24,49 @@ export function PublicFooter() {
 }
 
 export function PublicHome() {
-  return <main className="public-shell">
+  const sangeetTime = new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: sampleOverview.timeZone,
+  }).format(new Date(sampleOverview.sangeet.startsAt))
+  return <main className="public-shell public-home">
     <header className="public-hero">
-      <p className="public-kicker">SHAADI PLANNER PRO</p>
-      <h1>Plan the wedding together.</h1>
-      <p>Keep track of guests, pickups, rooms and family tasks in one place. Start from scratch or bring your Shaadi Planner Excel workbook.</p>
-      <div className="public-actions">
-        <a className="public-primary" href="/#workspace">Start planning</a>
-        <a href="/#demo">Explore a sample wedding</a>
-        <a href="/#dashboard">Explore the Excel workbook example</a>
+      <div className="public-hero-copy">
+        <p className="public-kicker">SHAADI PLANNER PRO</p>
+        <h1>One plan for the whole shaadi.</h1>
+        <p className="public-intro">See who’s coming, who needs a room or pickup, and what each person is handling. Start with a blank plan or bring your Shaadi Planner Excel workbook.</p>
+        <div className="public-actions">
+          <a className="public-primary" href="/#workspace">Start planning</a>
+          <a className="public-sample-link" href="/#demo">Explore the wedding demo</a>
+        </div>
+        <p className="public-sample-note">No sign-in needed for the demo.</p>
       </div>
+      <section className="public-preview" aria-labelledby="sample-preview-title">
+        <div className="public-preview-heading">
+          <div><span className="demo-badge">Demo</span><h2 id="sample-preview-title">{sampleOverview.name}</h2></div>
+          <span className="public-marigold" aria-hidden="true">✿</span>
+        </div>
+        <p className="public-preview-date">{shownDate(sampleOverview.date)}</p>
+        <ul>
+          <li><a href="/#demo/guest-list?rsvp=awaiting"><span><strong>{sampleOverview.awaitingReplies} {sampleOverview.awaitingReplies === 1 ? 'guest' : 'guests'} awaiting a reply</strong><small>Guest List</small></span><span aria-hidden="true">→</span></a></li>
+          <li><a href="/#demo/transportation"><span><strong>{sampleOverview.pickupsToConfirm} {sampleOverview.pickupsToConfirm === 1 ? 'driver' : 'drivers'} to confirm</strong><small>Transportation</small></span><span aria-hidden="true">→</span></a></li>
+          <li><a href="/#demo/functions-events"><span><strong>{sampleOverview.sangeet.name}</strong><small>{sangeetTime} · {sampleOverview.sangeet.venue}</small></span><span aria-hidden="true">→</span></a></li>
+        </ul>
+      </section>
     </header>
     <section aria-labelledby="public-workflows">
       <h2 id="public-workflows">From the guest list to wedding day</h2>
       <div className="public-grid">
-        <article><h3>Bring your workbook</h3><p>Review your import, then work in Card or Workbook view. Download a current Excel snapshot whenever you need one.</p></article>
-        <article><h3>Share the work</h3><p>Invite family to help plan your wedding. They can see their assignments, claim open tasks and mark them complete.</p></article>
-        <article><h3>Coordinate arrivals and stays</h3><p>Filter and print guest lists, assign rooms, plan pickups and track who needs an RSVP follow-up.</p></article>
+        <article><h3>Know who’s coming</h3><p>See who’s confirmed and which families still need a follow-up.</p>
+          <a href="/#demo/guest-list?rsvp=awaiting">See the guest list <span aria-hidden="true">→</span></a></article>
+        <article><h3>Get everyone there</h3><p>Plan pickups for arriving guests and assign rooms for their stay.</p>
+          <a href="/#demo/transportation">See the pickup plan <span aria-hidden="true">→</span></a></article>
+        <article><h3>Share the work</h3><p>Give family members clear tasks and see what still needs doing.</p>
+          <a href="/#demo/family-responsibilities">See family tasks <span aria-hidden="true">→</span></a></article>
       </div>
+    </section>
+    <section className="public-workbook" aria-labelledby="public-workbook">
+      <div><h2 id="public-workbook">Already planning in Excel?</h2>
+        <p>Bring your Shaadi Planner workbook into your wedding and export an updated copy as plans change.</p></div>
+      <a href="/#dashboard">Explore the Excel workbook example <span aria-hidden="true">→</span></a>
     </section>
   </main>
 }

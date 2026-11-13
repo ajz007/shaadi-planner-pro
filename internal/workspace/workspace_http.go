@@ -203,10 +203,11 @@ type workspacePerson struct {
 }
 
 type workspaceFunction struct {
-	ID       string    `json:"id"`
-	Name     string    `json:"name"`
-	Venue    string    `json:"venue"`
-	StartsAt time.Time `json:"startsAt"`
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	Venue      string    `json:"venue"`
+	StartsAt   time.Time `json:"startsAt"`
+	FamilyOnly bool      `json:"familyOnly"`
 }
 
 type workspaceRowsQueryer interface {
@@ -270,8 +271,8 @@ func (a *workspaceHTTP) view(w http.ResponseWriter, r *http.Request, actor strin
 		return
 	}
 	functions, err := queryWorkspace(ctx, a.store.db, func(row *sql.Rows, item *workspaceFunction) error {
-		return row.Scan(&item.ID, &item.Name, &item.Venue, &item.StartsAt)
-	}, `SELECT f.id, f.name, concat_ws(' · ', p.name, NULLIF(f.venue,'')), f.starts_at FROM wedding_functions f
+		return row.Scan(&item.ID, &item.Name, &item.Venue, &item.StartsAt, &item.FamilyOnly)
+	}, `SELECT f.id, f.name, concat_ws(' · ', p.name, NULLIF(f.venue,'')), f.starts_at, f.family_only FROM wedding_functions f
 		JOIN wedding_memberships m ON f.wedding_id = m.wedding_id
 		LEFT JOIN wedding_places p ON p.wedding_id=f.wedding_id AND p.id=f.place_id
 		WHERE f.wedding_id = $1 AND m.account_id = $2 ORDER BY f.starts_at, f.id`, wedding, actor)

@@ -87,6 +87,10 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .guest-card-heading h3 { flex: 1 1 8rem; min-width: 0; margin: 0; font-size: 1.15rem; }
 .guest-card-heading .guest-select { margin: -.55rem -.55rem -.55rem 0; }
 .guest-card p { margin: 0; }
+.guest-labels { display: flex; flex-wrap: wrap; gap: .3rem; margin: .25rem 0 0; padding: 0; list-style: none; }
+.guest-labels li { min-width: 0; max-width: 100%; }
+.focus .guest-labels button { min-height: 2.75rem; padding: .15rem .55rem; border-color: #e2cad4; border-radius: 1rem; font-size: .8rem; overflow-wrap: anywhere; }
+.workspace-sheet .guest-labels { max-width: 12rem; }
 .guest-edit { align-self: flex-start; margin-top: auto; }
 .focus-chip[data-rsvp="Pending"], .focus-chip[data-rsvp="Maybe"] { background: #ffedc9; color: #694900; }
 .focus-chip[data-rsvp="Declined"] { background: #f0e8eb; color: #633346; }
@@ -146,3 +150,20 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
   .wedding-content .wedding-account-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .wedding-tools > div { position: static; margin-top: .3rem; max-width: 100%; }
 }
+.focus.wedding-entry { width: min(100% - 2rem, 52rem); }
+.focus.wedding-sign-in { max-width: 31rem; margin-top: clamp(1.5rem, 8vw, 5rem); }
+.wedding-sign-in > .focus-card { padding: clamp(1.2rem, 5vw, 2.2rem); }
+.wedding-entry-brand { display: inline-block; margin-bottom: .65rem; color: var(--planner-accent); font: 700 1rem Georgia, serif; text-decoration: none; }
+.wedding-entry h1 { font-size: clamp(1.85rem, 5vw, 2.6rem); text-wrap: balance; }
+.wedding-sign-in p { margin-bottom: 1rem; }
+.wedding-entry .package-button { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.75rem; }
+.wedding-sign-in .wedding-sample-link { padding-top: .85rem; border-top: 1px solid #deded2; margin: 1.25rem 0 0; font-size: .9rem; }
+.wedding-sample-link span { color: #4a5c53; }
+.wedding-entry-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .5rem 1rem; }
+.wedding-entry-header h1 { margin: 0; }
+.wedding-entry-header .workspace-topline { margin: 0; }
+.wedding-list { display: grid; gap: .65rem; list-style: none; margin: 0; padding: 0; }
+.wedding-list-item { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .8rem 1rem; }
+.wedding-list-item h2 { margin: 0 0 .25rem; overflow-wrap: anywhere; }
+.wedding-list-item p { margin: 0; color: #4a5c53; font-size: .9rem; }
+.wedding-list-actions { margin-top: 1rem; }

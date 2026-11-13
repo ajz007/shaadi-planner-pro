@@ -13,7 +13,7 @@ type RequiredItem = {
 }
 export type FunctionReadiness = {
   id: string; name: string; venue: string; startsAt: string; placeId: string; duration: number | null
-  people: RequiredPerson[] | null; items: RequiredItem[]; revision: number
+  people: RequiredPerson[] | null; items: RequiredItem[]; revision: number; familyOnly?: boolean
 }
 export type RunSheetActivity = { id: string; functionId: string; function: string; ownerId: string; fields: string[]; revision: number }
 export type Planning = { places: Place[]; functions: FunctionReadiness[]; timeline?: RunSheetActivity[] }
@@ -117,6 +117,7 @@ function FunctionEditor({ current, data, people, wedding, save, close }: Props &
       await save('functions', current?.id ?? 'new', {
         name: text(form, 'name'), venue: text(form, 'venue'), start: text(form, 'start'), placeId: text(form, 'placeId'),
         duration: Number(text(form, 'duration')) || null, people: required, items, revision: current?.revision ?? 0,
+        familyOnly: text(form, 'audience') === 'family',
       })
       close()
     } catch (error) { setError(error instanceof Error ? error.message : 'Could not save the function.') }
@@ -135,7 +136,13 @@ function FunctionEditor({ current, data, people, wedding, save, close }: Props &
           <option value="">Choose later</option>{data.places.map(place => <option key={place.id} value={place.id}>{place.name}</option>)}
         </select></label>
         <VoiceField label="Venue or room within the place" name="venue" defaultValue={current?.venue} maxLength={200} />
+        <label className="focus-field">Guest visibility
+          <select name="audience" defaultValue={current?.familyOnly ? 'family' : 'guest'} aria-describedby="function-visibility-help">
+            <option value="guest">Guest function</option><option value="family">Family only</option>
+          </select>
+        </label>
       </div>
+      <p id="function-visibility-help" className="focus-note">Guest functions are included by default. Marking a function family only also hides it on links you’ve already shared, unless it was explicitly added as a family-only function.</p>
       <h4>Required people</h4>
       <p>{required === null ? 'Attendance not reviewed.' : required.length ? 'Selected people are required.' : 'Reviewed. No required people.'}</p>
       <div className="focus-actions"><button type="button" className="focus-secondary" onClick={() => setRequired([])}>No one required</button>
@@ -224,7 +231,7 @@ export function WorkspaceFunctionReadiness(props: Props & { workbookView: boolea
         <thead><tr>{['Function', 'Starts', 'Venue', 'Duration', 'Attendance', 'Items at venue', 'Action'].map(column =>
           <th key={column}>{column}</th>)}</tr></thead>
         <tbody>{data.functions.map(entry => <tr key={entry.id}>
-          <th scope="row">{entry.name}</th><td>{functionLocalTime(entry.startsAt, wedding.timeZone).replace('T', ' ')}</td>
+          <th scope="row">{entry.name}{entry.familyOnly && <small>Family only</small>}</th><td>{functionLocalTime(entry.startsAt, wedding.timeZone).replace('T', ' ')}</td>
           <td>{[data.places.find(place => place.id === entry.placeId)?.name, entry.venue].filter(Boolean).join(' · ')}</td>
           <td>{entry.duration ? entry.duration + ' min' : ''}</td>
           <td>{entry.people === null ? 'Needs review' : entry.people.map(person => personName(person.personId)).join(', ') || 'None required'}</td>
@@ -237,7 +244,7 @@ export function WorkspaceFunctionReadiness(props: Props & { workbookView: boolea
       const place = data.places.find(place => place.id === entry.placeId)
       const items = entry.items.filter(item => !assigned || item.personId === assigned)
       return <article key={entry.id} className="focus-card">
-        <div className="focus-heading"><h3>{entry.name}</h3>{!workbookView &&
+        <div className="focus-heading"><h3>{entry.name}{entry.familyOnly && <> <span className="focus-chip">Family only</span></>}</h3>{!workbookView &&
           <button className="focus-secondary" disabled={preview} onClick={() => setEditor(entry)}>Edit function</button>}</div>
         <p>{functionLocalTime(entry.startsAt, wedding.timeZone).replace('T', ' ')}{entry.duration ? ' · ' + entry.duration + ' min' : ''}
           {entry.venue && ' · ' + entry.venue}{place && ' · ' + place.name}</p>

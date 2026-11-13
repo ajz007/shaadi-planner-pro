@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ type liveGuest struct {
 	StayRequired      string          `json:"stayRequired"`
 	Revision          int             `json:"revision"`
 	Links             []guestPlanLink `json:"links,omitempty"`
+	Labels            []string        `json:"labels,omitempty"`
 }
 
 type guestPlanLink struct {
@@ -35,11 +37,18 @@ type guestPlanLink struct {
 
 const guestColumns = `g.id, g.workbook_id, g.name, g.household, g.side, g.wedding_rsvp,
 	COALESCE(g.arrival_date::text, ''), COALESCE(to_char(g.arrival_time, 'HH24:MI'), ''),
-	g.arrival_mode, g.transport_required, g.stay_required, g.revision`
+	g.arrival_mode, g.transport_required, g.stay_required, g.revision,
+	COALESCE((SELECT jsonb_agg(l.name ORDER BY lower(l.name), l.name)
+		FROM wedding_guest_label_assignments a JOIN wedding_guest_labels l ON l.wedding_id=a.wedding_id AND l.id=a.label_id
+		WHERE a.wedding_id=g.wedding_id AND a.guest_id=g.id), '[]'::jsonb)`
 
 func scanGuest(row *sql.Rows, guest *liveGuest) error {
-	return row.Scan(&guest.ID, &guest.WorkbookID, &guest.Name, &guest.Household, &guest.Side, &guest.RSVP,
-		&guest.ArrivalDate, &guest.ArrivalTime, &guest.ArrivalMode, &guest.TransportRequired, &guest.StayRequired, &guest.Revision)
+	var labels []byte
+	if err := row.Scan(&guest.ID, &guest.WorkbookID, &guest.Name, &guest.Household, &guest.Side, &guest.RSVP,
+		&guest.ArrivalDate, &guest.ArrivalTime, &guest.ArrivalMode, &guest.TransportRequired, &guest.StayRequired, &guest.Revision, &labels); err != nil {
+		return err
+	}
+	return json.Unmarshal(labels, &guest.Labels)
 }
 
 func listLiveGuests(ctx context.Context, db workspaceRowsQueryer, wedding, actor string) ([]liveGuest, error) {

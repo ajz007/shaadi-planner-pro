@@ -7,6 +7,7 @@ import (
 	"errors"
 	"image/jpeg"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -98,11 +99,12 @@ func (a *workspaceHTTP) saveGuestPageSettings(w http.ResponseWriter, r *http.Req
 }
 
 type guestScheduleLink struct {
-	ID         string    `json:"id"`
-	Date       string    `json:"date"`
-	FunctionID string    `json:"functionId"`
-	ExpiresAt  time.Time `json:"expiresAt"`
-	URL        string    `json:"url"`
+	ID                string    `json:"id"`
+	Date              string    `json:"date"`
+	FunctionID        string    `json:"functionId"`
+	FamilyFunctionIDs []string  `json:"familyFunctionIds"`
+	ExpiresAt         time.Time `json:"expiresAt"`
+	URL               string    `json:"url"`
 }
 
 const activeSchedule = `revoked_at IS NULL AND expires_at>now()`
@@ -117,12 +119,15 @@ func (a *workspaceHTTP) guestScheduleLinks(w http.ResponseWriter, r *http.Reques
 	}
 	links, err := queryWorkspace(r.Context(), a.store.db, func(row *sql.Rows, link *guestScheduleLink) error {
 		var token string
-		if err := row.Scan(&link.ID, &link.Date, &link.FunctionID, &link.ExpiresAt, &token); err != nil {
+		var familyIDs string
+		if err := row.Scan(&link.ID, &link.Date, &link.FunctionID, &link.ExpiresAt, &token, &familyIDs); err != nil {
 			return err
 		}
+		link.FamilyFunctionIDs = strings.Fields(familyIDs)
 		link.URL = a.scheduleURL(token)
 		return nil
-	}, `SELECT id,COALESCE(scope_date::text,''),COALESCE(function_id::text,''),expires_at,share_token FROM wedding_guest_schedule_links
+	}, `SELECT id,COALESCE(scope_date::text,''),COALESCE(function_id::text,''),expires_at,share_token,
+		COALESCE(array_to_string(family_function_ids,' '),'') FROM wedding_guest_schedule_links
 		WHERE wedding_id=$1 AND `+activeSchedule+` AND `+planningOrganizer+` ORDER BY expires_at DESC,id`,
 		r.PathValue("wedding"), actor)
 	if err != nil {
@@ -136,7 +141,10 @@ func (a *workspaceHTTP) createGuestScheduleLink(w http.ResponseWriter, r *http.R
 	if !a.rsvpOrganizer(w, r, actor) {
 		return
 	}
-	var input struct{ Date, FunctionID string }
+	var input struct {
+		Date, FunctionID  string
+		FamilyFunctionIDs []string
+	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
@@ -150,6 +158,20 @@ func (a *workspaceHTTP) createGuestScheduleLink(w http.ResponseWriter, r *http.R
 		workspaceFailure(w, errWorkspaceInput)
 		return
 	}
+	if len(input.FamilyFunctionIDs) > 1000 {
+		workspaceFailure(w, errWorkspaceInput)
+		return
+	}
+	for index, id := range input.FamilyFunctionIDs {
+		if !workspaceUUID.MatchString(id) {
+			workspaceFailure(w, errWorkspaceInput)
+			return
+		}
+		input.FamilyFunctionIDs[index] = strings.ToLower(id)
+	}
+	slices.Sort(input.FamilyFunctionIDs)
+	input.FamilyFunctionIDs = slices.Compact(input.FamilyFunctionIDs)
+	familyIDs := strings.Join(input.FamilyFunctionIDs, ",")
 	ctx := r.Context()
 	tx, err := a.store.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -165,21 +187,35 @@ func (a *workspaceHTTP) createGuestScheduleLink(w http.ResponseWriter, r *http.R
 		workspaceFailure(w, err)
 		return
 	}
+	var visibleCount, familyCount int
+	err = tx.QueryRowContext(ctx, `SELECT count(*),count(*) FILTER (WHERE f.family_only)
+		FROM weddings w JOIN wedding_functions f ON f.wedding_id=w.id
+		WHERE w.id=$1 AND `+guestScheduleScope+guestScheduleVisibility,
+		wedding, input.Date, input.FunctionID, familyIDs).Scan(&visibleCount, &familyCount)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	if visibleCount == 0 || familyCount != len(input.FamilyFunctionIDs) {
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Choose a schedule with guest functions or explicitly select the family-only functions to share.")
+		return
+	}
 	var id, token string
 	err = scanWorkspace(tx.QueryRowContext(ctx, `SELECT id,share_token FROM wedding_guest_schedule_links
 		WHERE wedding_id=$1 AND scope_date IS NOT DISTINCT FROM NULLIF($2,'')::date
-		AND function_id IS NOT DISTINCT FROM NULLIF($3,'')::uuid AND `+activeSchedule+`
-		ORDER BY expires_at DESC,id LIMIT 1 FOR UPDATE`, wedding, input.Date, input.FunctionID), &id, &token)
+		AND function_id IS NOT DISTINCT FROM NULLIF($3,'')::uuid
+		AND family_function_ids=string_to_array($4,',')::uuid[] AND `+activeSchedule+`
+		ORDER BY expires_at DESC,id LIMIT 1 FOR UPDATE`, wedding, input.Date, input.FunctionID, familyIDs), &id, &token)
 	status := http.StatusOK
 	if errors.Is(err, errWorkspaceNotFound) {
 		token = newRSVPToken()
 		status = http.StatusCreated
 		err = scanWorkspace(tx.QueryRowContext(ctx, `
-			INSERT INTO wedding_guest_schedule_links(wedding_id,scope_date,function_id,token_hash,share_token,expires_at)
-			SELECT w.id,NULLIF($2,'')::date,NULLIF($3,'')::uuid,$4,$5,GREATEST(now()+interval '30 days',max(f.starts_at)+interval '2 days')
+			INSERT INTO wedding_guest_schedule_links(wedding_id,scope_date,function_id,family_function_ids,token_hash,share_token,expires_at)
+			SELECT w.id,NULLIF($2,'')::date,NULLIF($3,'')::uuid,string_to_array($4,',')::uuid[],$5,$6,GREATEST(now()+interval '30 days',max(f.starts_at)+interval '2 days')
 			FROM weddings w JOIN wedding_functions f ON f.wedding_id=w.id
-			WHERE w.id=$1 AND `+guestScheduleScope+` GROUP BY w.id RETURNING id`,
-			wedding, input.Date, input.FunctionID, inviteHash(token), token), &id)
+			WHERE w.id=$1 AND `+guestScheduleScope+guestScheduleVisibility+` GROUP BY w.id RETURNING id`,
+			wedding, input.Date, input.FunctionID, familyIDs, inviteHash(token), token), &id)
 	}
 	if err != nil {
 		workspaceFailure(w, err)
@@ -194,6 +230,7 @@ func (a *workspaceHTTP) createGuestScheduleLink(w http.ResponseWriter, r *http.R
 
 const guestScheduleScope = `($2='' OR (f.starts_at AT TIME ZONE w.time_zone)::date=NULLIF($2,'')::date)
 	AND ($3='' OR f.id=NULLIF($3,'')::uuid)`
+const guestScheduleVisibility = ` AND (NOT f.family_only OR f.id=ANY(string_to_array($4,',')::uuid[]))`
 
 const guestScheduleToken = `(l.token_hash=$1 OR l.share_token=$2)`
 
@@ -271,5 +308,6 @@ func listGuestSchedule(ctx context.Context, db workspaceRowsQueryer, hash []byte
 	}, `SELECT f.name,f.starts_at,`+guestVenue+`,COALESCE(p.map_url,'') FROM wedding_guest_schedule_links l
 		JOIN weddings w ON w.id=l.wedding_id JOIN wedding_functions f ON f.wedding_id=l.wedding_id `+guestPlaceJoin+`
 		WHERE `+guestScheduleToken+` AND (l.scope_date IS NULL OR (f.starts_at AT TIME ZONE w.time_zone)::date=l.scope_date)
-		AND (l.function_id IS NULL OR f.id=l.function_id) ORDER BY f.starts_at,f.id`, hash, token)
+		AND (l.function_id IS NULL OR f.id=l.function_id)
+		AND (NOT f.family_only OR f.id=ANY(l.family_function_ids)) ORDER BY f.starts_at,f.id`, hash, token)
 }
