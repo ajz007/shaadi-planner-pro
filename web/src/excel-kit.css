@@ -1,0 +1,26 @@
+.excel-kit h1 { font-family: Georgia, serif; font-size: clamp(2.15rem, 6vw, 4.25rem); overflow-wrap: anywhere; }
+.excel-kit h2 { font-family: Georgia, serif; }
+.excel-kit a { color: #294c3c; }
+.excel-nav { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .65rem 1rem; margin-bottom: 1.5rem; font-weight: 700; }
+.excel-product { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: start; gap: clamp(1rem, 4vw, 3rem); }
+.excel-product-heading { margin-bottom: 1.2rem; }
+.excel-edition { color: #765331; font-weight: 700; }
+.excel-intro { max-width: 46ch; font-size: 1.1rem; }
+.excel-details h2:not(:first-child) { margin-top: 1.6rem; }
+.excel-contents { padding-left: 1.3rem; }
+.excel-contents li + li { margin-top: .45rem; }
+.excel-card { border: 1px solid #d6d7c9; background: #fffaf0; border-radius: .9rem; padding: clamp(1rem, 3vw, 1.6rem); }
+.excel-card > h2:first-child { margin-top: 0; }
+#excel-price { font-size: 2.3rem; }
+#excel-price span { display: block; font: 600 1rem/1.4 system-ui, sans-serif; }
+.excel-card form { display: grid; gap: .65rem; }
+.excel-card label { font-weight: 700; }
+.excel-card input { box-sizing: border-box; width: 100%; min-height: 2.75rem; padding: .5rem .7rem; font-size: 1rem; }
+.excel-card button { min-height: 2.75rem; }
+.excel-notice { background: #f0e3c5; color: #47351d; border-radius: .4rem; padding: .6rem .75rem; }
+.excel-reference { overflow-wrap: anywhere; font-size: .9rem; }
+.excel-purchase { max-width: 43rem; }
+.excel-purchase .excel-card + .excel-card, .excel-status-actions { margin-top: 1rem; }
+@media (max-width: 740px) {
+  .excel-product { grid-template-columns: minmax(0, 1fr); }
+}

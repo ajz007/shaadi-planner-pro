@@ -11,5 +11,6 @@
 !web/package-lock.json
 !web/index.html
 !web/tsconfig.json
+!web/vite.config.ts
 !web/src/
 !web/src/**

@@ -16,6 +16,8 @@ export function PublicFooter() {
   return <footer className="public-footer">
     <a href="/">Shaadi Planner Pro</a>
     <nav aria-label="Product information">
+      <a href="/shop">Shop</a>
+      <a href="/shop/purchase">Find a purchase</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/contact">Contact</a>
@@ -34,7 +36,8 @@ export function PublicHome() {
         <h1>One plan for the whole shaadi.</h1>
         <p className="public-intro">See who’s coming, who needs a room or pickup, and what each person is handling. Start with a blank plan or bring your Shaadi Planner Excel workbook.</p>
         <div className="public-actions">
-          <a className="public-primary" href="/#workspace">Start planning</a>
+          <a className="public-primary" href="/shop/essentials">Buy Essentials — ₹699</a>
+          <a className="public-sample-link" href="/shop">Browse the shop</a>
           <a className="public-sample-link" href="/#demo">Explore the wedding demo</a>
         </div>
         <p className="public-sample-note">No sign-in needed for the demo.</p>
@@ -66,7 +69,8 @@ export function PublicHome() {
     <section className="public-workbook" aria-labelledby="public-workbook">
       <div><h2 id="public-workbook">Already planning in Excel?</h2>
         <p>Bring your Shaadi Planner workbook into your wedding and export an updated copy as plans change.</p></div>
-      <a href="/#dashboard">Explore the Excel workbook example <span aria-hidden="true">→</span></a>
+      <div><a href="/#dashboard">Explore the Excel workbook example <span aria-hidden="true">→</span></a><br />
+        <a href="/#workspace">Open the web planner <span aria-hidden="true">→</span></a></div>
     </section>
   </main>
 }
@@ -83,6 +87,7 @@ export function PublicInfoPage({ path }: { path: keyof typeof publicPages }) {
     <p className="public-draft">Pre-launch draft. Retention and support procedures are pending verification.</p>
     {path === '/privacy' ? <>
       <h2>Information used by the planner</h2>
+      <p>For shop orders, we store your checkout email, product, order and payment references, amount and payment date. We use them to confirm purchases, email receipts and restore downloads. Razorpay processes your payment details and our email provider delivers your receipt.</p>
       <p>Google sign-in provides basic account information. The planner uses your Google account identifier and display name to create your account and show your name in the workspace. A session cookie keeps you signed in.</p>
       <p>When you upload a workbook or enter wedding details, the planner processes the information you provide. This can include guest names, phone numbers, RSVPs, travel details, room assignments, tasks, and budget records.</p>
       <p>If you use microphone dictation, your browser may send audio to its speech recognition service. The planner receives the resulting text and saves it when you submit the form. You can type instead.</p>

@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ajz007/shaadi-planner-pro/internal/commerce"
 	"github.com/ajz007/shaadi-planner-pro/internal/demo"
 	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 	"github.com/ajz007/shaadi-planner-pro/internal/workbook"
@@ -51,11 +53,21 @@ func main() {
 	if err != nil {
 		log.Fatalf("Shared workspace configuration failed: %v", err)
 	}
+	ctx, cancel = context.WithTimeout(context.Background(), 45*time.Second)
+	shop, err := commerce.Configure(ctx, publicOrigin)
+	cancel()
+	if err != nil {
+		log.Fatalf("Excel Kit configuration failed: %v", err)
+	}
+	maintenance, stop := context.WithCancel(context.Background())
+	defer stop()
 	if app != nil {
 		defer app.Close()
-		maintenance, stop := context.WithCancel(context.Background())
-		defer stop()
 		go app.MaintainImportPreviews(maintenance)
+	}
+	if shop != nil {
+		defer shop.Close()
+		go shop.SendReceipts(maintenance)
 	}
 	mux := routes(http.Dir("web/dist"), publicOrigin == "")
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -66,6 +78,7 @@ func main() {
 		handler = httpx.HostedOnly(publicOrigin, mux)
 	}
 	app.Register(mux)
+	shop.Register(mux)
 	server := &http.Server{
 		Addr: address, Handler: handler,
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
@@ -95,11 +108,34 @@ func serverSettings(port, origin string) (address, publicOrigin string, err erro
 func routes(assets http.FileSystem, sandbox bool) *http.ServeMux {
 	mux := http.NewServeMux()
 	files := http.FileServer(assets)
-	mux.Handle("GET /", files)
-	for _, path := range []string{"/privacy", "/terms", "/contact", "/rsvp", "/wedding-schedule"} {
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if commerce.IsPaidFilename(path.Base(r.URL.Path)) {
+			w.Header().Set("Cache-Control", "no-store")
+			http.NotFound(w, r)
+			return
+		}
+		switch strings.ToLower(path.Base(r.URL.Path)) {
+		case "shaadi-planner-pro-english.zip", "shaadi-planner-pro-english-blank.xlsx",
+			"shaadi_planner_pro_v1_3_1_english_blank.xlsx":
+			w.Header().Set("Cache-Control", "no-store")
+			http.NotFound(w, r)
+			return
+		}
+		files.ServeHTTP(w, r)
+	})
+	mux.HandleFunc("GET /excel-kit", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/shop/essentials", http.StatusMovedPermanently)
+	})
+	for _, path := range []string{"/privacy", "/terms", "/contact", "/rsvp", "/wedding-schedule", "/excel-kit/purchase", "/shop", "/shop/{page}"} {
 		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("X-Robots-Tag", "noindex")
-			if path == "/rsvp" || path == "/wedding-schedule" {
+			if path == "/shop/{page}" && !commerce.HasShopPage(r.PathValue("page")) {
+				http.NotFound(w, r)
+				return
+			}
+			if path != "/shop" && (path != "/shop/{page}" || r.PathValue("page") == "purchase") {
+				w.Header().Set("X-Robots-Tag", "noindex")
+			}
+			if path == "/rsvp" || path == "/wedding-schedule" || path == "/excel-kit/purchase" || r.PathValue("page") == "purchase" {
 				w.Header().Set("Cache-Control", "no-store")
 			}
 			r.URL.Path = "/"

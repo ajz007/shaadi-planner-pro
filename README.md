@@ -16,9 +16,60 @@ go run ./cmd/shaadi-planner
 
 Open [the local sample wedding](http://127.0.0.1:8080/#demo). Try Card view, Workbook view, guest filters and bulk selection with fictional records. Use [the private planner](http://127.0.0.1:8080/#workspace) to save changes in your own wedding.
 
-The checkout contains the web sample data. To enable the original Excel downloads locally, put your English launch ZIP in `web/public/Shaadi-Planner-Pro-English.zip` and the blank workbook from that package in `web/public/Shaadi-Planner-Pro-English-Blank.xlsx` before building the web app. These customer deliverables are kept out of Git.
+The sample workbook and sample wedding are available at `/#dashboard` and `/#demo`. The old `/excel-kit` URL redirects to `/shop/essentials`. Keep customer deliverables outside the public frontend and out of Git.
 
-The [Excel workbook example](http://127.0.0.1:8080/#dashboard) shows the workbook's saved totals. Open any planning section from the sidebar, or use **Sections** on a phone. Search within a section and follow guest links from room assignments, pickups or RSVP follow-ups back to the Guest List. **Download Excel package** gives you the original blank and filled workbooks and both guides.
+## Wedding Shop checkout
+
+The shop at `/shop` lists seven downloads and the Wedding Pass preview. Checkout is off by default. Each order records the exact product edition, mode, email, payment and order references, amount, currency and capture confirmation time in PostgreSQL. Downloads need no planner sign-in. The Wedding Pass preview links to the demo. Selling the pass requires access terms and activation.
+
+1. Create a dedicated S3 bucket with **Block Public Access** on and ACLs disabled. Use **US West (N. California), `us-west-1`**, for the current California deployment, or use the actual region of an existing bucket. Set `SHAADI_EXCEL_S3_BUCKET` to the full bucket name, including its suffix if you chose the account regional namespace. Set `AWS_REGION` to the bucket region and configure SES there too. Upload the approved files using the keys below. The server reads each configured private package at startup and verifies its SHA-256 before accepting orders. Use `SHAADI_EXCEL_S3_KEY` to retain a previously configured Excel object key. Buyers download the ZIP or PDF from their purchase page after payment verification.
+2. Set `SHAADI_DATABASE_URL`, `SHAADI_EXCEL_MODE=test`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` in the app environment. Use Razorpay **Test Mode** keys. The shop initializes its order table on startup and works on loopback without Google sign-in.
+3. Set a persistent random `SHAADI_EXCEL_LINK_SECRET` of at least 32 characters and keep it across deploys. A hosted test shop also needs a private random `SHAADI_EXCEL_TEST_ACCESS` code of at least 32 characters. Test purchases unlock the real package for that tester, so keep this code private and use a separate staging environment.
+4. Verify `shaadiplannerpro.com` in Amazon SES in the same AWS region, publish the SES DKIM records in DNS, and request SES production access before sending to customers. While SES is in its sandbox, use a verified recipient or the SES mailbox simulator. Set `SHAADI_EXCEL_RECEIPT_FROM` (for example, `ShaadiPlannerPro <receipts@shaadiplannerpro.com>`) and optionally `SHAADI_EXCEL_RECEIPT_REPLY_TO` to a monitored inbox. Keep click tracking off for these private links. The PostgreSQL receipt queue retries failures. SES can accept a message even when a response is lost, so a retry can occasionally deliver a second copy of the same receipt. For local checkout, open `http://localhost:8080/shop` so the receipt uses the same hostname.
+5. Enable automatic capture in Razorpay. Select **Test Mode → Webhooks** and register `https://<staging-host>/api/excel/webhook` for `payment.captured`. Use the staging hostname configured in `SHAADI_WORKSPACE_ORIGIN`. Set the same randomly generated webhook signing secret in Razorpay and `RAZORPAY_WEBHOOK_SECRET` on staging. For local checkout, the browser confirmation and **Check payment status** use the Orders and Payments APIs. For the deployed live shop, register `https://shaadiplannerpro.com/api/excel/webhook` in **Live Mode** with its own signing secret. Hosted webhooks also handle buyers who close the page before confirmation. Set `SHAADI_EXCEL_ACCEPT_ORDERS=1` to open checkout in the chosen mode.
+
+Use a real test-mode checkout to verify a success and a cancellation, confirm a receipt arrives, and open the emailed link in a separate browser profile. To launch, deploy the storefront to `shaadiplannerpro.com`, publish the approved digital delivery and refund terms and verify the support inbox, complete Razorpay merchant and website approval, and repeat the capture, webhook and sender setup for production. Set production `SHAADI_EXCEL_MODE=live` and the corresponding live keys before explicitly enabling `SHAADI_EXCEL_ACCEPT_ORDERS=1`. Clear that last flag to pause new payments while keeping downloads, receipts and recovery available.
+
+Set `SHAADI_SHOP_PRODUCTS` to the comma-separated product IDs you have uploaded. If omitted, only Essentials is loaded. For the full catalog use `essentials-en-v1,planner-gu-v1.3.1,complete-en-v1,all-in-one-en-v1,message-pack-en-v1,sangeet-core-v1,sangeet-pro-v1`. If a paid order for the retired Excel Kit exists, also keep `excel-english-v1.3.1` and its original object configured for recovery. It cannot be ordered. The existing `/excel-kit/purchase` path and Razorpay webhook continue to work.
+
+| Product ID | Price | S3 object key |
+| --- | ---: | --- |
+| `essentials-en-v1` | ₹699 | `shop/essentials-en-v1/Shaadi_Planner_Pro_Essentials_English_v1.0.zip` |
+| `planner-gu-v1.3.1` | ₹699 | `shop/planner-gu-v1.3.1/Shaadi_Planner_Pro_V1_3_1_Gujarati_Launch_Package.zip` |
+| `complete-en-v1` | ₹999 | `shop/complete-en-v1/Shaadi_Planner_Pro_Complete_English_v1.0.zip` |
+| `all-in-one-en-v1` | ₹1,499 | `shop/all-in-one-en-v1/Shaadi_Planner_Pro_All_in_One_English_v1.0.zip` |
+| `message-pack-en-v1` | ₹199 | `shop/message-pack-en-v1/Shaadi_WhatsApp_Vendor_Message_Pack.pdf` |
+| `sangeet-core-v1` | ₹499 | `shop/sangeet-core-v1/Shaadi-Planner-Core-Sangeet-Host-Kit-FINAL.zip` |
+| `sangeet-pro-v1` | ₹899 | `shop/sangeet-pro-v1/Shaadi-Planner-Pro-Sangeet-Host-Kit-PRO-FINAL.zip` |
+
+Essentials, Complete and All-in-One include the English workbooks and the Quick Start and 14-Day checklist PDFs. The standalone message pack has 35 templates. Complete and All-in-One include the 38-template WhatsApp and RSVP pack.
+
+Set AWS credentials in the **server process environment**, such as sealed Railway app variables. The app uses `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` for temporary credentials. Give a dedicated app identity `s3:GetObject` scoped to the private shop objects and `ses:SendEmail` on the verified domain identity. Use a separate identity for package uploads.
+
+Example IAM policy for the app identity. Replace the bucket name, AWS account ID and region for your setup.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::YOUR-PRIVATE-BUCKET/shop/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ses:SendEmail",
+      "Resource": "arn:aws:ses:us-west-1:YOUR-AWS-ACCOUNT-ID:identity/shaadiplannerpro.com",
+      "Condition": {"StringEquals": {"ses:FromAddress": "receipts@shaadiplannerpro.com"}}
+    }
+  ]
+}
+```
+
+If you keep the original Excel key via `SHAADI_EXCEL_S3_KEY`, add that exact object ARN to the policy. For the local multi-product integration test, set `SHAADI_TEST_SHOP_PACKAGES` to a private folder containing the seven additional release files by basename, alongside the existing `SHAADI_TEST_DATABASE_URL` and `SHAADI_TEST_WORKBOOK_PACKAGE` settings.
+
+The [Excel workbook example](http://127.0.0.1:8080/#dashboard) shows the workbook's saved totals. Open any planning section from the sidebar, or use **Sections** on a phone. Search within a section and follow guest links from room assignments, pickups or RSVP follow-ups back to the Guest List. **Buy Essentials** opens the product page for the blank and filled workbooks and guides.
 
 ## Try the onboarding prototype
 
