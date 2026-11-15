@@ -1,0 +1,10 @@
+[
+  {"id":"essentials-en-v1","slug":"essentials","name":"Shaadi Planner Pro Essentials","amount":69900,"format":"Excel + PDF · English","group":"Planning","summary":"The v1.3.1 blank and demo workbooks, plus the Quick Start and 14-Day Final Wedding Checklist."},
+  {"id":"planner-gu-v1.3.1","slug":"gujarati-planner","name":"ગુજરાતી Shaadi Planner Pro","amount":69900,"format":"Excel + PDF · Gujarati","group":"Planning","summary":"સંપૂર્ણ ભારતીય લગ્ન આયોજન સિસ્ટમ. Blank and demo workbooks with Gujarati planning guides."},
+  {"id":"complete-en-v1","slug":"complete","name":"Shaadi Planner Pro Complete","amount":99900,"format":"Excel, Word + PDF · English","group":"Planning","summary":"The planner, a vendor negotiation toolkit and 38 WhatsApp and RSVP messages."},
+  {"id":"all-in-one-en-v1","slug":"all-in-one","name":"Shaadi Planner Pro All-in-One","amount":149900,"format":"Excel, Word + PDF · English and Hinglish","group":"Planning","summary":"Everything in Complete, plus the Sangeet Host Kit PRO for solo and two-anchor hosting."},
+  {"id":"message-pack-en-v1","slug":"message-pack","name":"Shaadi WhatsApp & Vendor Message Pack","amount":19900,"format":"PDF · English","group":"Messages & hosting","summary":"35 ready-to-copy templates for RSVPs, travel, vendors, payments and wedding-day updates."},
+  {"id":"sangeet-core-v1","slug":"sangeet-host-kit","name":"Sangeet Host Kit","amount":49900,"format":"Word + PDF · Hinglish","group":"Messages & hosting","summary":"A two-anchor script, a script vault, an editable DJ cue sheet and an emergency rescue card."},
+  {"id":"sangeet-pro-v1","slug":"sangeet-host-kit-pro","name":"Sangeet Host Kit PRO","amount":89900,"format":"Word + PDF · Hinglish","group":"Messages & hosting","summary":"The Core kit plus a solo script, 12 games, event flow guides and a rehearsal checklist."},
+  {"id":"wedding-pass","slug":"wedding-pass","name":"Wedding Pass","amount":299900,"format":"Online planner · One wedding","group":"Online planner","summary":"Share private household invitations, collect RSVPs, and coordinate arrivals and headcounts with your family."}
+]

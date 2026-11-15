@@ -1,0 +1,36 @@
+.wedding-shop { --shop-green: #20372f; --shop-cream: #fff8e9; --shop-line: #dfd5c5; }
+.shop-nav, .shop-nav > div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .25rem 1.15rem; }
+.shop-nav { border-bottom: 1px solid #dfd5c5; padding-bottom: .55rem; margin-bottom: 1.45rem; }
+.shop-nav a { display: inline-flex; align-items: center; min-height: 44px; color: #294c3c; }
+.shop-brand { font: 700 1.2rem Georgia, serif; text-decoration: none; }
+.shop-intro { margin: 0 0 1.4rem; }
+.shop-intro h1 { font-size: clamp(2.5rem, 7vw, 4.25rem); }
+.shop-intro p { max-width: 57ch; }
+.shop-feature { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: center; gap: 1.3rem; padding: clamp(1.2rem, 4vw, 2.6rem); border-radius: 1.1rem; color: var(--shop-cream); background: var(--shop-green); }
+.shop-feature h2 { font: 700 clamp(2rem, 6vw, 3.25rem)/1.1 Georgia, serif; }
+.shop-format { font-size: .85rem; font-weight: 650; }
+.shop-feature .shop-format { color: #dbe7c6; }
+.shop-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem 1rem; margin-top: 1.2rem; }
+.shop-actions a { color: inherit; }
+.shop-actions .shop-primary, .shop-pass .shop-primary { background: #fff8e9; color: #20372f; padding: .55rem .9rem; border-radius: .55rem; text-decoration: none; }
+.shop-included { background: #fff8e9; color: #20372f; padding: 1.15rem; border-radius: .7rem; }
+.shop-included h3, .shop-pass h3 { font: 700 1.35rem Georgia, serif; }
+.shop-included ul { margin: 0; padding-left: 1.15rem; }
+.shop-included li + li { margin-top: .25rem; }
+.shop-section { margin-top: 1.65rem; }
+.shop-section h2 { font: 700 clamp(1.45rem, 4vw, 2rem) Georgia, serif; }
+.shop-comparison { max-width: 76ch; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr)); gap: .85rem; }
+.shop-card, .shop-pass { background: #fffdf8; border: 1px solid var(--shop-line); border-radius: .8rem; padding: 1rem; }
+.shop-card { display: flex; flex-direction: column; }
+.shop-card .shop-format { color: #654740; }
+.shop-card h3 { font: 700 1.3rem/1.25 Georgia, serif; }
+.shop-card h3 a { text-decoration: none; color: inherit; }
+.shop-card h3 a:hover { text-decoration: underline; }
+.shop-card-end, .shop-pass { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .35rem .75rem; }
+.shop-card-end { margin-top: auto; }
+.shop-card-end a, .shop-pass a, .shop-actions a { display: inline-flex; align-items: center; gap: .35rem; min-height: 44px; font-weight: 650; }
+.shop-pass { padding: 1.15rem; }
+.shop-pass > div { max-width: 50ch; }
+.shop-pass p:last-child { margin-bottom: 0; }
+@media (max-width: 640px) { .shop-feature { grid-template-columns: minmax(0, 1fr); } }

@@ -2,8 +2,6 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import workbook from './workbook-demo.json'
 
-const hosted = import.meta.env.MODE === 'hosted'
-const blankWorkbookURL = '/Shaadi-Planner-Pro-English-Blank.xlsx'
 
 export function SetupOptions() {
   return <div className="setup-options">
@@ -11,7 +9,7 @@ export function SetupOptions() {
       <h2>Upload my workbook</h2>
       <p>Already planning in Excel? See how a filled workbook becomes a wedding workspace.</p>
       <a className="package-button" href="#setup-upload">Try workbook upload</a>
-      {!hosted && <a href={blankWorkbookURL} download>Download the blank Excel planner</a>}
+      <a href="/shop/essentials">Get the workbook in Essentials</a>
     </section>
     <section className="planner-card">
       <h2>Start a blank wedding</h2>
@@ -38,7 +36,7 @@ export function WorkbookSetup() {
       <div className="actions">
         <button onClick={() => setReview(true)}>Use filled sample workbook</button>
         <a href="#workspace">Upload my own workbook →</a>
-        {!hosted && <a href={blankWorkbookURL} download>Download the blank Excel planner</a>}
+        <a href="/shop/essentials">Get the workbook in Essentials</a>
       </div>
     </> : <>
       <p className="eyebrow">Step 2 of 2 · Review</p>

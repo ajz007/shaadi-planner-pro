@@ -2,7 +2,7 @@ FROM node:22-bookworm-slim AS frontend
 WORKDIR /app/web
 COPY web/package*.json ./
 RUN npm ci
-COPY web/index.html web/tsconfig.json ./
+COPY web/index.html web/tsconfig.json web/vite.config.ts ./
 COPY web/src/ ./src/
 ARG VITE_SELLER_NAME
 ARG VITE_SUPPORT_EMAIL
@@ -15,7 +15,7 @@ RUN go mod download
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 COPY web/assets.go ./web/assets.go
-COPY web/src/workbook-demo.json ./web/src/workbook-demo.json
+COPY web/src/workbook-demo.json web/src/shop-catalog.json ./web/src/
 RUN CGO_ENABLED=0 go build -trimpath -o /shaadi-planner ./cmd/shaadi-planner
 
 FROM debian:bookworm-slim

@@ -17,7 +17,6 @@ const navigation = [
 ]
 
 const hosted = import.meta.env.MODE === 'hosted'
-const packageURL = '/Shaadi-Planner-Pro-English.zip'
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
 const metrics = workbook.metrics
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z]+/g, '-').replace(/-$/, '')
@@ -203,7 +202,7 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
           <p>{setup ? <a href="#start-here">← Back to Start Here</a> : section === 'Dashboard' ? `${settings.City} · ${displayDate(settings['Wedding Date'])}` : settings['Wedding Name']}</p>
         </div>
         {hosted && <a className="package-button" href="#workspace">Start planning</a>}
-        {!hosted && !setup && <a className="package-button" href={packageURL} download>Download Excel package</a>}
+        {!setup && <a className="package-button" href="/shop/essentials">Buy Essentials — ₹699</a>}
       </header>
       <p className="snapshot-note">{setup
         ? 'Use fictional details. Prototype changes disappear when you leave the setup flow or refresh.'

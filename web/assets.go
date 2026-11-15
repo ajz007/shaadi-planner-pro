@@ -6,3 +6,6 @@ import _ "embed"
 //
 //go:embed src/workbook-demo.json
 var WorkbookContract []byte
+
+//go:embed src/shop-catalog.json
+var ShopCatalog []byte

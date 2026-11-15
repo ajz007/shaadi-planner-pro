@@ -4,9 +4,38 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/fstest"
 
 	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
+
+func TestPaidKitCannotBeServedAsStaticFile(t *testing.T) {
+	assets := fstest.MapFS{
+		"index.html":                     {Data: []byte("storefront")},
+		"Shaadi-Planner-Pro-English.zip": {Data: []byte("private")},
+		"downloads/Shaadi_Planner_Pro_V1_3_1_English_Launch_Package.zip": {Data: []byte("private")},
+		"Shaadi-Planner-Pro-English-Blank.xlsx":                          {Data: []byte("private")},
+		"sample.csv":                                                     {Data: []byte("public")},
+		"Shaadi_WhatsApp_Vendor_Message_Pack.pdf":                        {Data: []byte("private")},
+		"downloads/Shaadi_Planner_Pro_All_in_One_English_v1.0.zip":       {Data: []byte("private")},
+	}
+	mux := routes(http.FS(assets), false)
+	for path, want := range map[string]int{
+		"/Shaadi-Planner-Pro-English.zip":                                 404,
+		"/downloads/Shaadi_Planner_Pro_V1_3_1_English_Launch_Package.zip": 404,
+		"/Shaadi-Planner-Pro-English-Blank.xlsx":                          404,
+		"/sample.csv":                                                     200, "/excel-kit": 301, "/excel-kit/purchase": 200,
+		"/Shaadi_WhatsApp_Vendor_Message_Pack.pdf":                  404,
+		"/downloads/Shaadi_Planner_Pro_All_in_One_English_v1.0.zip": 404,
+		"/shop": 200, "/shop/purchase": 200, "/shop/wedding-pass": 200, "/shop/all-in-one": 200, "/shop/unknown": 404,
+	} {
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != want {
+			t.Errorf("%s returned %d, want %d", path, w.Code, want)
+		}
+	}
+}
 
 func TestHostedPlanner(t *testing.T) {
 	const origin = "https://planner.example.com"

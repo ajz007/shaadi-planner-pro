@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import './styles.css'
 import { Planner } from './Planner'
 import { PublicFooter, PublicHome, PublicInfoPage, publicPages } from './PublicPages'
+import { DownloadProduct, ShopPurchase } from './ExcelKit'
+import { Shop, shopProduct, WeddingPass, weddingPass } from './Shop'
 import { LiveGuestRSVP, LiveWeddingSchedule } from './GuestWeddingPage'
 
 type Status = 'pending' | 'accepted' | 'declined'
@@ -258,7 +260,14 @@ function App() {
   }, [])
   const path = window.location.pathname
   let page
-  if (Object.hasOwn(publicPages, path)) {
+  const item = shopProduct(path)
+  if (path === '/shop') {
+    page = <Shop />
+  } else if (path === '/excel-kit/purchase' || path === '/shop/purchase') {
+    page = <ShopPurchase key={hash} code={hash.slice(1)} />
+  } else if (item) {
+    page = item.id === weddingPass.id ? <WeddingPass /> : <DownloadProduct item={item} />
+  } else if (Object.hasOwn(publicPages, path)) {
     page = <PublicInfoPage path={path as keyof typeof publicPages} />
   } else if (path === '/rsvp' || path === '/wedding-schedule') {
     const [secret, scope] = hash.slice(1).split('?')
