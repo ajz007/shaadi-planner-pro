@@ -214,6 +214,20 @@ func (a *workspaceHTTP) weddingSnapshot(w http.ResponseWriter, r *http.Request, 
 		}
 		return rows
 	})
+	liveSection("Budget vs Actual", func(section importSection) []importRow {
+		original := map[string][]string{}
+		for _, row := range section.Rows {
+			original[strings.ToLower(strings.TrimSpace(row.Values[0]))] = row.Values
+		}
+		rows := make([]importRow, 0, len(finance.Budgets))
+		for _, budget := range finance.Budgets {
+			values := make([]string, len(section.Columns))
+			copy(values, original[strings.ToLower(strings.TrimSpace(budget.Category))])
+			values[0], values[1], values[2], values[3] = budget.Category, financeAmount(budget.Budget), financeAmount(budget.Paid), financeAmount(budget.Budget-budget.Paid)
+			rows = append(rows, importRow{Values: values})
+		}
+		return rows
+	})
 	liveSection("Transportation", func(section importSection) []importRow {
 		result := make([]importRow, 0, len(pickups))
 		for _, pickup := range pickups {

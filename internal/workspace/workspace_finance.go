@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +42,61 @@ type vendorContract struct {
 type weddingFinance struct {
 	Vendors   []financeRecord  `json:"vendors"`
 	Contracts []vendorContract `json:"contracts"`
+	Budgets   []categoryBudget `json:"budgets"`
+}
+
+type categoryBudget struct {
+	ID        string `json:"id"`
+	Category  string `json:"category"`
+	Budget    int64  `json:"budget"`
+	Committed int64  `json:"committed"`
+	Paid      int64  `json:"paid"`
+	Revision  int    `json:"revision"`
+}
+
+// Category totals use the contract ledger, including opening balances and voids.
+// Imported category paid totals are retained only where no contract exists.
+func rollupBudgets(imported []importRow, saved []categoryBudget, contracts []vendorContract) []categoryBudget {
+	byCategory := map[string]*categoryBudget{}
+	key := func(category string) string { return strings.ToLower(strings.TrimSpace(category)) }
+	get := func(category string) *categoryBudget {
+		k := key(category)
+		if byCategory[k] == nil {
+			byCategory[k] = &categoryBudget{Category: strings.TrimSpace(category)}
+		}
+		return byCategory[k]
+	}
+	for _, row := range imported {
+		if len(row.Values) < 3 || key(row.Values[0]) == "" {
+			continue
+		}
+		item := get(row.Values[0])
+		budget, _ := importPaise(row.Values[1])
+		paid, _ := importPaise(row.Values[2])
+		item.Budget += budget
+		item.Paid += paid
+	}
+	for _, row := range saved {
+		item := get(row.Category)
+		item.ID, item.Revision, item.Budget = row.ID, row.Revision, row.Budget
+	}
+	seen := map[string]bool{}
+	for _, contract := range contracts {
+		item := get(contract.Values[0])
+		k := key(item.Category)
+		if !seen[k] {
+			item.Paid = 0
+			seen[k] = true
+		}
+		item.Committed += contract.Value
+		item.Paid += contract.Paid
+	}
+	result := make([]categoryBudget, 0, len(byCategory))
+	for _, item := range byCategory {
+		result = append(result, *item)
+	}
+	sort.Slice(result, func(i, j int) bool { return key(result[i].Category) < key(result[j].Category) })
+	return result
 }
 
 const financeOwner = `EXISTS (SELECT 1 FROM wedding_memberships
@@ -93,7 +149,30 @@ func listFinance(ctx context.Context, db workspaceRowsQueryer, wedding, actor st
 			FROM wedding_vendor_payments WHERE contract_id = c.id
 		) p ON true
 		WHERE c.wedding_id = $1 AND `+financeOwner+` ORDER BY 9, 10, c.id`, wedding, actor)
-	return weddingFinance{Vendors: vendors, Contracts: contracts}, err
+	if err != nil {
+		return weddingFinance{}, err
+	}
+	sections, err := queryWorkspace(ctx, db, func(rows *sql.Rows, section *importSection) error {
+		var payload []byte
+		if err := rows.Scan(&payload); err != nil {
+			return err
+		}
+		return json.Unmarshal(payload, section)
+	}, `SELECT payload FROM wedding_imported_sections WHERE wedding_id = $1 AND section_name = 'Budget vs Actual' AND `+financeOwner, wedding, actor)
+	if err != nil {
+		return weddingFinance{}, err
+	}
+	saved, err := queryWorkspace(ctx, db, func(rows *sql.Rows, budget *categoryBudget) error {
+		return rows.Scan(&budget.ID, &budget.Category, &budget.Budget, &budget.Revision)
+	}, `SELECT id, category, budget_paise, revision FROM wedding_category_budgets WHERE wedding_id = $1 AND `+financeOwner, wedding, actor)
+	if err != nil {
+		return weddingFinance{}, err
+	}
+	var imported []importRow
+	for _, section := range sections {
+		imported = append(imported, section.Rows...)
+	}
+	return weddingFinance{Vendors: vendors, Contracts: contracts, Budgets: rollupBudgets(imported, saved, contracts)}, nil
 }
 
 func financeAmount(paise int64) string {
@@ -109,6 +188,8 @@ type financeInput struct {
 	Method      string
 	Notes       string
 	VoidPayment string
+	Category    string
+	Budget      string
 }
 
 var decimalAmount = regexp.MustCompile(`^[0-9]+(\.[0-9]{1,2})?$`)
@@ -166,6 +247,8 @@ func (a *workspaceHTTP) saveFinance(w http.ResponseWriter, r *http.Request, acto
 	}
 	var err error
 	switch kind {
+	case "budgets":
+		id, err = a.store.saveCategoryBudget(ctx, wedding, actor, id, input)
 	case "vendors":
 		id, err = a.store.saveVendor(ctx, wedding, actor, id, input)
 	case "contracts":
@@ -180,6 +263,28 @@ func (a *workspaceHTTP) saveFinance(w http.ResponseWriter, r *http.Request, acto
 		return
 	}
 	httpx.Reply(w, http.StatusOK, map[string]string{"id": id})
+}
+
+func (s *workspaceStore) saveCategoryBudget(ctx context.Context, wedding, actor, id string, input financeInput) (string, error) {
+	category := strings.TrimSpace(input.Category)
+	budget, valid := parseFinanceAmount(input.Budget)
+	if category == "" || utf8.RuneCountInString(category) > 120 || input.Budget == "" || !valid {
+		return "", errWorkspaceInput
+	}
+	var err error
+	if id == "new" {
+		err = scanWorkspace(s.db.QueryRowContext(ctx, `INSERT INTO wedding_category_budgets (wedding_id, category, budget_paise)
+			SELECT $1, $3, $4 WHERE `+financeOwner+`
+			ON CONFLICT (wedding_id, lower(trim(category))) DO NOTHING RETURNING id`, wedding, actor, category, budget), &id)
+	} else {
+		err = scanWorkspace(s.db.QueryRowContext(ctx, `UPDATE wedding_category_budgets SET budget_paise=$3, revision=revision+1
+			WHERE wedding_id=$1 AND id=$4 AND revision=$5 AND lower(trim(category))=lower(trim($6::text)) AND `+financeOwner+`
+			RETURNING id`, wedding, actor, budget, id, input.Revision, category), &id)
+	}
+	if err == errWorkspaceNotFound {
+		err = errWorkspaceConflict
+	}
+	return id, err
 }
 
 func cleanFinanceFields(values []string, count int) bool {

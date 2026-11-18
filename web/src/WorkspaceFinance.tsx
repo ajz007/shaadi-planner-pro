@@ -11,7 +11,8 @@ import { useWorkspaceData } from './WorkspaceData'
 type RecordRow = { id: string; values: string[]; revision: number }
 type Payment = { id: string; amount: number; date: string; method: string; notes: string; voided: boolean }
 type Contract = RecordRow & { vendorId: string; value: number; openingPaid: number; paid: number; payments: Payment[] }
-type Finance = { vendors: RecordRow[]; contracts: Contract[] }
+export type CategoryBudget = { id: string; category: string; budget: number; committed: number; paid: number; revision: number }
+export type Finance = { vendors: RecordRow[]; contracts: Contract[]; budgets: CategoryBudget[] }
 type Request = <T>(path: string, body?: object, signal?: AbortSignal) => Promise<T>
 type Section = 'Vendor Comparison' | 'Vendor Payments'
 

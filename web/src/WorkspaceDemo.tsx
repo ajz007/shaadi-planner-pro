@@ -106,6 +106,19 @@ const contracts = rows('Vendor Payments').map((values, index) => ({
   vendorId: vendors.find(vendor => vendor.values[0] === values[0] && vendor.values[1] === values[1])?.id ?? '',
   value: paise(values[3]), openingPaid: paise(values[4]), paid: paise(values[4]), payments: [],
 }))
+const categoryKey = (value: string) => value.trim().toLowerCase()
+const budgets = new Map(rows('Budget vs Actual').map(row => [categoryKey(row[0]), {
+  id: '', category: row[0], budget: paise(row[1]), committed: 0, paid: paise(row[2]), revision: 0,
+}]))
+const contractCategories = new Set<string>()
+for (const contract of contracts) {
+  const key = categoryKey(contract.values[0])
+  const budget = budgets.get(key) ?? { id: '', category: contract.values[0], budget: 0, committed: 0, paid: 0, revision: 0 }
+  if (!contractCategories.has(key)) { budget.paid = 0; contractCategories.add(key) }
+  budget.committed += contract.value
+  budget.paid += contract.paid
+  budgets.set(key, budget)
+}
 const totals: ImportTotals = {
   guests: guests.length, confirmed: guests.filter(guest => guest.rsvp === 'Confirmed').length, rooms: roomRows.length,
   plannedPaise: rows('Budget vs Actual').reduce((sum, row) => sum + paise(row[1]), 0),
@@ -116,7 +129,7 @@ const records = new Map<string, unknown>([
   ['guests', guests], ['planning', planning], ['transportation', pickups],
   ['logistics/accommodation', logisticsRows(roomRows, [3, 4, 5, 6])],
   ['logistics/rsvp-follow-up', logisticsRows(followUpRows, [0])],
-  ['imported-sections', { sections, totals }], ['finance', { vendors, contracts }],
+  ['imported-sections', { sections, totals }], ['finance', { vendors, contracts, budgets: [...budgets.values()] }],
 ])
 
 async function sampleFetch(url: string, options?: RequestInit) {
