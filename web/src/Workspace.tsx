@@ -8,6 +8,7 @@ import { ScheduleChart, scheduleEntries } from './ScheduleBoard'
 import { WorkspaceTransport } from './WorkspaceTransport'
 import { WorkspaceLogistics } from './WorkspaceLogistics'
 import { WorkspaceFinance } from './WorkspaceFinance'
+import { WorkspaceBudget } from './WorkspaceBudget'
 import { VoiceField, VoiceNotice } from './VoiceField'
 import { functionLocalTime, WorkspaceFunctionReadiness, WorkspacePlaces } from './WorkspacePlanning'
 import type { Planning } from './WorkspacePlanning'
@@ -265,6 +266,7 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
       : section === 'Accommodation' || section === 'RSVP Follow-up' ? <WorkspaceLogistics key={section} section={section}
         wedding={wedding} people={people} workbookView={workbookView} request={request} guestHref={href('Guest List')} rsvpHref={href('Guest RSVP')}
         places={planning?.places ?? []} placesHref={href('Places')} />
+      : section === 'Budget vs Actual' ? <WorkspaceBudget key={wedding.id} wedding={wedding} workbookView={workbookView} paymentsHref={href('Vendor Payments')} />
       : section === 'Vendor Comparison' || section === 'Vendor Payments' ? <WorkspaceFinance key={section} section={section}
         wedding={wedding} workbookView={workbookView} request={request} vendorsHref={href('Vendor Comparison')} />
       : organizer && (section === 'Functions & Events' || section === 'Places') ? (
@@ -292,9 +294,7 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
         {imported.error ? <p role="alert">{imported.error}</p>
           : !imported.data ? <p role="status">Loading planning records…</p>
           : activeSection ? <>
-            <p className="focus-note">{section === 'Budget vs Actual'
-              ? 'These category totals came from your workbook. Live contract balances and recorded payments are in Vendor Payments.'
-              : 'Read-only. These records came from your workbook.'}</p>
+            <p className="focus-note">Read-only. These records came from your workbook.</p>
             <PlanningSection key={section} section={section} table={{ columns: activeSection.columns, rows: sectionRows(activeSection) }}
               weddingName={wedding.name} hrefFor={href} workbookView={workbookView} />
           </> : <p>No {section.toLowerCase()} records have been imported for this wedding.</p>}
