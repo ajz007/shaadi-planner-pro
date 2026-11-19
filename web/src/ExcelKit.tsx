@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { productByID, productContents, rupees, ShopNav } from './Shop'
+import { productByID, rupees, ShopNav } from './Shop'
 import type { ShopProduct } from './Shop'
+import { ProductDescription, productDescription } from './ProductDescription'
+import { ProductImage } from './ProductImage'
 import './excel-kit.css'
 
 type Checkout = { key: string; order: string; email: string; amount: number; currency: string }
@@ -67,6 +69,7 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
   const isPDF = item.slug === 'message-pack'
   const hasWorkbook = item.group === 'Planning'
   const hasWord = item.format.includes('Word')
+  const description = productDescription(item.slug)
   useEffect(() => {
     document.title = item.name + ' | ShaadiPlannerPro'
     request<ShopStatus>('shop').then(setShop).catch(() => setShop({ products: {}, test: false }))
@@ -94,14 +97,18 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
     <header className="excel-product-heading">
       <p className="excel-edition">{item.format}</p>
       <h1>{item.name}</h1>
-      <p className="excel-intro">{item.summary}</p>
+      <p className="excel-intro">{description.lead}</p>
       {hasWorkbook && <a href="/#dashboard">Preview the English sample workbook</a>}
     </header>
-    <div className="excel-product">
-      <section className="excel-card" aria-labelledby="excel-price">
+    <div className="product-sales">
+      <div className="product-sales-main">
+        <ProductImage slug={item.slug} eager />
+      </div>
+      <section id="purchase" className="excel-card product-purchase" aria-labelledby="excel-price">
         <h2 id="excel-price">{rupees(item.amount)} <span>one-time payment</span></h2>
         <p>Download the {isPDF ? 'PDF' : 'ZIP'} as soon as Razorpay confirms your payment. Your emailed receipt includes a private link to download it again on another device.</p>
         <p>No planner account is needed for this download.</p>
+        <p className="product-requirements">{!isPDF && 'Unzip the download. '}{hasWorkbook && 'Open the .xlsx files in Microsoft Excel with automatic calculation enabled. '}{hasWord && 'Use Word or a compatible editor for editable scripts. '}Use a PDF reader for {isPDF ? 'the templates' : 'the guides'}.</p>
         {shop?.test && <p className="excel-notice" role="status">Test checkout. No money will be charged.</p>}
         <form onSubmit={order}>
           <label htmlFor="excel-email">Email for your receipt</label>
@@ -116,16 +123,12 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
         {shop && !available && <p role="status">Checkout is currently unavailable.</p>}
         {previous && <p><a href={purchasePath + '#' + previous}>Return to your last purchase</a></p>}
       </section>
-      <section className="excel-details">
-        <h2>What’s included</h2>
-        <ul className="excel-contents">
-          {productContents[item.slug].map(line => <li key={line}>{line}</li>)}
-        </ul>
-        <h2>What you’ll need</h2>
-        <p>{!isPDF && 'Unzip the download. '}{hasWorkbook && 'Open the .xlsx files in desktop Microsoft Excel with automatic calculation enabled. No macros are required. '}{hasWord && 'Use Word or a compatible editor for the editable scripts. '}Use a PDF reader for {isPDF ? 'the templates' : 'the guides'}.</p>
+      <div className="product-full-description">
+        <div className="product-introduction">{description.intro.map(text => <p key={text}>{text}</p>)}</div>
+        <ProductDescription item={item} />
         {item.slug === 'sangeet-host-kit' && <p>Hosting solo or planning games? <a href="/shop/sangeet-host-kit-pro">See Sangeet Host Kit PRO</a>.</p>}
         {item.slug === 'sangeet-host-kit-pro' && <p>Hosting as a pair? <a href="/shop/sangeet-host-kit">See the two-anchor Core kit</a>.</p>}
-      </section>
+      </div>
     </div>
   </main>
 }
