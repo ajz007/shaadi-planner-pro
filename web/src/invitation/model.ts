@@ -1,7 +1,6 @@
 // Content model for the digital invitation. It mirrors invitationContent in
 // internal/workspace/workspace_invitation.go. Content is shared by every
 // template; a template only decides how it looks and which sections it shows.
-import manifests from './templates.json'
 
 export type SectionKey = 'blessing' | 'hero' | 'countdown' | 'couple' | 'events' | 'rsvp' | 'family' | 'venue' | 'contacts' | 'closing'
 export type TemplateOption =
@@ -9,12 +8,15 @@ export type TemplateOption =
   | { key: string; label: string; type: 'text'; default: string; max: number; help?: string }
   | { key: string; label: string; type: 'choice'; default: string; choices: { value: string; label: string }[]; help?: string }
 export type TemplateManifest = {
-  id: string; version: number; name: string; description: string; premium: boolean; sections: SectionKey[]; options: TemplateOption[]
+  id: string; version: number; order: number; name: string; description: string; premium: boolean; sections: SectionKey[]; options: TemplateOption[]
 }
 export type OptionValues = Record<string, string | boolean>
 export type InvitationDesign = { id: string; version: number; options: OptionValues }
 
-export const templates = manifests as TemplateManifest[]
+// Each template folder carries its own manifest.json; the Go server embeds
+// the same files and validates options against them.
+const manifests = import.meta.glob<TemplateManifest>('./templates/*/manifest.json', { eager: true, import: 'default' })
+export const templates = Object.values(manifests).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
 export const defaultTemplateId = 'blush-envelope'
 export const templateFor = (id: string) => templates.find(template => template.id === id) ?? templates.find(template => template.id === defaultTemplateId)!
 

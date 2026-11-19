@@ -270,15 +270,15 @@ export function whatsappNumber(phone: string) {
   return digits.length === 10 ? '91' + digits : digits.replace(/^0+/, '')
 }
 
-const fontsHref = 'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Noto+Serif+Devanagari:wght@500;600&display=swap'
-
-export function useInvitationFonts() {
+// Loads a template's Google Fonts stylesheet once. Each template passes its
+// own families; only Open Font License fonts from Google Fonts are used.
+export function useFonts(href: string) {
   useEffect(() => {
-    if (document.querySelector('link[data-invitation-fonts]')) return
+    if (document.querySelector(`link[data-invitation-fonts="${CSS.escape(href)}"]`)) return
     const link = document.createElement('link')
     link.rel = 'stylesheet'
-    link.href = fontsHref
-    link.dataset.invitationFonts = ''
+    link.href = href
+    link.dataset.invitationFonts = href
     document.head.appendChild(link)
-  }, [])
+  }, [href])
 }

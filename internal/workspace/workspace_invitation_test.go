@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 func TestInvitationContentValidation(t *testing.T) {
@@ -60,6 +61,10 @@ func TestInvitationTemplates(t *testing.T) {
 	if !ok || len(template.Sections) == 0 {
 		t.Fatal("the default template must load from the shared manifest")
 	}
+	mismatched := fstest.MapFS{"src/invitation/templates/other-name/manifest.json": {Data: []byte(`{"id":"blush-envelope"}`)}}
+	if _, err := readTemplates(mismatched); err == nil {
+		t.Fatal("a manifest whose id doesn't match its folder must be rejected")
+	}
 	options, ok := template.normalize(map[string]any{"palette": "royal"}, true)
 	if !ok || options["palette"] != "royal" || options["flightPath"] != true || options["envelopeHint"] != "" {
 		t.Fatalf("missing options should take their defaults: %v", options)
@@ -83,7 +88,11 @@ func TestInvitationTemplates(t *testing.T) {
 		"no default":      `[{"id":"other","version":1,"name":"A","sections":["hero"],"options":[]}]`,
 		"text no max":     `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero"],"options":[{"key":"k","label":"K","type":"text","default":""}]}]`,
 	} {
-		if _, err := loadTemplates([]byte(manifest)); err == nil {
+		var list []invitationTemplate
+		if err := json.Unmarshal([]byte(manifest), &list); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := checkTemplates(list); err == nil {
 			t.Errorf("%s: expected the manifest to be rejected", name)
 		}
 	}
