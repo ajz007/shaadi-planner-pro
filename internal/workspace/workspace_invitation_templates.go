@@ -3,6 +3,8 @@ package workspace
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"path"
 	"regexp"
 	"slices"
 
@@ -10,7 +12,7 @@ import (
 )
 
 // An invitation template is a design that renders the shared invitation
-// content. Its manifest (web/src/invitation/templates.json) is read by both
+// content. Its manifest (web/src/invitation/templates/<id>/manifest.json) is read by both
 // the editor and this server: the editor builds the "Design options" form
 // from it, and the server accepts only the options a template declares.
 
@@ -36,6 +38,7 @@ type templateOption struct {
 type invitationTemplate struct {
 	ID          string           `json:"id"`
 	Version     int              `json:"version"`
+	Order       int              `json:"order"`
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
 	Premium     bool             `json:"premium"`
@@ -53,21 +56,45 @@ const defaultInvitationTemplate = "blush-envelope"
 
 var invitationTemplates = mustLoadTemplates(web.InvitationTemplates)
 
-func mustLoadTemplates(raw []byte) map[string]invitationTemplate {
-	templates, err := loadTemplates(raw)
-	if err != nil {
-		panic("invalid invitation template manifest: " + err.Error())
+func mustLoadTemplates(files fs.FS) map[string]invitationTemplate {
+	list, err := readTemplates(files)
+	if err == nil {
+		var templates map[string]invitationTemplate
+		if templates, err = checkTemplates(list); err == nil {
+			return templates
+		}
 	}
-	return templates
+	panic("invalid invitation template manifest: " + err.Error())
 }
 
-// loadTemplates checks every manifest, so a broken manifest fails at startup
-// and in tests rather than when a family saves.
-func loadTemplates(raw []byte) (map[string]invitationTemplate, error) {
-	var list []invitationTemplate
-	if err := json.Unmarshal(raw, &list); err != nil {
+// readTemplates reads one manifest per template folder. The folder name must
+// match the manifest id, so the editor and server always agree on the id.
+func readTemplates(files fs.FS) ([]invitationTemplate, error) {
+	paths, err := fs.Glob(files, "src/invitation/templates/*/manifest.json")
+	if err != nil {
 		return nil, err
 	}
+	list := make([]invitationTemplate, 0, len(paths))
+	for _, file := range paths {
+		raw, err := fs.ReadFile(files, file)
+		if err != nil {
+			return nil, err
+		}
+		var template invitationTemplate
+		if err := json.Unmarshal(raw, &template); err != nil {
+			return nil, fmt.Errorf("%s: %w", file, err)
+		}
+		if folder := path.Base(path.Dir(file)); folder != template.ID {
+			return nil, fmt.Errorf("%s: id %q does not match its folder %q", file, template.ID, folder)
+		}
+		list = append(list, template)
+	}
+	return list, nil
+}
+
+// checkTemplates checks every manifest, so a broken manifest fails at startup
+// and in tests rather than when a family saves.
+func checkTemplates(list []invitationTemplate) (map[string]invitationTemplate, error) {
 	templates := map[string]invitationTemplate{}
 	for _, template := range list {
 		if !regexp.MustCompile(`^[a-z0-9-]{1,40}$`).MatchString(template.ID) || template.Version < 1 || template.Name == "" ||

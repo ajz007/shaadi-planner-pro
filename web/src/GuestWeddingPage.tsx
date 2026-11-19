@@ -6,7 +6,8 @@ import type { PublicInvitation } from './invitation/model'
 import './guest-wedding.css'
 
 const LazyInvitation = lazy(() => import('./invitation/Invitation').then(module => ({ default: module.Invitation })))
-const Invitation = (props: React.ComponentProps<typeof LazyInvitation>) =>
+type InvitationProps = React.ComponentProps<typeof LazyInvitation>
+const Invitation = (props: InvitationProps) =>
   <Suspense fallback={<p className="guest-wedding-page" role="status">Opening your invitation…</p>}><LazyInvitation {...props} /></Suspense>
 
 export type GuestPageDesign = { heading: string; welcome: string; theme: 'marigold' | 'rose'; coverPhoto?: string }
