@@ -16,6 +16,8 @@ COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 COPY web/assets.go ./web/assets.go
 COPY web/src/workbook-demo.json web/src/shop-catalog.json ./web/src/
+# Each invitation template's manifest.json is embedded by web/assets.go.
+COPY web/src/invitation/templates/ ./web/src/invitation/templates/
 RUN CGO_ENABLED=0 go build -trimpath -o /shaadi-planner ./cmd/shaadi-planner
 
 FROM debian:bookworm-slim
