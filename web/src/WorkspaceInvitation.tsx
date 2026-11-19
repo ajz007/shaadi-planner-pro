@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import type { ChangeEvent, ReactNode } from 'react'
 import { useWorkspaceData } from './WorkspaceData'
 import type { GuestPage } from './GuestWeddingPage'
-import { eventIcons, iconFor, palettes, symbols, withDefaults } from './invitation/model'
-import type { Contact, EventIcon, FamilySection, InvitationContent, InvitationEvent, InvitationPerson, InvitationSymbol } from './invitation/model'
+import { eventIcons, iconFor, optionsFor, symbols, templateFor, templates, withDefaults } from './invitation/model'
+import type { Contact, EventIcon, FamilySection, InvitationContent, InvitationDesign, InvitationEvent, InvitationPerson, InvitationSymbol, OptionValues, SectionKey, TemplateManifest } from './invitation/model'
 
-type Settings = { enabled: boolean; content: InvitationContent; hasMusic: boolean; musicName: string; revision: number; events: InvitationEvent[] }
+type Settings = { enabled: boolean; template: InvitationDesign; content: InvitationContent; hasMusic: boolean; musicName: string; revision: number; events: InvitationEvent[] }
 export const invitationPreviewKey = 'shaadi-invitation-preview'
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong. Try again.'
 const phonePattern = '\\+?[0-9][0-9 \\-]{6,18}[0-9]'
@@ -22,11 +22,32 @@ function Field({ label, value, onChange, max, placeholder, rows, hint, type, pat
   </label>
 }
 
-function Group({ title, children, open }: { title: string; children: ReactNode; open?: boolean }) {
-  return <details className="inv-editor-group" open={open}>
-    <summary>{title}</summary>
-    <div className="inv-editor-body">{children}</div>
+function Group({ title, children, open, section, design }: {
+  title: string; children: ReactNode; open?: boolean; section?: SectionKey; design?: TemplateManifest
+}) {
+  const hidden = section && design && !design.sections.includes(section)
+  return <details className={'inv-editor-group' + (hidden ? ' is-unused' : '')} open={open}>
+    <summary>{title}{hidden && <small> · Not shown in this design</small>}</summary>
+    <div className="inv-editor-body">
+      {hidden && <p className="inv-editor-hint">“{design.name}” doesn’t include this section. What you enter is kept and appears if you switch to a design that has it.</p>}
+      {children}
+    </div>
   </details>
+}
+
+// The design options form is generated from the template manifest, so a new
+// template brings its own options without a new form.
+function DesignOptions({ design, values, onChange }: { design: TemplateManifest; values: OptionValues; onChange: (values: OptionValues) => void }) {
+  return <div className="inv-editor-grid">{design.options.map(option => {
+    const set = (value: string | boolean) => onChange({ ...values, [option.key]: value })
+    if (option.type === 'boolean') return <label className="inv-editor-toggle" key={option.key}>
+      <input type="checkbox" checked={values[option.key] === true} onChange={event => set(event.target.checked)} />{option.label}</label>
+    if (option.type === 'choice') return <label className="focus-field" key={option.key}>{option.label}
+      <select value={String(values[option.key])} onChange={event => set(event.target.value)}>
+        {option.choices.map(choice => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+      </select>{option.help && <small>{option.help}</small>}</label>
+    return <Field key={option.key} label={option.label} value={String(values[option.key] ?? '')} onChange={set} max={option.max} hint={option.help} />
+  })}</div>
 }
 
 function PersonFields({ title, person, onChange }: { title: string; person: InvitationPerson; onChange: (person: InvitationPerson) => void }) {
@@ -113,7 +134,12 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
   useEffect(() => {
     const controller = new AbortController()
     request<Settings>(path + '/invitation', undefined, controller.signal)
-      .then(result => { if (!controller.signal.aborted) setSettings({ ...result, content: withDefaults(result.content, result.revision) }) })
+      .then(result => {
+        if (controller.signal.aborted) return
+        const design = templateFor(result.template?.id)
+        setSettings({ ...result, content: withDefaults(result.content, result.revision),
+          template: { id: design.id, version: design.version, options: optionsFor(design, result.template?.options) } })
+      })
       .catch(error => { if (!controller.signal.aborted) setError(errorText(error)) })
     return () => controller.abort()
   }, [path, request])
@@ -124,6 +150,11 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
   </details>
 
   const content = settings.content
+  const design = templateFor(settings.template.id)
+  const setDesign = (template: InvitationDesign) => {
+    setNotice('')
+    setSettings(current => current && { ...current, template })
+  }
   const set = (patch: Partial<InvitationContent>) => {
     setNotice('')
     setSettings(current => current && { ...current, content: { ...current.content, ...patch } })
@@ -138,7 +169,9 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
     setNotice('')
     try {
       const contacts = content.contacts.filter(contact => contact.name.trim() || contact.phone.trim())
-      const result = await request<{ revision: number }>(path + '/invitation', { enabled, content: { ...content, contacts }, revision: settings!.revision })
+      const result = await request<{ revision: number }>(path + '/invitation', {
+        enabled, content: { ...content, contacts }, template: { id: settings!.template.id, options: settings!.template.options }, revision: settings!.revision,
+      })
       setSettings(current => current && { ...current, enabled, revision: result.revision, content: { ...current.content, contacts } })
       setNotice(enabled ? 'Invitation saved. Guests now see it when they open their RSVP or schedule link.' : 'Invitation saved as a draft. Guests still see the simple page.')
     } catch (error) { setError(errorText(error)) }
@@ -165,7 +198,7 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
     const events = settings!.events.filter(event => !event.familyOnly)
     try {
       localStorage.setItem(invitationPreviewKey, JSON.stringify({
-        page, invitation: { content, hasMusic: settings!.hasMusic, events }, musicPath: '/api/workspace' + path + '/invitation/music',
+        page, invitation: { template: settings!.template, content, hasMusic: settings!.hasMusic, events }, musicPath: '/api/workspace' + path + '/invitation/music',
       }))
       window.open('/invitation-preview', '_blank', 'noopener')
     } catch { setError('Could not open the preview. Allow site storage in this browser and try again.') }
@@ -184,21 +217,29 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
     {notice && <p role="status">{notice}</p>}
     <fieldset className="workspace-fields" disabled={busy}>
       <div className="inv-editor-grid">
-        <label className="focus-field">Palette<select value={content.palette} onChange={event => set({ palette: event.target.value as InvitationContent['palette'] })}>
-          {palettes.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-        </select></label>
+        <label className="focus-field">Design<select value={design.id} onChange={event => {
+          const next = templateFor(event.target.value)
+          setDesign({ id: next.id, version: next.version, options: optionsFor(next, settings.template.options) })
+        }}>
+          {templates.map(template => <option key={template.id} value={template.id}>{template.name}{template.premium ? ' · Premium' : ''}</option>)}
+        </select><small>{design.description}</small></label>
         <label className="inv-editor-toggle"><input type="checkbox" checked={settings.enabled}
           onChange={event => setSettings({ ...settings, enabled: event.target.checked })} />Show this invitation to guests</label>
       </div>
 
-      <Group title="The couple" open>
+      <Group title="Design options" open>
+        <DesignOptions design={design} values={settings.template.options}
+          onChange={options => setDesign({ ...settings.template, options })} />
+      </Group>
+
+      <Group title="The couple" section="couple" design={design} open>
         <PersonFields title="Groom" person={content.groom} onChange={groom => set({ groom })} />
         <PersonFields title="Bride" person={content.bride} onChange={bride => set({ bride })} />
         <label className="inv-editor-toggle"><input type="checkbox" checked={content.brideFirst} onChange={event => set({ brideFirst: event.target.checked })} />
           Show the bride first (for invitations from the bride’s family)</label>
       </Group>
 
-      <Group title="Blessings and opening lines">
+      <Group title="Blessings and opening lines" section="blessing" design={design}>
         <fieldset className="inv-editor-box">
           <legend>Sacred symbols (up to three)</legend>
           <div className="inv-editor-checks">{symbols.map(option => <label key={option.value}><input type="checkbox"
@@ -220,7 +261,7 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
         <p className="inv-editor-hint">The couple photo comes from the cover photo under “Customize the wedding page”.</p>
       </Group>
 
-      <Group title="Festivities">
+      <Group title="Festivities" section="events" design={design}>
         {settings.events.length === 0 && <p>Add functions in the planner. They appear here with their date, time and venue.</p>}
         {settings.events.map(event => {
           const style = content.events[event.id]
@@ -239,18 +280,18 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
         <p className="inv-editor-hint">Each guest sees only the functions on their own link. Venue addresses and map links come from the planner’s places.</p>
       </Group>
 
-      <Group title="Family"><FamilyEditor families={content.families} onChange={families => set({ families })} /></Group>
+      <Group title="Family" section="family" design={design}><FamilyEditor families={content.families} onChange={families => set({ families })} /></Group>
 
-      <Group title="Venue, dress code and replies">
+      <Group title="Venue, dress code and replies" section="venue" design={design}>
         <div className="inv-editor-grid">
           <Field label="Dress code" value={content.dressCode} onChange={dressCode => set({ dressCode })} max={200} placeholder="Fancy enough to celebrate, comfortable enough to dance." />
           <Field label="Reply by" type="date" value={content.rsvpBy} onChange={rsvpBy => set({ rsvpBy })} max={10} />
         </div>
       </Group>
 
-      <Group title="Contacts"><ContactEditor contacts={content.contacts} onChange={contacts => set({ contacts })} /></Group>
+      <Group title="Contacts" section="contacts" design={design}><ContactEditor contacts={content.contacts} onChange={contacts => set({ contacts })} /></Group>
 
-      <Group title="Closing">
+      <Group title="Closing" section="closing" design={design}>
         <div className="inv-editor-grid">
           <Field label="Closing line" value={content.closing} onChange={closing => set({ closing })} max={120} />
           <Field label="Regards line" value={content.regardsIntro} onChange={regardsIntro => set({ regardsIntro })} max={60} />

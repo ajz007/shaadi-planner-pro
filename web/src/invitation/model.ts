@@ -1,7 +1,34 @@
 // Content model for the digital invitation. It mirrors invitationContent in
-// internal/workspace/workspace_invitation.go.
+// internal/workspace/workspace_invitation.go. Content is shared by every
+// template; a template only decides how it looks and which sections it shows.
+import manifests from './templates.json'
 
-export type Palette = 'rose-gold' | 'marigold' | 'royal'
+export type SectionKey = 'blessing' | 'hero' | 'countdown' | 'couple' | 'events' | 'rsvp' | 'family' | 'venue' | 'contacts' | 'closing'
+export type TemplateOption =
+  | { key: string; label: string; type: 'boolean'; default: boolean; help?: string }
+  | { key: string; label: string; type: 'text'; default: string; max: number; help?: string }
+  | { key: string; label: string; type: 'choice'; default: string; choices: { value: string; label: string }[]; help?: string }
+export type TemplateManifest = {
+  id: string; version: number; name: string; description: string; premium: boolean; sections: SectionKey[]; options: TemplateOption[]
+}
+export type OptionValues = Record<string, string | boolean>
+export type InvitationDesign = { id: string; version: number; options: OptionValues }
+
+export const templates = manifests as TemplateManifest[]
+export const defaultTemplateId = 'blush-envelope'
+export const templateFor = (id: string) => templates.find(template => template.id === id) ?? templates.find(template => template.id === defaultTemplateId)!
+
+// Fills in defaults and drops values the template doesn't declare, matching
+// the server's normalization.
+export function optionsFor(template: TemplateManifest, options: OptionValues = {}): OptionValues {
+  return Object.fromEntries(template.options.map(option => {
+    const value = options[option.key]
+    const valid = option.type === 'boolean' ? typeof value === 'boolean'
+      : option.type === 'choice' ? option.choices.some(choice => choice.value === value)
+        : typeof value === 'string' && value.length <= option.max
+    return [option.key, valid ? value : option.default]
+  }))
+}
 export type InvitationSymbol = 'om' | 'shri' | 'swastik' | 'kalash'
 export type EventIcon = '' | 'diya' | 'kalash' | 'haldi' | 'mehendi' | 'sangeet' | 'baraat' | 'varmala' | 'pheras'
   | 'vidaai' | 'reception' | 'rings' | 'dinner'
@@ -14,7 +41,6 @@ export type Contact = { name: string; role: string; phone: string }
 export type EventStyle = { icon: EventIcon; subtitle: string; timeLabel: string }
 
 export type InvitationContent = {
-  palette: Palette
   groom: InvitationPerson
   bride: InvitationPerson
   brideFirst: boolean
@@ -42,13 +68,8 @@ export type InvitationEvent = {
   id: string; name: string; startsAt: string; durationMinutes?: number
   place: string; address: string; mapUrl: string; familyOnly?: boolean
 }
-export type PublicInvitation = { content: InvitationContent; hasMusic: boolean; events: InvitationEvent[] }
+export type PublicInvitation = { template: InvitationDesign; content: InvitationContent; hasMusic: boolean; events: InvitationEvent[] }
 
-export const palettes: { value: Palette; label: string }[] = [
-  { value: 'rose-gold', label: 'Blush & Gold' },
-  { value: 'marigold', label: 'Marigold' },
-  { value: 'royal', label: 'Royal Maroon (dark)' },
-]
 export const symbols: { value: InvitationSymbol; label: string }[] = [
   { value: 'om', label: 'Om' }, { value: 'shri', label: 'Shri' }, { value: 'swastik', label: 'Swastik' }, { value: 'kalash', label: 'Kalash' },
 ]
@@ -69,7 +90,6 @@ export const vakratunda = 'वक्रतुण्ड महाकाय सू
 // replace the names; the ceremonial lines are common defaults they can edit.
 export function defaultContent(): InvitationContent {
   return {
-    palette: 'rose-gold',
     groom: emptyPerson('Son of', 'Chi.'),
     bride: emptyPerson('Daughter of', 'Chi. Sau. Ka.'),
     brideFirst: false,

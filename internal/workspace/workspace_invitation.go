@@ -28,9 +28,8 @@ import (
 const maxInvitationMusic = 5 << 20
 
 var (
-	invitationPalettes = []string{"rose-gold", "marigold", "royal"}
-	invitationSymbols  = []string{"om", "shri", "swastik", "kalash"}
-	invitationIcons    = []string{"", "diya", "kalash", "haldi", "mehendi", "sangeet", "baraat", "varmala", "pheras",
+	invitationSymbols = []string{"om", "shri", "swastik", "kalash"}
+	invitationIcons   = []string{"", "diya", "kalash", "haldi", "mehendi", "sangeet", "baraat", "varmala", "pheras",
 		"vidaai", "reception", "rings", "dinner"}
 	invitationPhone = regexp.MustCompile(`^\+?[0-9][0-9 -]{6,18}[0-9]$`)
 )
@@ -71,7 +70,6 @@ type invitationEventStyle struct {
 }
 
 type invitationContent struct {
-	Palette       string                          `json:"palette"`
 	Groom         invitationPerson                `json:"groom"`
 	Bride         invitationPerson                `json:"bride"`
 	BrideFirst    bool                            `json:"brideFirst"`
@@ -107,6 +105,7 @@ type invitationEvent struct {
 }
 
 type publicInvitation struct {
+	Template invitationDesign  `json:"template"`
 	Content  invitationContent `json:"content"`
 	HasMusic bool              `json:"hasMusic"`
 	Events   []invitationEvent `json:"events"`
@@ -137,10 +136,7 @@ func (p *invitationPerson) normalize() bool {
 }
 
 func (c *invitationContent) normalize() bool {
-	if c.Palette == "" {
-		c.Palette = invitationPalettes[0]
-	}
-	if !slices.Contains(invitationPalettes, c.Palette) || !c.Groom.normalize() || !c.Bride.normalize() || len(c.Symbols) > 3 {
+	if !c.Groom.normalize() || !c.Bride.normalize() || len(c.Symbols) > 3 {
 		return false
 	}
 	seen := map[string]bool{}
@@ -266,10 +262,12 @@ func scanInvitationEvent(row *sql.Rows, event *invitationEvent) error {
 // invitation. Only the listed functions are included, so a guest never sees
 // functions that are not on their own link.
 func loadPublicInvitation(ctx context.Context, tx *sql.Tx, wedding string, functionIDs []string) (*publicInvitation, error) {
-	var raw []byte
+	var raw, options []byte
+	var template string
+	var version int
 	var invitation publicInvitation
-	err := tx.QueryRowContext(ctx, `SELECT content,music IS NOT NULL FROM wedding_invitations WHERE wedding_id=$1 AND enabled`,
-		wedding).Scan(&raw, &invitation.HasMusic)
+	err := tx.QueryRowContext(ctx, `SELECT content,template_id,template_version,template_options,music IS NOT NULL
+		FROM wedding_invitations WHERE wedding_id=$1 AND enabled`, wedding).Scan(&raw, &template, &version, &options, &invitation.HasMusic)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -277,6 +275,7 @@ func loadPublicInvitation(ctx context.Context, tx *sql.Tx, wedding string, funct
 		return nil, err
 	}
 	invitation.Content = decodeInvitationContent(raw)
+	invitation.Template = storedDesign(template, version, options)
 	invitation.Events, err = queryWorkspace(ctx, tx, scanInvitationEvent, `SELECT `+invitationEventColumns+`
 		FROM wedding_functions f `+guestPlaceJoin+` WHERE f.wedding_id=$1 AND f.id=ANY($2::uuid[]) ORDER BY f.starts_at,f.id`,
 		wedding, functionIDs)
@@ -298,6 +297,7 @@ func loadPublicInvitation(ctx context.Context, tx *sql.Tx, wedding string, funct
 
 type invitationSettings struct {
 	Enabled   bool              `json:"enabled"`
+	Template  invitationDesign  `json:"template"`
 	Content   invitationContent `json:"content"`
 	HasMusic  bool              `json:"hasMusic"`
 	MusicName string            `json:"musicName"`
@@ -311,15 +311,18 @@ func (a *workspaceHTTP) invitationSettings(w http.ResponseWriter, r *http.Reques
 	}
 	ctx, wedding := r.Context(), r.PathValue("wedding")
 	var settings invitationSettings
-	var raw []byte
-	err := a.store.db.QueryRowContext(ctx, `SELECT enabled,content,music IS NOT NULL,music_name,revision
-		FROM wedding_invitations WHERE wedding_id=$1`, wedding).
-		Scan(&settings.Enabled, &raw, &settings.HasMusic, &settings.MusicName, &settings.Revision)
+	var raw, options []byte
+	var template string
+	var version int
+	err := a.store.db.QueryRowContext(ctx, `SELECT enabled,content,template_id,template_version,template_options,
+		music IS NOT NULL,music_name,revision FROM wedding_invitations WHERE wedding_id=$1`, wedding).
+		Scan(&settings.Enabled, &raw, &template, &version, &options, &settings.HasMusic, &settings.MusicName, &settings.Revision)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		workspaceFailure(w, err)
 		return
 	}
 	settings.Content = decodeInvitationContent(raw)
+	settings.Template = storedDesign(template, version, options)
 	settings.Events, err = queryWorkspace(ctx, a.store.db, scanInvitationEvent, `SELECT `+invitationEventColumns+`
 		FROM wedding_functions f `+guestPlaceJoin+` WHERE f.wedding_id=$1 ORDER BY f.starts_at,f.id`, wedding)
 	if err != nil {
@@ -331,8 +334,10 @@ func (a *workspaceHTTP) invitationSettings(w http.ResponseWriter, r *http.Reques
 
 // Saving uses the same revision check for a first save (revision 0) and later
 // saves, so two organizers editing at once cannot overwrite each other.
-const saveInvitation = `INSERT INTO wedding_invitations AS saved(wedding_id,enabled,content,music,music_name)
-	SELECT $1::uuid,$3::boolean,$4::jsonb,$6::bytea,$7::text WHERE $5::integer=0 AND ` + planningOrganizer + `
+const saveInvitation = `INSERT INTO wedding_invitations AS saved(wedding_id,enabled,content,music,music_name,
+		template_id,template_version,template_options)
+	SELECT $1::uuid,$3::boolean,$4::jsonb,$6::bytea,$7::text,$8::text,$9::integer,$10::jsonb
+	WHERE $5::integer=0 AND ` + planningOrganizer + `
 	ON CONFLICT (wedding_id) DO NOTHING RETURNING revision`
 
 func (a *workspaceHTTP) saveInvitationSettings(w http.ResponseWriter, r *http.Request, actor string) {
@@ -342,12 +347,22 @@ func (a *workspaceHTTP) saveInvitationSettings(w http.ResponseWriter, r *http.Re
 	var input struct {
 		Enabled  bool              `json:"enabled"`
 		Content  invitationContent `json:"content"`
-		Revision int               `json:"revision"`
+		Template struct {
+			ID      string         `json:"id"`
+			Options map[string]any `json:"options"`
+		} `json:"template"`
+		Revision int `json:"revision"`
 	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
-	if input.Revision < 0 || !input.Content.normalize() {
+	template, known := invitationTemplates[input.Template.ID]
+	if !known {
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Choose an available invitation design.")
+		return
+	}
+	options, valid := template.normalize(input.Template.Options, true)
+	if input.Revision < 0 || !valid || !input.Content.normalize() {
 		workspaceFailure(w, errWorkspaceInput)
 		return
 	}
@@ -356,15 +371,24 @@ func (a *workspaceHTTP) saveInvitationSettings(w http.ResponseWriter, r *http.Re
 		workspaceFailure(w, err)
 		return
 	}
+	optionJSON, err := json.Marshal(options)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
 	ctx, wedding := r.Context(), r.PathValue("wedding")
 	var revision int
 	if input.Revision == 0 {
-		err = scanWorkspace(a.store.db.QueryRowContext(ctx, saveInvitation, wedding, actor, input.Enabled, string(content), 0, nil, ""), &revision)
+		err = scanWorkspace(a.store.db.QueryRowContext(ctx, saveInvitation, wedding, actor, input.Enabled, string(content), 0, nil, "",
+			template.ID, template.Version, string(optionJSON)), &revision)
 	} else {
+		// Saving from the editor moves the wedding to the template's current
+		// version; until then a live invitation keeps the version it was saved with.
 		err = scanWorkspace(a.store.db.QueryRowContext(ctx, `UPDATE wedding_invitations
-			SET enabled=$3,content=$4::jsonb,revision=revision+1,updated_at=now()
+			SET enabled=$3,content=$4::jsonb,template_id=$6,template_version=$7,template_options=$8::jsonb,
+				revision=revision+1,updated_at=now()
 			WHERE wedding_id=$1 AND revision=$5 AND `+planningOrganizer+` RETURNING revision`,
-			wedding, actor, input.Enabled, string(content), input.Revision), &revision)
+			wedding, actor, input.Enabled, string(content), input.Revision, template.ID, template.Version, string(optionJSON)), &revision)
 	}
 	if err != nil {
 		workspaceFailure(w, runSheetConflict(err))
@@ -410,7 +434,8 @@ func (a *workspaceHTTP) saveInvitationMusic(w http.ResponseWriter, r *http.Reque
 	ctx, wedding := r.Context(), r.PathValue("wedding")
 	var saved int
 	if revision == 0 {
-		err = scanWorkspace(a.store.db.QueryRowContext(ctx, saveInvitation, wedding, actor, false, "{}", 0, music, name), &saved)
+		err = scanWorkspace(a.store.db.QueryRowContext(ctx, saveInvitation, wedding, actor, false, "{}", 0, music, name,
+			defaultInvitationTemplate, invitationTemplates[defaultInvitationTemplate].Version, "{}"), &saved)
 	} else {
 		err = scanWorkspace(a.store.db.QueryRowContext(ctx, `UPDATE wedding_invitations
 			SET music=$3::bytea,music_name=$4,revision=revision+1,updated_at=now()

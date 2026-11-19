@@ -23,14 +23,13 @@ func TestInvitationContentValidation(t *testing.T) {
 	if !valid.normalize() {
 		t.Fatal("expected valid content")
 	}
-	if valid.Palette != "rose-gold" || valid.Groom.Name != "Aarav Sharma" || valid.Shloka != "line one\nline two" {
+	if valid.Groom.Name != "Aarav Sharma" || valid.Shloka != "line one\nline two" {
 		t.Fatalf("content was not normalized: %+v", valid)
 	}
 	if len(valid.Events) != 1 || len(valid.Families) != 0 {
 		t.Fatalf("empty styles and families should be dropped: %+v", valid)
 	}
 	invalid := []func(*invitationContent){
-		func(c *invitationContent) { c.Palette = "neon" },
 		func(c *invitationContent) { c.Symbols = []string{"om", "om"} },
 		func(c *invitationContent) { c.Symbols = []string{"om", "shri", "swastik", "kalash"} },
 		func(c *invitationContent) { c.Events = map[string]invitationEventStyle{"not-a-uuid": {Icon: "haldi"}} },
@@ -56,6 +55,40 @@ func TestInvitationContentValidation(t *testing.T) {
 	}
 }
 
+func TestInvitationTemplates(t *testing.T) {
+	template, ok := invitationTemplates[defaultInvitationTemplate]
+	if !ok || len(template.Sections) == 0 {
+		t.Fatal("the default template must load from the shared manifest")
+	}
+	options, ok := template.normalize(map[string]any{"palette": "royal"}, true)
+	if !ok || options["palette"] != "royal" || options["flightPath"] != true || options["envelopeHint"] != "" {
+		t.Fatalf("missing options should take their defaults: %v", options)
+	}
+	for _, bad := range []map[string]any{{"palette": "neon"}, {"lanterns": "yes"}, {"unknown": true},
+		{"envelopeHint": strings.Repeat("x", 101)}} {
+		if _, ok := template.normalize(bad, true); ok {
+			t.Errorf("expected %v to be rejected", bad)
+		}
+	}
+	if options, _ := template.normalize(map[string]any{"palette": "neon", "old": 1}, false); options["palette"] != "rose-gold" {
+		t.Fatal("stored values that no longer fit should fall back to defaults")
+	}
+	if design := storedDesign("retired-design", 7, []byte(`{"palette":"royal"}`)); design.ID != defaultInvitationTemplate ||
+		design.Version != template.Version || design.Options["palette"] != "royal" {
+		t.Fatalf("a removed template should fall back to the default: %+v", design)
+	}
+	for name, manifest := range map[string]string{
+		"unknown section": `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero","gallery"],"options":[]}]`,
+		"bad default":     `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero"],"options":[{"key":"k","label":"K","type":"boolean","default":"no"}]}]`,
+		"no default":      `[{"id":"other","version":1,"name":"A","sections":["hero"],"options":[]}]`,
+		"text no max":     `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero"],"options":[{"key":"k","label":"K","type":"text","default":""}]}]`,
+	} {
+		if _, err := loadTemplates([]byte(manifest)); err == nil {
+			t.Errorf("%s: expected the manifest to be rejected", name)
+		}
+	}
+}
+
 type testRequest func(method, path, body, requestOrigin string, cookie *http.Cookie, want int) *httptest.ResponseRecorder
 
 func testInvitationHTTP(t *testing.T, request testRequest, handler http.Handler, origin, rsvpPath string, owner, brother *http.Cookie,
@@ -65,17 +98,19 @@ func testInvitationHTTP(t *testing.T, request testRequest, handler http.Handler,
 	request("GET", path, "", "", brother, 404)
 	var settings invitationSettings
 	if rec := request("GET", path, "", "", owner, 200); json.Unmarshal(rec.Body.Bytes(), &settings) != nil ||
-		settings.Revision != 0 || settings.Enabled || len(settings.Events) < 2 {
+		settings.Revision != 0 || settings.Enabled || len(settings.Events) < 2 || settings.Template.ID != "blush-envelope" {
 		t.Fatalf("unexpected first invitation settings: %s", rec.Body)
 	}
-	request("POST", path, `{"enabled":true,"revision":0,"content":{"palette":"neon"}}`, origin, owner, 422)
-	request("POST", path, `{"enabled":true,"revision":0,"content":{}}`, "https://other.example", owner, 403)
-	request("POST", path, `{"enabled":true,"revision":0,"content":{}}`, origin, brother, 404)
+	design := `"template":{"id":"blush-envelope","options":{"palette":"royal","lanterns":false}}`
+	request("POST", path, `{"enabled":true,"revision":0,"content":{},"template":{"id":"blush-envelope","options":{"palette":"neon"}}}`, origin, owner, 422)
+	request("POST", path, `{"enabled":true,"revision":0,"content":{},"template":{"id":"no-such-design","options":{}}}`, origin, owner, 422)
+	request("POST", path, `{"enabled":true,"revision":0,"content":{},`+design+`}`, "https://other.example", owner, 403)
+	request("POST", path, `{"enabled":true,"revision":0,"content":{},`+design+`}`, origin, brother, 404)
 	content := `{"groom":{"name":"Aarav Sharma","shortName":"Aarav"},"bride":{"name":"Meera Iyer","shortName":"Meera"},` +
 		`"events":{"` + sangeet + `":{"icon":"sangeet","subtitle":"Dance night","timeLabel":""},"` + reception +
 		`":{"icon":"reception","subtitle":"followed by dinner","timeLabel":""}},"contacts":[{"name":"Rohan","role":"Brother","phone":"9876543210"}]}`
 	save := func(enabled bool, revision, want int) *httptest.ResponseRecorder {
-		return request("POST", path, `{"enabled":`+strconv.FormatBool(enabled)+`,"revision":`+strconv.Itoa(revision)+`,"content":`+content+`}`,
+		return request("POST", path, `{"enabled":`+strconv.FormatBool(enabled)+`,"revision":`+strconv.Itoa(revision)+`,"content":`+content+`,`+design+`}`,
 			origin, owner, want)
 	}
 	save(false, 0, 200)
@@ -89,7 +124,9 @@ func testInvitationHTTP(t *testing.T, request testRequest, handler http.Handler,
 	var rsvp struct{ Invitation *publicInvitation }
 	if rec := request("POST", "/api/guest-rsvp", `{"token":"`+householdSecret+`"}`, origin, nil, 200); json.Unmarshal(rec.Body.Bytes(), &rsvp) != nil ||
 		rsvp.Invitation == nil || rsvp.Invitation.Content.Groom.ShortName != "Aarav" || len(rsvp.Invitation.Events) != 2 ||
-		rsvp.Invitation.HasMusic || len(rsvp.Invitation.Content.Contacts) != 1 || strings.Contains(rec.Body.String(), "familyOnly") {
+		rsvp.Invitation.HasMusic || len(rsvp.Invitation.Content.Contacts) != 1 || rsvp.Invitation.Template.ID != "blush-envelope" ||
+		rsvp.Invitation.Template.Options["palette"] != "royal" || rsvp.Invitation.Template.Options["lanterns"] != false ||
+		rsvp.Invitation.Template.Options["flightPath"] != true || strings.Contains(rec.Body.String(), "familyOnly") {
 		t.Fatalf("household link should show the invitation with its two functions: %s", rec.Body)
 	}
 	var schedule struct{ Invitation *publicInvitation }

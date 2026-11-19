@@ -125,3 +125,5 @@
 .inv-editor-file { position: relative; overflow: hidden; cursor: pointer; }
 .inv-editor-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .inv-editor-save { position: sticky; bottom: .5rem; z-index: 2; padding: .6rem; background: #fffaf3; border: 1px solid #e3cab6; border-radius: .7rem; }
+.inv-editor-group.is-unused > summary { opacity: .65; }
+.inv-editor-group > summary small { font-weight: 500; }
