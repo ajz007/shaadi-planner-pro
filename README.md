@@ -1,6 +1,6 @@
 # Shaadi Planner Pro
 
-Shaadi Planner Pro has a signed-in wedding planner, a read-only sample wedding that uses the same organizer screens, a filled Excel workbook example, and a separate local RSVP sandbox. It uses Go 1.24, React and TypeScript. See the [workbook-to-web plan](WORKBOOK-TO-WEB.md) for the screen map and the [current roadmap](WORKBOOK-TO-WEB.md#current-roadmap-after-the-sample-review) for the gaps and priorities from the sample review.
+Shaadi Planner Pro has a signed-in wedding planner, a read-only sample wedding that uses the same organizer screens, a filled Excel workbook example, and a separate local RSVP sandbox. It uses Go 1.24, React and TypeScript. See the [digital invitations plan](INVITATIONS-PLAN.md) for the animated guest invitation. See the [workbook-to-web plan](WORKBOOK-TO-WEB.md) for the screen map and the [current roadmap](WORKBOOK-TO-WEB.md#current-roadmap-after-the-sample-review) for the gaps and priorities from the sample review.
 
 ## Run the demo
 

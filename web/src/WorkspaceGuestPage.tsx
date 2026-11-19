@@ -4,6 +4,7 @@ import type { Plan } from './Workspace'
 import { useWorkspaceData } from './WorkspaceData'
 import { WeddingInvitationHeader, weddingDay } from './GuestWeddingPage'
 import type { GuestPage } from './GuestWeddingPage'
+import { WorkspaceInvitation } from './WorkspaceInvitation'
 
 type PageSettings = GuestPage & { revision: number }
 type ScheduleLink = { id: string; date: string; functionId: string; familyFunctionIds: string[]; expiresAt: string; url: string }
@@ -90,6 +91,7 @@ export function WorkspaceGuestPage({ path, wedding, functions, onSavedDesign }: 
     finally { setPageBusy(false) }
   }
   return <>
+    <WorkspaceInvitation path={path} page={page} />
     <details className="focus-card guest-page-editor">
       <summary>Customize the wedding page</summary>
       <p>Your cover, welcome message, and style appear on RSVP and shared schedule links.</p>

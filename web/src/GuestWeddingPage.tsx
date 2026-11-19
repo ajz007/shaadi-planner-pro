@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { functionLocalTime } from './WorkspacePlanning'
+import { greetingFor } from './invitation/model'
+import type { PublicInvitation } from './invitation/model'
 import './guest-wedding.css'
+
+const LazyInvitation = lazy(() => import('./invitation/Invitation').then(module => ({ default: module.Invitation })))
+const Invitation = (props: React.ComponentProps<typeof LazyInvitation>) =>
+  <Suspense fallback={<p className="guest-wedding-page" role="status">Opening your invitation…</p>}><LazyInvitation {...props} /></Suspense>
 
 export type GuestPageDesign = { heading: string; welcome: string; theme: 'marigold' | 'rose'; coverPhoto?: string }
 export type GuestPage = { name: string; date: string; timeZone: string; design: GuestPageDesign }
@@ -14,9 +20,9 @@ type Invitation = {
   id: string; guest: string; guestId: string; function: string; functionId: string; startsAt: string; venue?: string
   status: 'pending' | ReplyStatus; revision: number
 }
-type GuestData = GuestPage & { invitations: Invitation[]; travel: GuestTravel[] }
+type GuestData = GuestPage & { invitations: Invitation[]; travel: GuestTravel[]; invitation?: PublicInvitation }
 type Event = { name: string; startsAt: string; venue: string; mapUrl: string }
-type Schedule = GuestPage & { events: Event[] }
+type Schedule = GuestPage & { events: Event[]; invitation?: PublicInvitation }
 
 export const weddingDay = (startsAt: string, zone: string) => functionLocalTime(startsAt, zone).split('T')[0]
 export const formatDay = (date: string) => new Intl.DateTimeFormat('en-IN', {
@@ -69,6 +75,14 @@ async function pageRequest<T>(route: 'guest-rsvp' | 'guest-schedule', token: str
   if (response.status === 409) throw new Error('These plans changed. Reload the page to see the latest replies.')
   if (!response.ok) throw new Error('Could not complete the request. Check the details and try again.')
   return response.json()
+}
+
+async function loadMusic(token: string) {
+  const response = await fetch('/api/guest-invitation-music', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'omit', body: JSON.stringify({ token }),
+  })
+  if (!response.ok) throw new Error('Music is unavailable.')
+  return response.blob()
 }
 
 export function LiveGuestRSVP({ token, initialDay, initialFunction }: { token: string; initialDay: string; initialFunction: string }) {
@@ -152,38 +166,48 @@ export function LiveGuestRSVP({ token, initialDay, initialFunction }: { token: s
   const days = data ? invitationsByDay(visible, data.timeZone) : []
   const activeFilter = data && visible.length !== data.invitations.length
   const changes = Object.keys(draft).length
-  return <main className="guest-wedding-page" data-theme={data?.design.theme}>
-    {data ? <WeddingInvitationHeader page={data} label="You’re invited" /> : <h1>Wedding invitation</h1>}
-    {!data && !error && <p role="status">Opening your invitation…</p>}
-    {data && <>
-      <nav className="invite-page-nav" aria-label="Wedding invitation">
-        <button type="button" onClick={() => document.getElementById('attendance')?.scrollIntoView()}>RSVP</button>
-        <button type="button" onClick={() => document.getElementById('arrival')?.scrollIntoView()}>Arrival plans</button>
-      </nav>
-      <section className="invite-panel" id="attendance">
-        <h2>Will you join us?</h2>
-        <p>Confirm the days that work for your household. Open a day to change plans for a guest or function.</p>
-        {activeFilter && <button type="button" className="invite-secondary" onClick={() => setShowFullInvitation(true)}>Show full invitation</button>}
-        {days.map(([day, rows]) => <AttendanceDay key={day} day={day} rows={rows} zone={data.timeZone}
-          draft={draft} busy={busy} setReplies={setReplies} undoReplies={undoReplies} />)}
-        <div className="invite-actions invite-save">
-          <button type="button" disabled={busy || !changes} onClick={() => void saveReplies()}>{busy ? 'Saving…' : 'Confirm RSVP'}</button>
-          {changes > 0 && <button type="button" className="invite-secondary" disabled={busy} onClick={() => undoReplies(visible)}>Clear unsaved choices</button>}
-        </div>
-      </section>
-      <section className="invite-panel" id="arrival">
-        <h2>Arrival plans</h2>
-        <p>Share what you know. You can update the details when your travel is confirmed.</p>
-        {data.travel.map(person => <details key={person.guestId} className="invite-travel">
-          <summary>{person.guest} <small>{person.arrivalDate ? formatDay(person.arrivalDate) : 'Arrival date pending'}</small></summary>
-          <TravelForm person={person} busy={busy} save={saveTravel} />
-        </details>)}
-      </section>
-    </>}
+  const music = useCallback(() => loadMusic(token), [token])
+  const panels = data && <>
+    {!data.invitation && <nav className="invite-page-nav" aria-label="Wedding invitation">
+      <button type="button" onClick={() => document.getElementById('attendance')?.scrollIntoView()}>RSVP</button>
+      <button type="button" onClick={() => document.getElementById('arrival')?.scrollIntoView()}>Arrival plans</button>
+    </nav>}
+    <section className="invite-panel" id="attendance">
+      <h2>{data.invitation ? 'Your reply' : 'Will you join us?'}</h2>
+      <p>Confirm the days that work for your household. Open a day to change plans for a guest or function.</p>
+      {activeFilter && <button type="button" className="invite-secondary" onClick={() => setShowFullInvitation(true)}>Show full invitation</button>}
+      {days.map(([day, rows]) => <AttendanceDay key={day} day={day} rows={rows} zone={data.timeZone}
+        draft={draft} busy={busy} setReplies={setReplies} undoReplies={undoReplies} />)}
+      <div className="invite-actions invite-save">
+        <button type="button" disabled={busy || !changes} onClick={() => void saveReplies()}>{busy ? 'Saving…' : 'Confirm RSVP'}</button>
+        {changes > 0 && <button type="button" className="invite-secondary" disabled={busy} onClick={() => undoReplies(visible)}>Clear unsaved choices</button>}
+      </div>
+    </section>
+    <section className="invite-panel" id="arrival">
+      <h2>Arrival plans</h2>
+      <p>Share what you know. You can update the details when your travel is confirmed.</p>
+      {data.travel.map(person => <details key={person.guestId} className="invite-travel">
+        <summary>{person.guest} <small>{person.arrivalDate ? formatDay(person.arrivalDate) : 'Arrival date pending'}</small></summary>
+        <TravelForm person={person} busy={busy} save={saveTravel} />
+      </details>)}
+    </section>
+  </>
+  const feedback = <>
     {notice && <p role="status" className="invite-feedback">{notice}</p>}
     {error && <p role="alert" className="invite-feedback">{error} <button type="button" className="invite-secondary" onClick={() => {
       setError(''); setNotice(''); setDraft({}); setShowFullInvitation(false); setData(undefined); setReload(value => value + 1)
     }}>Reload page</button></p>}
+  </>
+  if (data?.invitation) {
+    return <Invitation page={data} invitation={data.invitation} loadMusic={music}
+      greeting={greetingFor([...new Map(data.invitations.map(row => [row.guestId, row.guest])).values()])}
+      rsvp={<div className="guest-wedding-page" data-theme={data.design.theme}>{panels}{feedback}</div>} />
+  }
+  return <main className="guest-wedding-page" data-theme={data?.design.theme}>
+    {data ? <WeddingInvitationHeader page={data} label="You’re invited" /> : <h1>Wedding invitation</h1>}
+    {!data && !error && <p role="status">Opening your invitation…</p>}
+    {panels}
+    {feedback}
   </main>
 }
 
@@ -279,6 +303,8 @@ export function LiveWeddingSchedule({ token }: { token: string }) {
     return () => controller.abort()
   }, [token])
   const days = data ? [...new Set(data.events.map(row => weddingDay(row.startsAt, data.timeZone)))] : []
+  const music = useCallback(() => loadMusic(token), [token])
+  if (data?.invitation) return <Invitation page={data} invitation={data.invitation} loadMusic={music} />
   return <main className="guest-wedding-page" data-theme={data?.design.theme}>
     {data ? <WeddingInvitationHeader page={data} label="Wedding schedule" /> : <h1>Wedding schedule</h1>}
     {!data && !error && <p role="status">Opening the schedule…</p>}
