@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import catalog from './shop-catalog.json'
 import './shop.css'
+import { ProductImage } from './ProductImage'
 
 export type ShopProduct = (typeof catalog)[number]
 export const featured = catalog[0]
@@ -12,38 +13,6 @@ export const rupees = (paise: number) => new Intl.NumberFormat('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: paise % 100 === 0 ? 0 : 2,
 }).format(paise / 100)
 
-const planner = [
-  'Blank and filled wedding workbooks for multiple functions.',
-  'Dashboard, budget and vendor payment trackers, and guest and RSVP follow-up.',
-  'Rooms, pickups, family responsibilities, wedding timeline, outfits, gifts and emergency contacts.',
-  'Quick Start Guide and 14-Day Final Wedding Checklist.',
-]
-const complete = [
-  'Blank and filled wedding planning workbooks, Quick Start and 14-Day Final Wedding Checklist.',
-  'Vendor comparison workbook with blank and filled versions, negotiation playbook, editable scripts, and a before-you-book checklist.',
-  '38 WhatsApp and RSVP templates for guests, vendors, logistics, payments and last-minute updates.',
-]
-const core = [
-  'Complete two-anchor Hinglish script with editable Word version.',
-  '63-page script vault with performance introductions, transitions and funny or emotional lines.',
-  'Editable DJ and run-of-show cue sheet, emergency rescue card and quick customisation guide.',
-]
-const pro = [
-  ...core,
-  'Solo-anchor script and 12 audience games with host lines.',
-  '60-, 90- and 120-minute event structures, contingency planning and a rehearsal checklist.',
-]
-
-export const productContents: Record<string, string[]> = {
-  essentials: [...planner, 'Start Here guide with a suggested setup order.'],
-  'gujarati-planner': ['Gujarati v1.3.1 blank and filled workbooks.', 'Gujarati Quick Start Guide and 14-Day Final Wedding Checklist.', 'Gujarati readme and version changelog.'],
-  complete,
-  'all-in-one': [...complete, 'Sangeet Host Kit PRO with solo and two-anchor scripts, games, DJ cues, event flow and rehearsal tools.'],
-  'message-pack': ['35 ready-to-copy messages in one PDF.', 'RSVPs, hotel rooms, airport and railway pickups, and family task reminders.', 'Vendor quotations, negotiations, service confirmations and payments.', 'Wedding-day updates, emergencies and post-wedding thank-yous.'],
-  'sangeet-host-kit': core,
-  'sangeet-host-kit-pro': pro,
-}
-
 export function ShopNav() {
   return <nav className="shop-nav" aria-label="Shop">
     <a className="shop-brand" href="/">ShaadiPlannerPro</a>
@@ -53,12 +22,15 @@ export function ShopNav() {
 
 function ProductCard({ item }: { item: ShopProduct }) {
   return <article className="shop-card">
-    <p className="shop-format">{item.format}</p>
-    <h3><a href={productURL(item)}>{item.name}</a></h3>
-    <p>{item.summary}</p>
-    <div className="shop-card-end">
-      <strong>{rupees(item.amount)}</strong>
-      <a href={productURL(item)} aria-label={'View ' + item.name}>View details <span aria-hidden="true">→</span></a>
+    <a className="shop-cover-link" href={productURL(item)} aria-label={'See ' + item.name}><ProductImage slug={item.slug} /></a>
+    <div className="shop-card-copy">
+      <p className="shop-format">{item.format}</p>
+      <h3><a href={productURL(item)}>{item.name}</a></h3>
+      <p>{item.summary}</p>
+      <div className="shop-card-end">
+        <strong>{rupees(item.amount)}</strong>
+        <a href={productURL(item)} aria-label={'View ' + item.name}>View details <span aria-hidden="true">→</span></a>
+      </div>
     </div>
   </article>
 }
@@ -81,10 +53,7 @@ export function Shop() {
           <a href="/#dashboard">Preview the workbook</a>
         </div>
       </div>
-      <aside className="shop-included">
-        <h3>Plan every function</h3>
-        <ul><li>Guests and RSVP follow-ups</li><li>Budget and vendor payments</li><li>Rooms and pickups</li><li>Family tasks and wedding timeline</li></ul>
-      </aside>
+      <a className="shop-feature-image" href={productURL(featured)} aria-label="See Essentials"><ProductImage slug={featured.slug} eager /></a>
     </section>
     {['Planning', 'Messages & hosting'].map(group => <section className="shop-section" key={group} aria-label={group}>
       <h2>{group === 'Planning' ? 'Planning workbooks & bundles' : group}</h2>
@@ -93,25 +62,13 @@ export function Shop() {
     </section>)}
     <section className="shop-section" aria-labelledby="shop-online">
       <h2 id="shop-online">Online planner</h2>
-      <div className="shop-pass">
-        <div><h3>{weddingPass.name}</h3><p>{weddingPass.summary}</p><p><strong>{rupees(weddingPass.amount)}</strong> planned one-time price for one wedding.</p></div>
-        <a href={productURL(weddingPass)}>Preview Wedding Pass <span aria-hidden="true">→</span></a>
+      <div className="shop-online-showcase">
+        <div><p className="shop-format">INVITATIONS · RSVPS · FAMILY COORDINATION</p><h3>An invitation they’ll love.<br /><em>A plan your family can share.</em></h3>
+          <p>{weddingPass.summary}</p><a href={productURL(weddingPass)}>Discover the online planner <span aria-hidden="true">↗</span></a></div>
+        <a href={productURL(weddingPass)} className="shop-online-invite" aria-label="Preview the Online Planner invitation">
+          <span>You’re invited</span><strong>Meera <em>&amp;</em> Aarav</strong><span>15 February 2027 · Varanasi</span><span className="shop-online-seal">M &amp; A</span>
+        </a>
       </div>
-    </section>
-  </main>
-}
-
-export function WeddingPass() {
-  useEffect(() => { document.title = 'Wedding Pass | ShaadiPlannerPro' }, [])
-  return <main className="public-shell wedding-shop">
-    <ShopNav />
-    <header className="shop-intro"><h1>{weddingPass.name}</h1><p>{weddingPass.summary}</p></header>
-    <section className="shop-pass">
-      <div>
-        <h2>{rupees(weddingPass.amount)} planned one-time price</h2>
-        <p>Online planning for one wedding. Checkout is coming later.</p>
-      </div>
-      <a className="shop-primary" href="/#demo">Explore the sample wedding</a>
     </section>
   </main>
 }

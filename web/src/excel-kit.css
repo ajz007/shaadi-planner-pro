@@ -21,6 +21,29 @@
 .excel-reference { overflow-wrap: anywhere; font-size: .9rem; }
 .excel-purchase { max-width: 43rem; }
 .excel-purchase .excel-card + .excel-card, .excel-status-actions { margin-top: 1rem; }
+.product-sales { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(17rem, 1fr); align-items: start; gap: 1.75rem; }
+.product-sales-main { min-width: 0; }
+.product-sales-main .product-image { background: #f4e9dc; border-radius: .8rem; overflow: hidden; }
+.product-sales-main .product-image img { max-height: 650px; object-fit: contain; }
+.product-purchase { position: sticky; top: 1.25rem; grid-column: 2; grid-row: 1 / span 2; scroll-margin-top: 1rem; }
+.product-purchase button { width: 100%; white-space: normal; }
+.product-requirements { color: #654740; font-size: .9rem; }
+.product-introduction { margin-top: 1.35rem; }
+.product-introduction p { margin-bottom: .85rem; }
+.product-full-description { grid-column: 1; }
+.product-description section { padding: 1.35rem 0; border-top: 1px solid #e2d7ca; }
+.product-description h2 { font-size: 1.6rem; margin-bottom: .75rem; }
+.product-description :is(ul,ol) { padding-left: 1.3rem; margin: .8rem 0 0; }
+.product-description li + li { margin-top: .4rem; }
+.product-description .product-closing { font: 700 1.3rem/1.4 Georgia, serif; margin: 1.1rem 0; }
+.product-return { display: inline-flex; align-items: center; min-height: 44px; padding: .55rem .85rem; border: 1px solid #762747; border-radius: .5rem; margin-bottom: 1rem; }
+.hosting-comparison { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.hosting-comparison caption { text-align: left; margin-bottom: .5rem; }
+.hosting-comparison :is(th,td) { padding: .65rem .4rem; border-bottom: 1px solid #e2d7ca; text-align: left; overflow-wrap: anywhere; }
+.hosting-comparison tbody th { font-weight: 500; }
 @media (max-width: 740px) {
   .excel-product { grid-template-columns: minmax(0, 1fr); }
+  .product-sales { display: flex; flex-direction: column; gap: 1rem; }
+  .product-sales > * { width: 100%; }
+  .product-purchase { position: static; }
 }

@@ -6,7 +6,7 @@
 .shop-intro { margin: 0 0 1.4rem; }
 .shop-intro h1 { font-size: clamp(2.5rem, 7vw, 4.25rem); }
 .shop-intro p { max-width: 57ch; }
-.shop-feature { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: center; gap: 1.3rem; padding: clamp(1.2rem, 4vw, 2.6rem); border-radius: 1.1rem; color: var(--shop-cream); background: var(--shop-green); }
+.shop-feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: center; gap: 1.5rem; padding: clamp(1.2rem, 4vw, 2rem); border-radius: 1.1rem; color: var(--shop-cream); background: var(--shop-green); }
 .shop-feature h2 { font: 700 clamp(2rem, 6vw, 3.25rem)/1.1 Georgia, serif; }
 .shop-format { font-size: .85rem; font-weight: 650; }
 .shop-feature .shop-format { color: #dbe7c6; }
@@ -20,9 +20,17 @@
 .shop-section { margin-top: 1.65rem; }
 .shop-section h2 { font: 700 clamp(1.45rem, 4vw, 2rem) Georgia, serif; }
 .shop-comparison { max-width: 76ch; }
-.shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr)); gap: .85rem; }
+.shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.1rem; }
 .shop-card, .shop-pass { background: #fffdf8; border: 1px solid var(--shop-line); border-radius: .8rem; padding: 1rem; }
-.shop-card { display: flex; flex-direction: column; }
+.shop-card { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.shop-card-copy { display: flex; flex-direction: column; flex: 1; padding: 1.1rem; }
+.product-image { margin: 0; }
+.product-image img { display: block; width: 100%; height: auto; }
+.product-image figcaption { padding: .45rem .6rem; font-size: .8rem; color: #654740; background: #fff8e9; }
+.shop-cover-link { display: block; background: #f4e9dc; }
+.shop-cover-link .product-image img { height: 210px; object-fit: contain; }
+.shop-cover-link .product-image:not(.product-image-gujarati-planner) img { background: #f4e9dc; }
+.shop-feature-image { display: block; border-radius: .7rem; overflow: hidden; }
 .shop-card .shop-format { color: #654740; }
 .shop-card h3 { font: 700 1.3rem/1.25 Georgia, serif; }
 .shop-card h3 a { text-decoration: none; color: inherit; }
@@ -33,4 +41,16 @@
 .shop-pass { padding: 1.15rem; }
 .shop-pass > div { max-width: 50ch; }
 .shop-pass p:last-child { margin-bottom: 0; }
-@media (max-width: 640px) { .shop-feature { grid-template-columns: minmax(0, 1fr); } }
+.shop-online-showcase { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); align-items: center; gap: 2rem; background: #203c32; color: #fff8e9; padding: clamp(1.25rem,4vw,2.5rem); border-radius: 1rem; }
+.shop-online-showcase h3 { font: 400 clamp(1.75rem,3.5vw,2.65rem)/1.15 Georgia,serif; margin: .8rem 0; }
+.shop-online-showcase h3 em { color: #d9c59e; }
+.shop-online-showcase > div > p { max-width: 45ch; color: #d9e0cc; }
+.shop-online-showcase > div > a { display: inline-flex; align-items: center; gap: .75rem; min-height: 44px; color: #fff8e9; font-weight: 650; }
+.shop-online-invite { display: flex; flex-direction: column; align-items: center; gap: .65rem; background: #fff5e5; border: 1px solid #c7a771; color: #762747; padding: 1.6rem 1rem; border-radius: 45% 45% .5rem .5rem / 15% 15% .5rem .5rem; text-decoration: none; transform: rotate(3deg); }
+.shop-online-invite strong { font: 400 2rem Georgia,serif; text-align: center; }
+.shop-online-invite strong em { display: block; font-size: 1.2rem; }
+.shop-online-invite > span { font-size: .75rem; }
+.shop-online-invite .shop-online-seal { background: #762747; color: #fff0cf; border: 2px solid #b18c4e; width: 55px; height: 55px; display: grid; place-items: center; border-radius: 50%; margin-top: .2rem; font: 1rem Georgia,serif; }
+@media (max-width: 900px) { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .shop-feature, .shop-grid { grid-template-columns: minmax(0, 1fr); } .shop-cover-link .product-image img { height: auto; max-height: 420px; } }
+@media (max-width: 640px) { .shop-online-showcase { grid-template-columns: minmax(0,1fr); } .shop-online-invite { transform: none; max-width: 330px; width: 100%; margin-inline: auto; } }

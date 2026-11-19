@@ -4,10 +4,11 @@ import './styles.css'
 import { Planner } from './Planner'
 import { PublicFooter, PublicHome, PublicInfoPage, publicPages } from './PublicPages'
 import { DownloadProduct, ShopPurchase } from './ExcelKit'
-import { Shop, shopProduct, WeddingPass, weddingPass } from './Shop'
+import { Shop, shopProduct, weddingPass } from './Shop'
 import { LiveGuestRSVP, LiveWeddingSchedule } from './GuestWeddingPage'
 import { lazy, Suspense } from 'react'
 const InvitationPreview = lazy(() => import('./invitation/InvitationPreview').then(module => ({ default: module.InvitationPreview })))
+const OnlinePlanner = lazy(() => import('./OnlinePlanner').then(module => ({ default: module.OnlinePlanner })))
 
 type Status = 'pending' | 'accepted' | 'declined'
 type Invitation = {
@@ -268,7 +269,9 @@ function App() {
   } else if (path === '/excel-kit/purchase' || path === '/shop/purchase') {
     page = <ShopPurchase key={hash} code={hash.slice(1)} />
   } else if (item) {
-    page = item.id === weddingPass.id ? <WeddingPass /> : <DownloadProduct item={item} />
+    page = item.id === weddingPass.id
+      ? <Suspense fallback={<main><p role="status">Opening the online planner…</p></main>}><OnlinePlanner /></Suspense>
+      : <DownloadProduct item={item} />
   } else if (Object.hasOwn(publicPages, path)) {
     page = <PublicInfoPage path={path as keyof typeof publicPages} />
   } else if (path === '/invitation-preview') {
