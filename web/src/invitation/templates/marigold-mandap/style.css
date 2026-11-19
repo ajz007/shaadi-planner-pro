@@ -1,0 +1,497 @@
+/* Marigold Mandap. Every rule is scoped to .t-marigold-mandap; colours are
+   tokens per palette; motion uses only opacity and transform and switches
+   off for reduced motion. */
+
+.t-marigold-mandap {
+  --mm-paper: #fff7e6;
+  --mm-paper-2: #fde9c2;
+  --mm-card: #fffdf5;
+  --mm-ink: #5c1d08;
+  --mm-text: #3f2817;
+  --mm-muted: #6b4e36;
+  --mm-accent: #b23c06;
+  --mm-line: #efd6a4;
+  --mm-stitch: #e9b65a;
+  --mm-dot: rgb(232 150 20 / .13);
+  --mm-f1: #ec6a0c;
+  --mm-f2: #f7a21b;
+  --mm-f3: #ffd043;
+  --mm-core: #9c3a06;
+  --mm-leaf: #3f8a34;
+  --mm-leaf-2: #6aa83f;
+  --mm-leaf-deep: #275e22;
+  --mm-leaf-light: #b9da7c;
+  --mm-gold: #cf9220;
+  --mm-gold-light: #f6d779;
+  --mm-gold-deep: #8d5b06;
+  --mm-sindoor: #c62f16;
+  --mm-wood-1: #94552a;
+  --mm-wood-2: #6a3516;
+  --mm-wood-3: #3e1c08;
+  --mm-wood-hi: #e7b474;
+  --mm-wall-1: #ffd75e;
+  --mm-wall-2: #f4ac2c;
+  --mm-canopy-1: #e4560b;
+  --mm-canopy-2: #ffc52e;
+  --mm-button: #b23c06;
+  --mm-button-2: #d95a0b;
+  --mm-button-text: #fffaf0;
+  --mm-shadow: rgb(120 50 0 / .4);
+  --mm-display: 'Rozha One', Georgia, 'Times New Roman', serif;
+  --mm-serif: Lora, Georgia, 'Times New Roman', serif;
+  --mm-sans: Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mm-deva: 'Tiro Devanagari Hindi', 'Noto Serif Devanagari', 'Nirmala UI', 'Kohinoor Devanagari', serif;
+
+  /* The shared RSVP panel reads these. */
+  --invite-ink: var(--mm-text);
+  --invite-accent: var(--mm-button);
+  --invite-line: var(--mm-line);
+  --invite-paper: var(--mm-card);
+  --invite-gold: var(--mm-gold);
+
+  position: relative;
+  min-height: 100vh;
+  overflow-x: clip;
+  color: var(--mm-text);
+  background:
+    radial-gradient(circle, var(--mm-dot) 0 2px, transparent 2.5px) 0 0 / 30px 30px,
+    radial-gradient(90% 40% at 50% 0%, var(--mm-card), transparent 70%),
+    linear-gradient(180deg, var(--mm-paper), var(--mm-paper-2));
+  font-family: var(--mm-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.t-marigold-mandap[data-palette="rani"] {
+  --mm-paper: #fff3f4;
+  --mm-paper-2: #fde0e6;
+  --mm-card: #fffafa;
+  --mm-ink: #640d33;
+  --mm-text: #3d1626;
+  --mm-muted: #6c4455;
+  --mm-accent: #ad1457;
+  --mm-line: #f2c9d4;
+  --mm-stitch: #e9a1b8;
+  --mm-dot: rgb(214 51 108 / .1);
+  --mm-f1: #d81b60;
+  --mm-f2: #f57c00;
+  --mm-f3: #f6c445;
+  --mm-core: #7b1036;
+  --mm-gold: #c99327;
+  --mm-gold-light: #f3d683;
+  --mm-gold-deep: #8a5d0c;
+  --mm-sindoor: #c2185b;
+  --mm-wood-1: #8f1d4c;
+  --mm-wood-2: #5f0e30;
+  --mm-wood-3: #36061b;
+  --mm-wood-hi: #f2b8c6;
+  --mm-wall-1: #ff9cbc;
+  --mm-wall-2: #e8487f;
+  --mm-canopy-1: #c2185b;
+  --mm-canopy-2: #f8a628;
+  --mm-button: #ad1457;
+  --mm-button-2: #d6336c;
+  --mm-shadow: rgb(110 10 50 / .38);
+}
+
+html.t-marigold-mandap-locked, html.t-marigold-mandap-locked body { overflow: hidden; }
+.t-marigold-mandap *, .t-marigold-mandap *::before, .t-marigold-mandap *::after { box-sizing: border-box; }
+.t-marigold-mandap :where(h1, h2, h3, p, figure) { margin: 0; }
+.t-marigold-mandap svg { display: block; }
+.t-marigold-mandap .mm-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.t-marigold-mandap .mm-ladi { width: 20px; height: 100px; }
+
+/* ---------------- Opening: the mandap doors ---------------- */
+.t-marigold-mandap .mm-opening {
+  position: fixed; inset: 0; z-index: 30; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(.9rem, 2.4vh, 1.5rem);
+  padding: 56px 16px 20px;
+  background:
+    radial-gradient(circle at 50% 50%, rgb(255 255 255 / .16) 0 3px, transparent 3.5px) 0 0 / 34px 34px,
+    radial-gradient(60% 50% at 50% 46%, var(--mm-wall-1), var(--mm-wall-2));
+  transform-origin: 50% 46%;
+  transition: opacity .8s ease, transform .8s cubic-bezier(.5, 0, .7, .4);
+}
+.t-marigold-mandap .mm-opening[data-stage="leaving"] { opacity: 0; transform: scale(1.35); pointer-events: none; }
+.t-marigold-mandap .mm-opening::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 30px; z-index: 2;
+  background: repeating-linear-gradient(90deg, var(--mm-canopy-1) 0 18px, var(--mm-canopy-2) 18px 36px);
+  box-shadow: 0 2px 0 var(--mm-gold-deep);
+}
+.t-marigold-mandap .mm-opening::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 30px; height: 16px; z-index: 2;
+  background: radial-gradient(circle at 50% 0, var(--mm-canopy-1) 0 12px, transparent 12.5px) 0 0 / 36px 16px repeat-x;
+}
+.t-marigold-mandap .mm-opening-fringe {
+  position: absolute; left: 0; right: 0; top: 30px; z-index: 0; display: flex; justify-content: space-around; pointer-events: none;
+}
+.t-marigold-mandap .mm-opening-fringe .mm-ladi { height: 70px; transform-origin: 50% 0; animation: mm-sway 6s ease-in-out infinite; }
+.t-marigold-mandap .mm-opening-fringe .mm-ladi:nth-child(3n+2) { height: 120px; animation-delay: -2s; }
+.t-marigold-mandap .mm-opening-fringe .mm-ladi:nth-child(3n) { height: 92px; animation-delay: -4s; }
+.t-marigold-mandap .mm-opening-toran { position: absolute; left: 0; top: 24px; z-index: 3; width: 100%; height: 46px; }
+.t-marigold-mandap .mm-opening-leaf { position: absolute; bottom: -4%; z-index: 0; width: min(38vw, 260px); pointer-events: none; }
+.t-marigold-mandap .mm-opening-leaf.is-l { left: -6%; }
+.t-marigold-mandap .mm-opening-leaf.is-r { right: -6%; transform: scaleX(-1); }
+
+.t-marigold-mandap .mm-gate {
+  position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center;
+  width: min(84vw, 390px, calc((100vh - 270px) * .66));
+  filter: drop-shadow(0 26px 30px rgb(70 25 0 / .35));
+}
+.t-marigold-mandap .mm-lintel {
+  position: relative; z-index: 2; display: flex; align-items: flex-end; justify-content: center;
+  width: 116%; height: clamp(54px, 15vw, 72px); margin-bottom: -2px; padding-bottom: 8px;
+  background: linear-gradient(180deg, var(--mm-wood-1), var(--mm-wood-2));
+  clip-path: polygon(0 40%, 5% 40%, 5% 22%, 28% 22%, 34% 0, 66% 0, 72% 22%, 95% 22%, 95% 40%, 100% 40%, 100% 100%, 0 100%);
+}
+.t-marigold-mandap .mm-lintel::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px;
+  background: repeating-linear-gradient(90deg, var(--mm-gold) 0 8px, var(--mm-gold-deep) 8px 12px); }
+.t-marigold-mandap .mm-plaque {
+  max-width: 78%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: .22rem .9rem; border: 1.5px solid var(--mm-gold); border-radius: 6px; background: var(--mm-card);
+  font: italic 600 clamp(.85rem, 3.4vw, 1.05rem)/1.3 var(--mm-serif); color: var(--mm-ink);
+}
+.t-marigold-mandap .mm-frame {
+  position: relative; width: 100%; aspect-ratio: 11 / 16; padding: 4.5%;
+  background: linear-gradient(90deg, var(--mm-wood-2), var(--mm-wood-1) 3%, var(--mm-wood-2) 5%, var(--mm-wood-2) 95%, var(--mm-wood-1) 97%, var(--mm-wood-2));
+  box-shadow: inset 0 0 0 3px var(--mm-wood-3), inset 0 0 0 5px var(--mm-gold);
+}
+.t-marigold-mandap .mm-inside {
+  position: absolute; inset: 4.5%; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .45rem;
+  padding: 1rem .9rem; text-align: center;
+  background: radial-gradient(80% 60% at 50% 40%, #fffdf2, var(--mm-paper) 60%, var(--mm-paper-2));
+}
+.t-marigold-mandap .mm-inside > * { position: relative; opacity: 0; transform: scale(.92);
+  transition: opacity .9s ease .8s, transform 1.2s cubic-bezier(.2, .8, .2, 1) .8s; }
+.t-marigold-mandap .mm-opening:not([data-stage="closed"]) .mm-inside > * { opacity: 1; transform: none; }
+.t-marigold-mandap .mm-inside-glow { position: absolute !important; inset: -20%; background: radial-gradient(closest-side, rgb(255 214 110 / .55), transparent); }
+.t-marigold-mandap .mm-inside-title { font: italic 500 clamp(1.05rem, 4.2vw, 1.35rem) var(--mm-serif); color: var(--mm-accent); }
+.t-marigold-mandap .mm-inside-names { display: flex; flex-direction: column; align-items: center; width: 100%; color: var(--mm-ink); }
+.t-marigold-mandap .mm-inside-names > span { display: block; max-width: 100%; white-space: nowrap; font: 400 clamp(2.1rem, 10vw, 3.1rem)/1.05 var(--mm-display); }
+.t-marigold-mandap .mm-inside-names em { font: italic 500 clamp(1.3rem, 5vw, 1.7rem)/1.2 var(--mm-serif); color: var(--mm-leaf-deep); }
+.t-marigold-mandap .mm-inside .mm-rule { width: 70%; }
+.t-marigold-mandap .mm-inside-date { font: 600 clamp(.72rem, 2.8vw, .85rem) var(--mm-sans); letter-spacing: .24em; text-transform: uppercase; color: var(--mm-ink); }
+.t-marigold-mandap .mm-inside-note { font: italic 500 clamp(.95rem, 3.6vw, 1.1rem) var(--mm-serif); color: var(--mm-muted); }
+
+.t-marigold-mandap .mm-doors {
+  position: absolute; inset: 4.5%; z-index: 1; display: flex; padding: 0; border: 0; background: none; cursor: pointer;
+  perspective: 1300px; -webkit-tap-highlight-color: transparent;
+}
+.t-marigold-mandap .mm-opening:not([data-stage="closed"]) .mm-doors { cursor: default; }
+.t-marigold-mandap .mm-opening[data-stage="closed"] .mm-doors:focus-visible { outline: 3px solid var(--mm-card); outline-offset: 4px; }
+.t-marigold-mandap .mm-door { position: relative; flex: 1 1 50%; height: 100%; transition: transform 1.8s cubic-bezier(.6, .02, .25, 1); }
+.t-marigold-mandap .mm-door.is-left { transform-origin: 0 50%; }
+.t-marigold-mandap .mm-door.is-right { transform-origin: 100% 50%; }
+.t-marigold-mandap .mm-door-art { width: 100%; height: 100%; }
+.t-marigold-mandap .mm-door-art.is-right { transform: scaleX(-1); }
+.t-marigold-mandap .mm-opening[data-stage="closed"] .mm-door.is-left { animation: mm-nudge-l 4s ease-in-out 1.5s infinite; }
+.t-marigold-mandap .mm-opening[data-stage="closed"] .mm-door.is-right { animation: mm-nudge-r 4s ease-in-out 1.5s infinite; }
+@keyframes mm-nudge-l { 0%, 80%, 100% { transform: none; } 88% { transform: rotateY(7deg); } }
+@keyframes mm-nudge-r { 0%, 80%, 100% { transform: none; } 88% { transform: rotateY(-7deg); } }
+.t-marigold-mandap .mm-opening:not([data-stage="closed"]) .mm-door.is-left { transform: rotateY(78deg); }
+.t-marigold-mandap .mm-opening:not([data-stage="closed"]) .mm-door.is-right { transform: rotateY(-78deg); }
+.t-marigold-mandap .mm-knocker { animation: mm-knock 4s ease-in-out 1.5s infinite; }
+@keyframes mm-knock { 0%, 80%, 100% { transform: none; } 84% { transform: rotate(-16deg); } 90% { transform: rotate(10deg); } 95% { transform: rotate(-4deg); } }
+.t-marigold-mandap .mm-opening:not([data-stage="closed"]) .mm-knocker { animation: mm-knock-open 1.4s ease-out; }
+@keyframes mm-knock-open { 20% { transform: rotate(-26deg); } 45% { transform: rotate(18deg); } 70% { transform: rotate(-8deg); } }
+
+.t-marigold-mandap .mm-frame-swag { position: absolute; left: 1%; top: 1.5%; z-index: 3; width: 98%; pointer-events: none;
+  transform-origin: 50% 0; animation: mm-sway 5s ease-in-out infinite; }
+.t-marigold-mandap .mm-frame-ladi { position: absolute; top: 4%; z-index: 3; height: 66%; pointer-events: none; transform-origin: 50% 0; animation: mm-sway 6s ease-in-out infinite; }
+.t-marigold-mandap .mm-frame-ladi.is-l { left: -8px; }
+.t-marigold-mandap .mm-frame-ladi.is-r { right: -8px; animation-delay: -3s; }
+.t-marigold-mandap .mm-step { position: relative; width: 118%; height: 20px;
+  background: linear-gradient(180deg, #f3e3c3, #cdb48a); border-radius: 3px; box-shadow: 0 8px 14px -8px rgb(60 30 0 / .5); }
+.t-marigold-mandap .mm-step-diya { position: absolute; bottom: 70%; width: clamp(38px, 11vw, 52px); }
+.t-marigold-mandap .mm-step-diya.is-l { left: 2%; }
+.t-marigold-mandap .mm-step-diya.is-r { right: 2%; }
+.t-marigold-mandap .mm-step-diya i, .t-marigold-mandap .mm-flame {
+  display: block; width: 14px; height: 24px; margin: 0 auto -5px;
+  border-radius: 50% 50% 50% 50% / 64% 64% 36% 36%;
+  background: radial-gradient(60% 50% at 50% 72%, #fff8d2 0 30%, #ffc21a 58%, #f0661a 95%);
+  box-shadow: 0 0 18px 7px rgb(255 196 70 / .45);
+  transform-origin: 50% 90%; animation: mm-flicker 1.7s ease-in-out infinite;
+}
+.t-marigold-mandap .mm-step-diya.is-r i { animation-delay: -.8s; }
+@keyframes mm-flicker { 0%, 100% { transform: scale(1, 1) rotate(-2deg); } 40% { transform: scale(.9, 1.1) rotate(2deg); } 70% { transform: scale(1.05, .94) rotate(-1deg); } }
+
+.t-marigold-mandap .mm-opening-hint {
+  position: relative; z-index: 2; max-width: 26rem; padding: .55rem 1.2rem; border-radius: 999px;
+  background: rgb(255 251 238 / .94); color: var(--mm-ink); text-align: center;
+  font: italic 500 clamp(1rem, 3.6vw, 1.2rem)/1.4 var(--mm-serif); box-shadow: 0 10px 24px -14px rgb(60 20 0 / .6);
+}
+.t-marigold-mandap .mm-opening[data-stage="open"] .mm-opening-hint { animation: mm-breathe 1.8s ease-in-out infinite; }
+@keyframes mm-breathe { 50% { opacity: .6; } }
+@keyframes mm-sway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+
+/* ---------------- Page ---------------- */
+.t-marigold-mandap .mm-main { position: relative; z-index: 1; width: auto; max-width: none; margin: 0; padding: 0 16px 1rem; }
+.t-marigold-mandap:not([data-stage="done"]):not([data-stage="leaving"]) .mm-main { visibility: hidden; }
+.t-marigold-mandap .mm-preview { position: sticky; top: 0; z-index: 20; padding: .55rem 1rem; text-align: center;
+  font: 600 .85rem var(--mm-sans); color: var(--mm-button-text); background: var(--mm-ink); }
+.t-marigold-mandap .mm-sheet { max-width: 46rem; margin: 0 auto; }
+.t-marigold-mandap .mm-section { position: relative; padding: clamp(2.25rem, 7vw, 4rem) 0; text-align: center; }
+.t-marigold-mandap [data-reveal] { opacity: 0; transform: translateY(22px); transition: opacity .9s ease, transform .9s cubic-bezier(.2, .7, .2, 1); }
+.t-marigold-mandap .mm-hang[data-reveal] { transform: translateY(-30px); transform-origin: 50% 0; }
+.t-marigold-mandap [data-reveal].is-in { opacity: 1; transform: none; }
+
+.t-marigold-mandap .mm-backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.t-marigold-mandap .mm-pillar { display: none; }
+
+.t-marigold-mandap .mm-canopy { position: relative; height: 150px; margin: 0 -16px; }
+.t-marigold-mandap .mm-canopy-cloth { position: absolute; inset: 0 0 auto; height: 34px; z-index: 2;
+  background: repeating-linear-gradient(90deg, var(--mm-canopy-1) 0 22px, var(--mm-canopy-2) 22px 44px); box-shadow: 0 2px 0 var(--mm-gold-deep); }
+.t-marigold-mandap .mm-canopy-cloth::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 18px;
+  background: radial-gradient(circle at 50% 0, var(--mm-canopy-1) 0 14px, transparent 14.5px) 0 0 / 44px 18px repeat-x; }
+.t-marigold-mandap .mm-canopy-toran { position: absolute; left: 0; top: 26px; z-index: 3; width: 100%; height: 50px; pointer-events: none; }
+.t-marigold-mandap .mm-canopy-strands {
+  position: absolute; left: 0; right: 0; top: 36px; z-index: 1; display: flex; justify-content: space-around; align-items: flex-start;
+  height: 112px; padding: 0 2%; border: 0; background: none; cursor: pointer; overflow: hidden; -webkit-tap-highlight-color: transparent;
+}
+.t-marigold-mandap .mm-canopy-strands:focus-visible { outline: 2px solid var(--mm-accent); outline-offset: -4px; }
+.t-marigold-mandap .mm-canopy-strands .mm-ladi { flex: 0 0 auto; height: 64px; transform-origin: 50% 0; animation: mm-sway 6s ease-in-out infinite; animation-delay: calc(var(--k) * -.45s); }
+.t-marigold-mandap .mm-canopy-strands .mm-ladi:nth-child(4n+2) { height: 106px; }
+.t-marigold-mandap .mm-canopy-strands .mm-ladi:nth-child(4n+3) { height: 82px; }
+.t-marigold-mandap .mm-canopy-strands .mm-ladi:nth-child(4n) { height: 96px; }
+.t-marigold-mandap .mm-canopy-strands .mm-ladi:nth-child(n+10) { display: none; }
+.t-marigold-mandap .mm-canopy-strands.is-shaking .mm-ladi { animation: mm-shake 1s ease-out; animation-delay: calc(var(--k) * 30ms); }
+@keyframes mm-shake { 15% { transform: rotate(6deg); } 35% { transform: rotate(-5deg); } 55% { transform: rotate(3deg); } 75% { transform: rotate(-1.5deg); } 100% { transform: none; } }
+
+.t-marigold-mandap .mm-toran .mm-leaf-sway { transform-box: fill-box; transform-origin: 50% 0; }
+.t-marigold-mandap .mm-canopy-toran .mm-leaf-sway, .t-marigold-mandap .mm-opening-toran .mm-leaf-sway { animation: mm-sway 5s ease-in-out infinite; }
+
+.t-marigold-mandap .mm-rule { width: min(190px, 56%); height: auto; margin: .9rem auto 0; }
+.t-marigold-mandap .mm-head { margin-bottom: 1.8rem; }
+.t-marigold-mandap .mm-kicker { font: italic 500 clamp(1.1rem, 3.6vw, 1.35rem)/1.35 var(--mm-serif); color: var(--mm-accent); }
+.t-marigold-mandap .mm-head h2 { font: 400 clamp(2.1rem, 8vw, 3.1rem)/1.1 var(--mm-display); color: var(--mm-ink); margin-top: .15rem; }
+.t-marigold-mandap .mm-label { font: 500 .8rem/1.5 var(--mm-sans); letter-spacing: .05em; color: var(--mm-muted); }
+.t-marigold-mandap .mm-soft { font: italic 500 clamp(1.1rem, 3.6vw, 1.3rem)/1.4 var(--mm-serif); color: var(--mm-accent); }
+.t-marigold-mandap .mm-note { font: .9rem/1.5 var(--mm-sans); color: var(--mm-muted); margin-top: .2rem; }
+
+/* Blessing */
+.t-marigold-mandap .mm-blessing { padding-top: 1rem; }
+.t-marigold-mandap .mm-symbols { display: flex; justify-content: center; align-items: center; gap: clamp(1rem, 7vw, 3.5rem); margin-bottom: 1.2rem; }
+.t-marigold-mandap .mm-symbol { width: clamp(62px, 16vw, 80px); filter: drop-shadow(0 8px 10px var(--mm-shadow)); }
+.t-marigold-mandap .mm-symbol.is-large { width: clamp(80px, 22vw, 104px); }
+.t-marigold-mandap .mm-glyph { font: 400 38px var(--mm-deva); fill: var(--mm-ink); }
+.t-marigold-mandap .mm-glyph.is-shri { font-size: 27px; }
+.t-marigold-mandap .mm-invocation { font: 400 1rem var(--mm-deva); color: var(--mm-accent); letter-spacing: .04em; margin-bottom: .9rem; }
+.t-marigold-mandap .mm-shloka { display: grid; gap: .3rem; font: 400 clamp(1.08rem, 3.8vw, 1.4rem)/1.65 var(--mm-deva); color: var(--mm-ink); margin-bottom: 1.8rem; }
+.t-marigold-mandap .mm-blessed { margin-bottom: 1.5rem; }
+.t-marigold-mandap .mm-deity { font: 400 clamp(1.5rem, 5.4vw, 2rem)/1.25 var(--mm-display); color: var(--mm-ink); margin-top: .25rem; }
+.t-marigold-mandap .mm-elders { font: 600 clamp(1.2rem, 4.2vw, 1.55rem)/1.35 var(--mm-serif); color: var(--mm-ink); margin-top: .3rem; }
+.t-marigold-mandap .mm-greeting { font: italic 600 clamp(1.3rem, 4.4vw, 1.7rem) var(--mm-serif); color: var(--mm-ink); margin: 2rem 0 .5rem; }
+.t-marigold-mandap .mm-intro { font: italic 500 clamp(1.3rem, 4.6vw, 1.8rem)/1.45 var(--mm-serif); color: var(--mm-accent); max-width: 28ch; margin: 0 auto; }
+.t-marigold-mandap .mm-photo { position: relative; width: min(78vw, 330px); aspect-ratio: 1; margin: 2.2rem auto 0; }
+.t-marigold-mandap .mm-photo img { position: absolute; inset: 9%; width: 82%; height: 82%; object-fit: cover; border-radius: 50%;
+  border: 4px solid var(--mm-card); box-shadow: 0 16px 30px -16px var(--mm-shadow); }
+.t-marigold-mandap .mm-wreath { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* Hero */
+.t-marigold-mandap .mm-hero { padding-top: 0; }
+.t-marigold-mandap .mm-hero-title { margin-bottom: 1.4rem; }
+.t-marigold-mandap .mm-hero-title span {
+  position: relative; display: inline-block; padding: .35rem 1.3rem .4rem; border: 2px solid var(--mm-gold); border-radius: 10px;
+  background: linear-gradient(180deg, var(--mm-wood-1), var(--mm-wood-2)); color: #fff6e0;
+  font: italic 500 clamp(1.15rem, 4.2vw, 1.5rem) var(--mm-serif); box-shadow: 0 10px 20px -12px var(--mm-shadow);
+}
+.t-marigold-mandap .mm-hero-title span::before, .t-marigold-mandap .mm-hero-title span::after {
+  content: ""; position: absolute; bottom: 100%; width: 8px; height: 20px; margin-left: -4px;
+  background: radial-gradient(circle at 50% 3px, var(--mm-gold) 0 3px, transparent 3.5px), linear-gradient(var(--mm-gold-deep), var(--mm-gold-deep)) 50% 0 / 2px 100% no-repeat;
+}
+.t-marigold-mandap .mm-hero-title span::before { left: 18%; }
+.t-marigold-mandap .mm-hero-title span::after { left: 82%; }
+.t-marigold-mandap .mm-names { display: grid; justify-items: center; gap: .15em; }
+.t-marigold-mandap .mm-names > span:not(.mm-amp) {
+  display: block; max-width: 100%; white-space: nowrap; color: var(--mm-ink);
+  font: 400 clamp(3.1rem, 15vw, 6.2rem)/1.02 var(--mm-display); text-shadow: 0 3px 0 var(--mm-f3);
+}
+.t-marigold-mandap .mm-amp { display: flex; align-items: center; gap: .7rem; }
+.t-marigold-mandap .mm-amp svg { width: clamp(1.3rem, 4vw, 1.7rem); }
+.t-marigold-mandap .mm-amp em { font: italic 500 clamp(1.8rem, 6vw, 2.5rem)/1 var(--mm-serif); color: var(--mm-leaf-deep); }
+.t-marigold-mandap .mm-date { margin-top: 1.3rem; font: 600 clamp(.92rem, 3.2vw, 1.1rem) var(--mm-sans); letter-spacing: .3em; text-transform: uppercase; color: var(--mm-ink); }
+.t-marigold-mandap .mm-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 1.6rem; }
+.t-marigold-mandap .mm-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 3rem; padding: .7rem 1.5rem;
+  border: 2px solid var(--mm-button); border-radius: 999px; cursor: pointer; text-decoration: none;
+  background: linear-gradient(180deg, var(--mm-button-2), var(--mm-button)); color: var(--mm-button-text);
+  font: 600 .95rem var(--mm-sans); box-shadow: 0 12px 22px -14px var(--mm-button); transition: transform .2s ease;
+}
+.t-marigold-mandap .mm-button:hover { transform: translateY(-2px); }
+.t-marigold-mandap .mm-button.is-light { background: var(--mm-card); color: var(--mm-button); box-shadow: none; }
+.t-marigold-mandap .mm-button.is-small { min-height: 2.75rem; padding: .5rem 1.05rem; font-size: .88rem; }
+.t-marigold-mandap .mm-button svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-marigold-mandap .mm-button > svg[viewBox^="-12"] { width: 1.4rem; height: 1.4rem; stroke: none; }
+.t-marigold-mandap :is(.mm-button, .mm-garland, .mm-venue-chip, .mm-music, .mm-link, .mm-event-place a):focus-visible { outline: 3px solid var(--mm-accent); outline-offset: 3px; }
+
+/* Countdown: four brass diyas */
+.t-marigold-mandap .mm-countdown { padding-top: 1rem; }
+.t-marigold-mandap .mm-diyas { display: flex; justify-content: center; gap: clamp(.4rem, 2.5vw, 1.25rem); margin-top: 1.2rem; }
+.t-marigold-mandap .mm-diya { display: grid; justify-items: center; width: clamp(70px, 20vw, 104px); }
+.t-marigold-mandap .mm-diya .mm-flame { animation-delay: calc(var(--i) * -.45s); }
+.t-marigold-mandap .mm-diya-body { position: relative; width: 100%; }
+.t-marigold-mandap .mm-diya-bowl { width: 100%; height: auto; }
+.t-marigold-mandap .mm-diya-body strong { position: absolute; left: 0; right: 0; top: 18%; text-align: center;
+  font: 400 clamp(1.45rem, 5.6vw, 2.1rem)/1 var(--mm-display); color: var(--mm-wood-3); font-variant-numeric: tabular-nums; }
+.t-marigold-mandap .mm-diya-label { margin-top: .4rem; font: 500 .76rem var(--mm-sans); letter-spacing: .06em; color: var(--mm-muted); }
+
+/* Cards */
+.t-marigold-mandap .mm-card {
+  position: relative; padding: clamp(1.25rem, 4vw, 1.8rem); border: 1px solid var(--mm-line); border-radius: 18px;
+  background: var(--mm-card); box-shadow: 0 18px 36px -24px var(--mm-shadow);
+}
+.t-marigold-mandap .mm-card::before { content: ""; position: absolute; inset: 6px; border: 1.5px dashed var(--mm-stitch); border-radius: 13px; opacity: .55; pointer-events: none; }
+.t-marigold-mandap .mm-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1.25rem; }
+.t-marigold-mandap .mm-person { overflow: hidden; padding-top: 3.6rem; }
+.t-marigold-mandap .mm-card-toran { position: absolute; left: 0; top: 0; width: 100%; height: 44px; }
+.t-marigold-mandap .mm-tag { display: inline-block; padding: .25rem .8rem; border-radius: 999px; background: var(--mm-f3); color: var(--mm-wood-3);
+  font: 600 .75rem var(--mm-sans); letter-spacing: .1em; text-transform: uppercase; }
+.t-marigold-mandap .mm-person h3 { margin: .75rem 0 .6rem; font: 400 clamp(1.6rem, 5.4vw, 2rem)/1.2 var(--mm-display); color: var(--mm-ink); overflow-wrap: anywhere; }
+.t-marigold-mandap .mm-honorific { font: italic 500 .62em var(--mm-serif); color: var(--mm-accent); }
+.t-marigold-mandap .mm-parents { font: italic 500 1.12rem/1.45 var(--mm-serif); color: var(--mm-text); margin-top: .15rem; }
+
+/* Functions: a rod per day, a garland per function */
+.t-marigold-mandap .mm-venue-chip {
+  display: inline-flex; align-items: center; gap: .55rem; max-width: 100%; margin-bottom: 1rem; padding: .65rem 1.2rem;
+  border: 1.5px solid var(--mm-gold); border-radius: 999px; background: var(--mm-card); color: var(--mm-text);
+  font: .92rem var(--mm-sans); text-decoration: none; text-align: left;
+}
+.t-marigold-mandap .mm-venue-chip strong { font: 600 1.1rem var(--mm-serif); color: var(--mm-ink); }
+.t-marigold-mandap :is(.mm-venue-chip, .mm-rod, .mm-event-place, .mm-place-icon) svg {
+  flex: 0 0 auto; width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-marigold-mandap .mm-venue-chip svg { color: var(--mm-accent); }
+.t-marigold-mandap .mm-tip { margin-bottom: 1.6rem; font: italic 500 .98rem var(--mm-serif); color: var(--mm-muted); }
+.t-marigold-mandap .mm-days, .t-marigold-mandap .mm-strands { list-style: none; margin: 0; padding: 0; }
+.t-marigold-mandap .mm-day + .mm-day { margin-top: 2.75rem; }
+.t-marigold-mandap .mm-rod { position: relative; z-index: 3; display: flex; justify-content: center; }
+.t-marigold-mandap .mm-rod::before { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 8px; margin-top: -4px; border-radius: 8px;
+  background: linear-gradient(180deg, var(--mm-gold-light), var(--mm-gold) 55%, var(--mm-gold-deep)); }
+.t-marigold-mandap .mm-rod::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 16px; margin-top: -8px;
+  background: radial-gradient(circle, var(--mm-gold) 0 7px, transparent 7.5px) left / 16px 16px no-repeat,
+    radial-gradient(circle, var(--mm-gold) 0 7px, transparent 7.5px) right / 16px 16px no-repeat; }
+.t-marigold-mandap .mm-rod > span {
+  position: relative; z-index: 1; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .2rem .55rem;
+  max-width: calc(100% - 48px); padding: .5rem 1.1rem; border: 2px solid var(--mm-gold); border-radius: 10px;
+  background: linear-gradient(180deg, var(--mm-wood-1), var(--mm-wood-2)); color: #fff4dc; font: 500 .9rem var(--mm-sans);
+}
+.t-marigold-mandap .mm-rod-n { font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--mm-f3); }
+.t-marigold-mandap .mm-strands { margin-top: -20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr)); gap: 0 1.25rem; justify-items: center; align-items: start; }
+.t-marigold-mandap .mm-hang { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 22rem; }
+.t-marigold-mandap .mm-garland {
+  display: flex; flex-direction: column; align-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
+  position: relative; z-index: 2; transform-origin: 50% 0; animation: mm-sway 5s ease-in-out infinite; -webkit-tap-highlight-color: transparent;
+}
+.t-marigold-mandap .mm-hang:nth-child(2) .mm-garland { animation-delay: -1.7s; }
+.t-marigold-mandap .mm-hang:nth-child(3) .mm-garland { animation-delay: -3.4s; }
+.t-marigold-mandap .mm-garland.is-shaking { animation: mm-shake 1s ease-out; }
+.t-marigold-mandap .mm-garland .mm-ladi { height: 58px; }
+.t-marigold-mandap .mm-medal { position: relative; z-index: 2; width: 100px; height: 100px; margin: -6px 0 -34px; filter: drop-shadow(0 8px 10px var(--mm-shadow)); }
+.t-marigold-mandap .mm-medal-bloom { width: 100%; height: 100%; }
+.t-marigold-mandap .mm-medal .inv-event-icon { position: absolute; left: 23%; top: 23%; width: 54%; height: 54%; color: var(--mm-ink); }
+.t-marigold-mandap .inv-ic-a { fill: var(--mm-f3); fill-opacity: .75; }
+.t-marigold-mandap .inv-ic-b { fill: var(--mm-f2); fill-opacity: .85; }
+.t-marigold-mandap .mm-event { z-index: 1; width: 100%; padding-top: 46px; }
+.t-marigold-mandap .mm-event h3 { font: 400 clamp(1.55rem, 5vw, 1.85rem)/1.15 var(--mm-display); color: var(--mm-ink); }
+.t-marigold-mandap .mm-event-sub { margin-top: .2rem; font: italic 500 1.05rem var(--mm-serif); color: var(--mm-accent); }
+.t-marigold-mandap .mm-time { display: inline-block; margin-top: .65rem; padding: .32rem .95rem; border-radius: 999px;
+  background: var(--mm-ink); color: var(--mm-card); font: 600 .84rem var(--mm-sans); letter-spacing: .03em; }
+.t-marigold-mandap .mm-event-place { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .3rem .5rem; margin-top: .7rem; font: .88rem var(--mm-sans); color: var(--mm-muted); }
+.t-marigold-mandap .mm-event-place a, .t-marigold-mandap .mm-link { color: var(--mm-button); font-weight: 600; }
+
+/* RSVP panel */
+.t-marigold-mandap .mm-rsvp-by { margin: -.6rem 0 1.4rem; }
+.t-marigold-mandap .mm-rsvp-body { text-align: left; }
+.t-marigold-mandap .guest-wedding-page { width: auto; margin: 0; }
+.t-marigold-mandap .invite-panel { border-radius: 18px; border-color: var(--mm-line); background: var(--mm-card); box-shadow: 0 18px 36px -24px var(--mm-shadow);
+  border-top: 6px solid var(--mm-f2); }
+.t-marigold-mandap .invite-panel h2 { font: 400 clamp(1.5rem, 5vw, 2rem)/1.15 var(--mm-display); color: var(--mm-ink); }
+.t-marigold-mandap .invite-panel button { border-radius: 999px; color: var(--mm-button-text); font-family: var(--mm-sans); }
+.t-marigold-mandap .invite-panel .invite-secondary { color: var(--mm-button); }
+.t-marigold-mandap .invite-panel .invite-secondary[aria-pressed="true"] { color: var(--mm-button-text); }
+.t-marigold-mandap .invite-toolbar select, .t-marigold-mandap .invite-toolbar input { background: var(--mm-paper); color: var(--mm-text); }
+.t-marigold-mandap .invite-feedback { background: var(--mm-card); }
+
+/* Family */
+.t-marigold-mandap .mm-family-grid, .t-marigold-mandap .mm-venue-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1.1rem; }
+.t-marigold-mandap .mm-family h3 { font: italic 600 1.3rem var(--mm-serif); color: var(--mm-accent); margin-bottom: .4rem; }
+.t-marigold-mandap .mm-family-line { padding: .75rem 0; }
+.t-marigold-mandap .mm-family-line + .mm-family-line { border-top: 1px solid var(--mm-line); }
+.t-marigold-mandap .mm-name { font: 500 clamp(1.08rem, 3.8vw, 1.22rem)/1.5 var(--mm-serif); color: var(--mm-text); }
+
+/* Venue */
+.t-marigold-mandap .mm-place { overflow: hidden; }
+.t-marigold-mandap .mm-place-leaf { position: absolute; left: -18px; bottom: -40px; width: 80px; opacity: .16; pointer-events: none; }
+.t-marigold-mandap .mm-place-icon { display: inline-grid; place-items: center; width: 2.8rem; height: 2.8rem; margin-bottom: .6rem; border-radius: 50%;
+  background: var(--mm-f3); color: var(--mm-wood-3); }
+.t-marigold-mandap .mm-place h3 { font: 400 1.45rem/1.2 var(--mm-display); color: var(--mm-ink); margin: .15rem 0 .35rem; }
+.t-marigold-mandap .mm-address { font: .95rem/1.55 var(--mm-sans); color: var(--mm-text); }
+.t-marigold-mandap .mm-place .mm-link { display: inline-block; margin-top: .55rem; }
+
+/* Contacts */
+.t-marigold-mandap .mm-contacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1.1rem; }
+.t-marigold-mandap .mm-contact h3 { font: 400 1.45rem var(--mm-display); color: var(--mm-ink); }
+.t-marigold-mandap .mm-contact-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .55rem; margin-top: .9rem; }
+
+/* Closing */
+.t-marigold-mandap .mm-closing { padding-bottom: 0; }
+.t-marigold-mandap .mm-closing-line { font: italic 500 clamp(1.6rem, 5.8vw, 2.4rem)/1.3 var(--mm-serif); color: var(--mm-accent); }
+.t-marigold-mandap .mm-closing-names { margin: .7rem 0 1.4rem; font: 400 clamp(2.3rem, 10vw, 3.8rem)/1.1 var(--mm-display); color: var(--mm-ink); text-shadow: 0 3px 0 var(--mm-f3); }
+.t-marigold-mandap .mm-hosts { font: 600 clamp(1.25rem, 4.4vw, 1.6rem)/1.35 var(--mm-serif); color: var(--mm-ink); margin-top: .3rem; }
+.t-marigold-mandap .mm-closing-art { display: flex; justify-content: center; align-items: flex-end; gap: 0; margin: 2.2rem -16px 0; }
+.t-marigold-mandap .mm-closing-art .mm-banana { width: clamp(110px, 30vw, 170px); }
+.t-marigold-mandap .mm-closing-art .mm-banana { transform-origin: 50% 100%; }
+.t-marigold-mandap .mm-closing-art .mm-banana.is-l { transform: rotate(-6deg); }
+.t-marigold-mandap .mm-closing-art .mm-banana.is-r { transform: scaleX(-1) rotate(-6deg); }
+.t-marigold-mandap .mm-closing-diya { width: clamp(70px, 18vw, 96px); margin: 0 -6px 10px; }
+
+/* Petals shaken loose */
+.t-marigold-mandap .mm-petals { position: fixed; inset: 0; z-index: 40; overflow: hidden; pointer-events: none; }
+.t-marigold-mandap .mm-petals i {
+  position: absolute; width: calc(13px * var(--s)); height: calc(9px * var(--s)); margin: -4px 0 0 -6px; opacity: 0;
+  border-radius: 70% 30% 65% 35% / 60% 40% 60% 40%; background: var(--mm-f1);
+  animation: mm-fall var(--t) cubic-bezier(.3, .1, .6, 1) var(--dl) forwards;
+}
+.t-marigold-mandap .mm-petals i[data-tone="1"] { background: var(--mm-f2); }
+.t-marigold-mandap .mm-petals i[data-tone="2"] { background: var(--mm-f3); }
+@keyframes mm-fall {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--spin)); }
+}
+
+/* Music */
+.t-marigold-mandap .mm-music {
+  position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 26;
+  display: inline-flex; align-items: center; gap: .55rem; min-height: 3.1rem; padding: .6rem 1.2rem;
+  border: 2px solid var(--mm-f3); border-radius: 999px; background: var(--mm-ink); color: #fff6e3;
+  font: 600 1rem var(--mm-sans); cursor: pointer; box-shadow: 0 14px 26px -12px var(--mm-shadow);
+}
+.t-marigold-mandap .mm-music svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-marigold-mandap .mm-music.is-pulse { animation: mm-attention 1.6s ease-in-out infinite; }
+@keyframes mm-attention { 50% { transform: scale(1.06); } }
+
+@media (min-width: 720px) {
+  .t-marigold-mandap .mm-canopy { height: 170px; }
+  .t-marigold-mandap .mm-canopy-strands { height: 130px; }
+  .t-marigold-mandap .mm-canopy-strands .mm-ladi:nth-child(n+10) { display: block; }
+  .t-marigold-mandap .mm-canopy-strands .mm-ladi:nth-child(4n+2) { height: 124px; }
+  .t-marigold-mandap .mm-strands .mm-hang:nth-child(3n+2) .mm-ladi { height: 104px; }
+  .t-marigold-mandap .mm-strands .mm-hang:nth-child(3n) .mm-ladi { height: 72px; }
+}
+@media (min-width: 1180px) {
+  .t-marigold-mandap .mm-pillar {
+    position: absolute; top: 0; bottom: 0; display: flex; justify-content: center; gap: 16px; width: 64px;
+    left: calc(50% - 23rem - 150px);
+  }
+  .t-marigold-mandap .mm-pillar.is-r { left: auto; right: calc(50% - 23rem - 150px); }
+  .t-marigold-mandap .mm-pillar::before { content: ""; position: absolute; left: 22px; right: 22px; top: 0; bottom: 0; border-radius: 10px;
+    background: repeating-linear-gradient(-35deg, var(--mm-canopy-1) 0 14px, var(--mm-canopy-2) 14px 28px); box-shadow: inset 0 0 0 2px var(--mm-gold-deep); opacity: .9; }
+  .t-marigold-mandap .mm-pillar .mm-ladi { position: relative; height: 100%; }
+}
+@media (max-width: 380px) {
+  .t-marigold-mandap .mm-music { min-height: 2.9rem; padding: .5rem 1rem; font-size: .95rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-marigold-mandap *, .t-marigold-mandap *::before, .t-marigold-mandap *::after { animation: none !important; transition: none !important; }
+  .t-marigold-mandap [data-reveal] { opacity: 1; transform: none; }
+}

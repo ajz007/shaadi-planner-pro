@@ -1,0 +1,35 @@
+{
+  "id": "marigold-mandap",
+  "version": 1,
+  "order": 2,
+  "name": "Marigold Mandap",
+  "description": "Carved wooden doors swing open to a sunny mandap of marigold strings and mango-leaf torans, with every function hanging from its own garland.",
+  "premium": false,
+  "sections": ["blessing", "hero", "countdown", "couple", "events", "rsvp", "family", "venue", "contacts", "closing"],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "saffron",
+      "choices": [
+        { "value": "saffron", "label": "Saffron" },
+        { "value": "rani", "label": "Rani Pink" }
+      ]
+    },
+    {
+      "key": "doorLine",
+      "label": "Line under the doors",
+      "type": "text",
+      "max": 90,
+      "default": "",
+      "help": "Leave empty for “Knock to open the doors to … wedding”."
+    },
+    {
+      "key": "petalShower",
+      "label": "“Shower the couple with petals” button",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
