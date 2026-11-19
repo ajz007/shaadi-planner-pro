@@ -113,7 +113,7 @@ function Opening({ names, date, greeting, hint, stage, onOpen, onContinue }: {
       </button>
     </div>
     <p className="inv-opening-hint" aria-live="polite">{stage === 'risen' ? 'Tap anywhere to continue' : hint ||
-      <>Tap to open the invitation of {names[0]}{names[1] && <> &amp; {names[1]}</>}’s wedding</>}</p>
+      <>Tap the seal to open your invitation to {names[0]}{names[1] && <> &amp; {names[1]}</>}’s wedding</>}</p>
   </div>
 }
 
@@ -142,7 +142,7 @@ function Countdown({ target }: { target: number }) {
   if (time.done) return null
   const cells: [number, string][] = [[time.days, 'Days'], [time.hours, 'Hours'], [time.minutes, 'Minutes'], [time.seconds, 'Seconds']]
   return <section className="inv-section inv-countdown" aria-labelledby="inv-count">
-    <p className="inv-kicker" id="inv-count" data-reveal>Counting the moments</p>
+    <p className="inv-kicker" id="inv-count" data-reveal>Until we celebrate</p>
     <Divider />
     <div className="inv-arches" data-reveal role="timer" aria-live="off">
       {cells.map(([value, label]) => <div className="inv-arch" key={label}>
@@ -312,22 +312,22 @@ export function Invitation({ page, invitation, greeting, rsvp, loadMusic, previe
     countdown: () => <Countdown target={target} />,
     couple: () => <>
         {showCouple && <section className="inv-section" aria-labelledby="inv-couple">
-          <SectionHead kicker="Meet the couple" title={people.map(([label]) => label).join(' & ')} id="inv-couple" />
+          <SectionHead kicker="Introducing" title={people.map(([label]) => label).join(' & ')} id="inv-couple" />
           <div className="inv-pair">{people.map(([label, person]) => person.name && <PersonCard key={label} label={label} person={person} />)}</div>
         </section>}
     </>,
     events: () => <>
         {events.length > 0 && <section className="inv-section" aria-labelledby="inv-events">
-          <SectionHead kicker="The celebrations" title="The Festivities" id="inv-events" />
+          <SectionHead kicker="Join the celebrations" title="Wedding Functions" id="inv-events" />
           {sharedPlace && <a className="inv-venue-chip" data-reveal href={mapLink(events[0]) || undefined} target="_blank" rel="noreferrer">
-            {Icon.pin}<span>Venue for all functions: <strong>{sharedPlace}</strong></span>{mapLink(events[0]) && Icon.nav}
+            {Icon.pin}<span>All functions at <strong>{sharedPlace}</strong></span>{mapLink(events[0]) && Icon.nav}
           </a>}
           <Timeline events={events} content={content} zone={page.timeZone} sharedPlace={sharedPlace} />
         </section>}
     </>,
     rsvp: () => <>
         {rsvp && <section className="inv-section inv-rsvp" id="rsvp" aria-labelledby="inv-rsvp">
-          <SectionHead kicker="Kindly respond" title="Will you join us?" id="inv-rsvp" />
+          <SectionHead kicker="RSVP" title="Will you join us?" id="inv-rsvp" />
           {content.rsvpBy && <p className="inv-script inv-center" data-reveal>Please let us know by {longDate(content.rsvpBy)}</p>}
           <div className="inv-rsvp-body" data-reveal>{rsvp}</div>
         </section>}
@@ -335,7 +335,7 @@ export function Invitation({ page, invitation, greeting, rsvp, loadMusic, previe
     family: () => <Families content={content} />,
     venue: () => <>
         {(places.length > 0 || content.dressCode) && <section className="inv-section" aria-labelledby="inv-venue">
-          <SectionHead kicker="Join us at" title={sharedPlace || (places.length === 1 ? places[0].place : 'The Venues')} id="inv-venue" />
+          <SectionHead kicker="Where we celebrate" title={sharedPlace || (places.length === 1 ? places[0].place : 'The Venues')} id="inv-venue" />
           <div className="inv-info-grid">
             {places.map(place => <article className="inv-card inv-info" key={place.place} data-reveal>
               <span className="inv-info-icon">{Icon.pin}</span>
@@ -358,7 +358,7 @@ export function Invitation({ page, invitation, greeting, rsvp, loadMusic, previe
     </>,
     contacts: () => <>
         {content.contacts.length > 0 && <section className="inv-section" aria-labelledby="inv-contacts">
-          <SectionHead kicker="For any assistance" title="Get in Touch" id="inv-contacts" />
+          <SectionHead kicker="Questions or help" title="Contact the Family" id="inv-contacts" />
           <div className="inv-contacts">
             {content.contacts.map(contact => <article className="inv-card inv-contact" key={contact.name + contact.phone} data-reveal>
               <h3>{contact.name}</h3>
@@ -375,7 +375,7 @@ export function Invitation({ page, invitation, greeting, rsvp, loadMusic, previe
     closing: () => <>
         <section className="inv-section inv-closing" aria-label="Closing">
           {content.closing && <p className="inv-closing-line" data-reveal>{content.closing}</p>}
-          <p className="inv-script" data-reveal>for the wedding of</p>
+          <p className="inv-script" data-reveal>at the wedding of</p>
           <p className="inv-closing-names" data-reveal>{coupleTitle}</p>
           {sharedPlace && <div data-reveal>
             <p className="inv-script">at</p>
@@ -387,7 +387,7 @@ export function Invitation({ page, invitation, greeting, rsvp, loadMusic, previe
             <p className="inv-script">{content.regardsIntro}</p>
             <p className="inv-hosts">{content.hosts}</p>
           </div>}
-          {options.lanterns !== false && <button type="button" className="inv-button is-ghost" data-reveal onClick={releaseLanterns}>{Icon.sparkle}Release a Wish Lantern</button>}
+          {options.lanterns !== false && <button type="button" className="inv-button is-ghost" data-reveal onClick={releaseLanterns}>{Icon.sparkle}Send a Blessing Lantern</button>}
         </section>
     </>,
   }

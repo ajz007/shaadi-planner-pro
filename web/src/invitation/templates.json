@@ -17,10 +17,10 @@
       },
       {
         "key": "envelopeHint", "label": "Line under the envelope", "type": "text", "max": 100, "default": "",
-        "help": "Leave empty for “Tap to open the invitation of … wedding”."
+        "help": "Leave empty for “Tap the seal to open your invitation to … wedding”."
       },
       { "key": "flightPath", "label": "Paper-plane trail down the page", "type": "boolean", "default": true },
-      { "key": "lanterns", "label": "“Release a Wish Lantern” button", "type": "boolean", "default": true }
+      { "key": "lanterns", "label": "“Send a Blessing Lantern” button", "type": "boolean", "default": true }
     ]
   }
 ]

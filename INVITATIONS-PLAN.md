@@ -1,6 +1,6 @@
 # Digital invitations plan
 
-Reference for turning Shaadi Planner Pro's guest page into a full digital invitation product. Written 19 November 2026 from a teardown of a real invite received on WhatsApp, a build-versus-buy review, and a review of the Ad Studio repository (`ajz007/fal-ad-studio-v1`).
+Reference for turning Shaadi Planner Pro's guest page into a full digital invitation product. Written 19 November 2026 from a review of custom web invites shared on WhatsApp, a build-versus-buy review, and a review of the Ad Studio repository (`ajz007/fal-ad-studio-v1`).
 
 ## Decision log
 
@@ -8,7 +8,7 @@ Reference for turning Shaadi Planner Pro's guest page into a full digital invita
 |---|---|
 | 2026-11-19 | Invitation content lives in the planner's own data model, never inside a template. Every renderer (our web themes, Ad Studio, any outside API) reads that content. |
 | 2026-11-19 | Start with an **interactive static web invitation** in the planner. No video, no AI generation, no paid rendering API until families ask for them. Running cost per wedding should stay close to zero. |
-| 2026-11-19 | Quality bar: equal to or better than the reference invite below on opening, motion, typography, layout and phone performance. Illustrations are a separate art workstream. |
+| 2026-11-19 | Quality bar: equal to or better than the custom web invites families commission today, on opening, motion, typography, layout and phone performance. Illustrations are a separate art workstream. |
 | 2026-11-19 | Later, Ad Studio becomes the creative engine for rendered media (video, image card, PDF, AI art). The interactive web invite and all guest and RSVP data stay in the planner. |
 | 2026-11-19 | Phase 0 and the first version of Phase 1 built on branch `feature/digital-invitation`. See [Status](#status). |
 | 2026-11-19 | One content model and one form for every template. Templates differ in look, section order and a few declared options. See [Templates](#templates-one-content-model-many-designs). |
@@ -24,7 +24,7 @@ Reference for turning Shaadi Planner Pro's guest page into a full digital invita
 - **Editor:** "Design the digital invitation" on the Guest RSVP screen (`web/src/WorkspaceInvitation.tsx`): palette, couple, blessings and symbols, per-function icon/subtitle/time label, family sections, dress code, reply-by date, contacts, closing, music, and a preview at `/invitation-preview`.
 - **Guest page** (`web/src/invitation/`): envelope with monogram seal and card reveal, sparkle burst, toran, sacred-symbol medallions, Devanagari shloka, personal greeting, couple photo in an arch, gold names, Save the Date, countdown, couple cards, festivities timeline with drawn ritual icons, RSVP inside the invitation, family cards, venue and dress code, Add to Calendar, directions, call and WhatsApp contacts, closing, wish lanterns, music with On/Off.
 - **Palettes:** Blush & Gold, Marigold, Royal Maroon (dark).
-- **Weight:** about 12 KB JS + 6 KB CSS gzipped, loaded only on guest pages, against 4.1 MB for the reference.
+- **Weight:** about 12 KB JS + 6 KB CSS gzipped, loaded only on guest pages, against several megabytes for a typical custom invite.
 - **Tests:** content validation, organizer and guest endpoints, link scoping, draft versus live, music upload and access, against PostgreSQL.
 
 ### Known gaps, in suggested order
@@ -93,39 +93,36 @@ The server checks every manifest at startup and in tests: unknown or repeated se
 3. **Version branches.** When a template change would alter live invitations, the renderer branches on `template.version` instead of changing old behaviour.
 4. **Premium unlock** through the Shop, checked on save.
 
-## 1. Reference invite teardown
+## 1. What custom web invites typically include
 
-Source: `rishabh-weds-ritika.pages.dev/eng-25/`, sent on WhatsApp with a short message and the link.
+Families increasingly share a link to a one-off animated web invitation on WhatsApp instead of a PDF or image. These are usually commissioned from independent designers and share a common pattern.
 
-### How it is built
+### How they are usually built
 
-One self-contained HTML file of about 4.1 MB, hosted free on Cloudflare Pages. No framework and no build step: plain JavaScript and CSS.
+A single self-contained HTML page of several megabytes on free static hosting, with no framework and no build step. The music and illustrations are often inlined as base64, which is why the file is so heavy.
 
-| Part | Size | Notes |
+| Part | Typical size | Notes |
 |---|---|---|
-| Background song | ~2.4 MB | MP3 stored as base64 text in a `<script type="text/plain">` and unpacked into an `Audio` blob |
-| Illustrations | ~1.5 MB | 7 WebP images and 1 PNG inlined as data URIs: couple, ritual icons, palace cut-out, footer procession |
-| Code, text and icons | ~165 KB | Markup, CSS, JS, and an inline SVG sprite (rose, mandala, petal, lantern, icons) |
-| Fonts | Google Fonts | Cinzel Decorative (gold names), Cormorant Garamond (body and headings), Inter (labels), Noto Serif Devanagari (shloka) |
+| Background song | 2–3 MB | MP3 inlined as base64 and unpacked into an `Audio` blob |
+| Illustrations | 1–2 MB | Couple caricature, ritual icons, a local landmark, decorative borders |
+| Code, text and icons | 100–200 KB | Markup, CSS, JS, an inline SVG sprite |
+| Fonts | Google Fonts | A decorative display face for names, a serif for text, a Devanagari face for shlokas |
 
-The code comments ("STYLE DNA TOKENS (sampled from Starting_page.png + the two recordings)") show it was generated by an AI coding assistant from screenshots and screen recordings of a designer's reference. The illustrations also look AI-generated. The `/eng-25/` path suggests other language versions exist.
+Many are now produced with AI coding assistants and AI-generated illustrations.
 
-### Sections, in order
+### Typical sections
 
-1. Envelope with wax-seal monogram and corner roses. "Tap to open the invitation of …"
-2. Blessings: Ganesh, Om and Chitragupta medallions, Ganesh shloka in Devanagari, Kuldevi, grandparents.
-3. "We will be honored by your auspicious presence at the occasion of" with a couple illustration.
-4. Hero: "Shubh Vivah", the names in large gold lettering, the date, Save the Date, scroll hint.
-5. Sun and Laxmi Vilas Palace (Vadodara) cut-out with parallax.
-6. Countdown in arch-shaped tiles (days, hours, minutes, seconds).
-7. Groom and bride cards: honorifics (Chi., Chi. Sau. Ka.), "Son of / Daughter of", parents.
-8. Festivities: shared-venue chip, then a vertical timeline grouped by day. Each function has an icon, name, optional subtitle ("followed by grand dinner") and a time pill ("Night 1:00 AM, Shubh Vela", "Brahma Muhurat, 4:00 AM").
-9. Family: "With Blessings from Heaven" (late relatives), "Looking forward to welcoming you" (relation label, then names), "Awaiting your presence" (siblings and cousins).
-10. Photo album with lightbox (hidden when no photos exist).
-11. Venue: name, address, dress code, Add to Calendar, Get Directions, an illustrated map card.
-12. Contacts: cards with call and WhatsApp buttons.
-13. Closing: "We await your gracious presence", names, venue, "With warm regards" from the hosts, Release a Wish Lantern, animated procession artwork.
-14. Floating Music On/Off button throughout.
+1. An opening moment (envelope, curtain or door) that the guest taps.
+2. Invocation and blessings: sacred symbols, a shloka, kuldevi, elders.
+3. The invitation line and the couple's names, date and a Save the Date button.
+4. A countdown.
+5. The couple with honorifics and parents.
+6. The functions as a timeline grouped by day, with icons and time labels.
+7. Family members grouped by relation.
+8. Venue, dress code, Add to Calendar and directions.
+9. Contacts with call and WhatsApp buttons.
+10. A closing line from the hosts, often with a small interactive touch.
+11. A music On/Off button throughout.
 
 ### Techniques worth keeping
 
@@ -136,16 +133,16 @@ The code comments ("STYLE DNA TOKENS (sampled from Starting_page.png + the two r
 - **Scroll reveals** with `IntersectionObserver`, animating only opacity and transform.
 - **Countdown** always in the wedding's time zone, never the visitor's.
 - **Add to Calendar** builds an `.ics` file in the browser: one `VEVENT` per function, a `VTIMEZONE` for Asia/Kolkata, escaped and folded lines.
-- **Footer procession** is one repeating image slid on whole device pixels so it stays sharp.
+- **Repeating decorative borders** slide on whole device pixels so they stay sharp.
 - **Fit-to-width names**: long names shrink just enough to stay on one line.
 - `noindex,nofollow`, `og:` tags for the WhatsApp preview, `format-detection` off so iOS doesn't turn dates and numbers into links.
 
-### What it does not do
+### What they usually don't do
 
 - No RSVP. Guests reply on WhatsApp.
 - One link for everyone. No personal greeting and no per-guest function list.
 - Any change means editing HTML and redeploying.
-- 4 MB must download before anything shows.
+- Several megabytes must download before anything shows.
 
 Our advantage: we already have per-guest links, RSVP, function visibility, family-only functions and schedule links.
 
@@ -256,7 +253,7 @@ The planner sends a snapshot of invitation content with each render. Ad Studio d
 - [ ] Countdown uses the wedding time zone.
 - [ ] Timeline groups functions by day, with icons and custom time labels.
 - [ ] Add to Calendar works on iPhone and Android; Directions opens maps.
-- [ ] Personal greeting and RSVP inline, which the reference cannot do.
+- [ ] Personal greeting and RSVP inline, which one-off custom invites cannot do.
 - [ ] First paint under ~300 KB on 4G; heavy effects load after opening.
 - [ ] Effects pause off screen and switch off for reduced motion.
 - [ ] Looks right from 320 px phones to desktop, with no horizontal scroll.

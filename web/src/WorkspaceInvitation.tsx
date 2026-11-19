@@ -50,26 +50,32 @@ function DesignOptions({ design, values, onChange }: { design: TemplateManifest;
   })}</div>
 }
 
-function PersonFields({ title, person, onChange }: { title: string; person: InvitationPerson; onChange: (person: InvitationPerson) => void }) {
+const personExamples = {
+  Groom: { name: 'Aarav Sharma', shortName: 'Aarav', parentLabel: 'Son of', parents: 'Shri Rajesh Sharma & Smt. Sunita Sharma' },
+  Bride: { name: 'Meera Iyer', shortName: 'Meera', parentLabel: 'Daughter of', parents: 'Shri Venkat Iyer & Smt. Lakshmi Iyer' },
+}
+
+function PersonFields({ title, person, onChange }: { title: 'Groom' | 'Bride'; person: InvitationPerson; onChange: (person: InvitationPerson) => void }) {
+  const example = personExamples[title]
   const set = (key: keyof InvitationPerson) => (value: string) => onChange({ ...person, [key]: value })
   return <fieldset className="inv-editor-box">
     <legend>{title}</legend>
     <div className="inv-editor-grid">
       <Field label="Honorific" value={person.honorific} onChange={set('honorific')} max={30} placeholder="Chi." />
-      <Field label="Full name" value={person.name} onChange={set('name')} max={80} placeholder="Rishabh Shrivastava" />
-      <Field label="Name on the cover" value={person.shortName} onChange={set('shortName')} max={30} placeholder="Rishabh" />
-      <Field label="Parents label" value={person.parentLabel} onChange={set('parentLabel')} max={40} placeholder="Son of" />
+      <Field label="Full name" value={person.name} onChange={set('name')} max={80} placeholder={example.name} />
+      <Field label="Name on the cover" value={person.shortName} onChange={set('shortName')} max={30} placeholder={example.shortName} />
+      <Field label="Parents label" value={person.parentLabel} onChange={set('parentLabel')} max={40} placeholder={example.parentLabel} />
     </div>
-    <Field label="Parents" value={person.parents} onChange={set('parents')} max={200} placeholder="Shri Rakesh Shrivastava & Smt. Renu Shrivastava" />
+    <Field label="Parents" value={person.parents} onChange={set('parents')} max={200} placeholder={example.parents} />
   </fieldset>
 }
 
 const sampleFamily = (heading: string): FamilySection => ({
   heading,
   cards: [
-    { title: 'With blessings from heaven', lines: [{ relation: 'Nanaji and Naniji', names: '' }] },
-    { title: 'Looking forward to welcoming you', lines: [{ relation: 'Chachaji and Chachiji', names: '' }, { relation: 'Mausaji and Mausiji', names: '' }] },
-    { title: 'Awaiting your presence', lines: [{ relation: 'Brothers and sisters', names: '' }] },
+    { title: 'In loving memory', lines: [{ relation: 'Nanaji and Naniji', names: '' }] },
+    { title: 'Eager to welcome you', lines: [{ relation: 'Chachaji and Chachiji', names: '' }, { relation: 'Mausaji and Mausiji', names: '' }] },
+    { title: 'With love from', lines: [{ relation: 'Brothers and sisters', names: '' }] },
   ],
 })
 
@@ -83,12 +89,12 @@ function FamilyEditor({ families, onChange }: { families: FamilySection[]; onCha
       {family.cards.map((card, c) => {
         const setCard = (next: typeof card) => update(f, { ...family, cards: family.cards.map((item, i) => i === c ? next : item) })
         return <div className="inv-editor-card" key={c}>
-          <Field label={'Card ' + (c + 1) + ' title'} value={card.title} onChange={title => setCard({ ...card, title })} max={80} placeholder="Looking forward to welcoming you" />
+          <Field label={'Card ' + (c + 1) + ' title'} value={card.title} onChange={title => setCard({ ...card, title })} max={80} placeholder="Eager to welcome you" />
           {card.lines.map((line, l) => {
             const setLine = (next: typeof line) => setCard({ ...card, lines: card.lines.map((item, i) => i === l ? next : item) })
             return <div className="inv-editor-grid" key={l}>
-              <Field label="Relation" value={line.relation} onChange={relation => setLine({ ...line, relation })} max={80} placeholder="Fufaji and Buaji of Groom" />
-              <Field label="Names" rows={2} value={line.names} onChange={names => setLine({ ...line, names })} max={600} placeholder="Shri Vipin Mathur & Smt. Anjali Mathur" />
+              <Field label="Relation" value={line.relation} onChange={relation => setLine({ ...line, relation })} max={80} placeholder="Mamaji and Mamiji" />
+              <Field label="Names" rows={2} value={line.names} onChange={names => setLine({ ...line, names })} max={600} placeholder="Shri Arun Verma & Smt. Neha Verma" />
               <button type="button" className="focus-secondary" onClick={() => setCard({ ...card, lines: card.lines.filter((_, i) => i !== l) })}>Remove row</button>
             </div>
           })}
@@ -116,7 +122,7 @@ function ContactEditor({ contacts, onChange }: { contacts: Contact[]; onChange: 
     {contacts.map((contact, i) => <div className="inv-editor-grid" key={i}>
       <Field label="Name" value={contact.name} onChange={name => update(i, { ...contact, name })} max={80} />
       <Field label="Role" value={contact.role} onChange={role => update(i, { ...contact, role })} max={60} placeholder="Groom’s brother" />
-      <Field label="Phone" type="tel" pattern={phonePattern} value={contact.phone} onChange={phone => update(i, { ...contact, phone })} max={20} placeholder="+91 98765 43210" />
+      <Field label="Phone" type="tel" pattern={phonePattern} value={contact.phone} onChange={phone => update(i, { ...contact, phone })} max={20} placeholder="+91 93172 58046" />
       <button type="button" className="focus-secondary" onClick={() => onChange(contacts.filter((_, index) => index !== i))}>Remove</button>
     </div>)}
     {contacts.length < 6 && <div className="focus-actions">
@@ -251,9 +257,9 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
         <Field label="Shloka" rows={3} value={content.shloka} onChange={shloka => set({ shloka })} max={300} hint="Leave empty to skip. Each line shows on its own line." />
         <div className="inv-editor-grid">
           <Field label="Blessing line" value={content.blessingIntro} onChange={blessingIntro => set({ blessingIntro })} max={120} />
-          <Field label="Kuldevi or deity" value={content.deity} onChange={deity => set({ deity })} max={80} placeholder="Shri Durga Maa" />
+          <Field label="Kuldevi or deity" value={content.deity} onChange={deity => set({ deity })} max={80} placeholder="Amba Mata" />
           <Field label="Elders line" value={content.eldersIntro} onChange={eldersIntro => set({ eldersIntro })} max={120} />
-          <Field label="Elders" value={content.elders} onChange={elders => set({ elders })} max={200} placeholder="Shri Ishverlal & Smt. Ranjan Shrivastava" />
+          <Field label="Elders" value={content.elders} onChange={elders => set({ elders })} max={200} placeholder="Shri Mohan Sharma & Smt. Kamla Sharma" />
           <Field label="Note under elders" value={content.eldersNote} onChange={eldersNote => set({ eldersNote })} max={80} placeholder="(Dadaji and Dadiji)" />
           <Field label="Cover title" value={content.title} onChange={title => set({ title })} max={40} />
         </div>
@@ -272,8 +278,8 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
               <label className="focus-field">Icon<select value={style?.icon ?? ''} onChange={change => setStyle(event.id, { icon: change.target.value as EventIcon })}>
                 {eventIcons.map(option => <option key={option.value} value={option.value}>{option.value ? option.label : option.label + ' (' + iconFor(event) + ')'}</option>)}
               </select></label>
-              <Field label="Subtitle" value={style?.subtitle ?? ''} onChange={subtitle => setStyle(event.id, { subtitle })} max={80} placeholder="followed by grand dinner" />
-              <Field label="Time label" value={style?.timeLabel ?? ''} onChange={timeLabel => setStyle(event.id, { timeLabel })} max={60} placeholder="Brahma Muhurat, 4:00 AM" />
+              <Field label="Subtitle" value={style?.subtitle ?? ''} onChange={subtitle => setStyle(event.id, { subtitle })} max={80} placeholder="followed by dinner" />
+              <Field label="Time label" value={style?.timeLabel ?? ''} onChange={timeLabel => setStyle(event.id, { timeLabel })} max={60} placeholder="Shubh muhurat, 7:30 PM" />
             </div>
           </fieldset>
         })}
@@ -284,7 +290,7 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
 
       <Group title="Venue, dress code and replies" section="venue" design={design}>
         <div className="inv-editor-grid">
-          <Field label="Dress code" value={content.dressCode} onChange={dressCode => set({ dressCode })} max={200} placeholder="Fancy enough to celebrate, comfortable enough to dance." />
+          <Field label="Dress code" value={content.dressCode} onChange={dressCode => set({ dressCode })} max={200} placeholder="Festive Indian wear" />
           <Field label="Reply by" type="date" value={content.rsvpBy} onChange={rsvpBy => set({ rsvpBy })} max={10} />
         </div>
       </Group>
@@ -295,7 +301,7 @@ export function WorkspaceInvitation({ path, page }: { path: string; page?: Guest
         <div className="inv-editor-grid">
           <Field label="Closing line" value={content.closing} onChange={closing => set({ closing })} max={120} />
           <Field label="Regards line" value={content.regardsIntro} onChange={regardsIntro => set({ regardsIntro })} max={60} />
-          <Field label="Hosts" value={content.hosts} onChange={hosts => set({ hosts })} max={200} placeholder="Shri Rakesh & Smt. Renu Shrivastava" />
+          <Field label="Hosts" value={content.hosts} onChange={hosts => set({ hosts })} max={200} placeholder="Shri Rajesh & Smt. Sunita Sharma" />
         </div>
       </Group>
 
