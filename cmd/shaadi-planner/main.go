@@ -126,7 +126,7 @@ func routes(assets http.FileSystem, sandbox bool) *http.ServeMux {
 	mux.HandleFunc("GET /excel-kit", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/shop/essentials", http.StatusMovedPermanently)
 	})
-	for _, path := range []string{"/privacy", "/terms", "/contact", "/rsvp", "/wedding-schedule", "/excel-kit/purchase", "/shop", "/shop/{page}"} {
+	for _, path := range []string{"/privacy", "/terms", "/contact", "/rsvp", "/wedding-schedule", "/invitation-preview", "/excel-kit/purchase", "/shop", "/shop/{page}"} {
 		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
 			if path == "/shop/{page}" && !commerce.HasShopPage(r.PathValue("page")) {
 				http.NotFound(w, r)
@@ -135,7 +135,7 @@ func routes(assets http.FileSystem, sandbox bool) *http.ServeMux {
 			if path != "/shop" && (path != "/shop/{page}" || r.PathValue("page") == "purchase") {
 				w.Header().Set("X-Robots-Tag", "noindex")
 			}
-			if path == "/rsvp" || path == "/wedding-schedule" || path == "/excel-kit/purchase" || r.PathValue("page") == "purchase" {
+			if path == "/rsvp" || path == "/wedding-schedule" || path == "/invitation-preview" || path == "/excel-kit/purchase" || r.PathValue("page") == "purchase" {
 				w.Header().Set("Cache-Control", "no-store")
 			}
 			r.URL.Path = "/"
