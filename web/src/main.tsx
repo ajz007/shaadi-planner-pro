@@ -6,6 +6,8 @@ import { PublicFooter, PublicHome, PublicInfoPage, publicPages } from './PublicP
 import { DownloadProduct, ShopPurchase } from './ExcelKit'
 import { Shop, shopProduct, WeddingPass, weddingPass } from './Shop'
 import { LiveGuestRSVP, LiveWeddingSchedule } from './GuestWeddingPage'
+import { lazy, Suspense } from 'react'
+const InvitationPreview = lazy(() => import('./invitation/InvitationPreview').then(module => ({ default: module.InvitationPreview })))
 
 type Status = 'pending' | 'accepted' | 'declined'
 type Invitation = {
@@ -269,6 +271,8 @@ function App() {
     page = item.id === weddingPass.id ? <WeddingPass /> : <DownloadProduct item={item} />
   } else if (Object.hasOwn(publicPages, path)) {
     page = <PublicInfoPage path={path as keyof typeof publicPages} />
+  } else if (path === '/invitation-preview') {
+    page = <Suspense fallback={<p role="status">Opening preview…</p>}><InvitationPreview /></Suspense>
   } else if (path === '/rsvp' || path === '/wedding-schedule') {
     const [secret, scope] = hash.slice(1).split('?')
     const filter = new URLSearchParams(scope)
@@ -282,7 +286,7 @@ function App() {
   } else {
     page = hash ? <Planner rsvpDemo={<Organizer />} /> : <PublicHome />
   }
-  return <>{page}<PublicFooter /></>
+  return <>{page}{path !== '/invitation-preview' && <PublicFooter />}</>
 }
 
 createRoot(document.getElementById('root')!).render(<App />)

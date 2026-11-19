@@ -254,6 +254,7 @@ func (a *workspaceHTTP) revokeGuestScheduleLink(w http.ResponseWriter, r *http.R
 }
 
 type guestScheduleEvent struct {
+	ID       string    `json:"-"`
 	Name     string    `json:"name"`
 	StartsAt time.Time `json:"startsAt"`
 	Venue    string    `json:"venue"`
@@ -296,16 +297,33 @@ func (a *workspaceHTTP) guestSchedule(w http.ResponseWriter, r *http.Request) {
 		workspaceFailure(w, err)
 		return
 	}
+	var wedding string
+	err = scanWorkspace(tx.QueryRowContext(ctx, `SELECT l.wedding_id FROM wedding_guest_schedule_links l
+		WHERE `+guestScheduleToken+` AND `+activeSchedule, hash, input.Token), &wedding)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	functionIDs := make([]string, len(events))
+	for i, event := range events {
+		functionIDs[i] = event.ID
+	}
+	invitation, err := loadPublicInvitation(ctx, tx, wedding, functionIDs)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
 	httpx.Reply(w, http.StatusOK, struct {
 		guestPageDetails
-		Events []guestScheduleEvent `json:"events"`
-	}{page, events})
+		Events     []guestScheduleEvent `json:"events"`
+		Invitation *publicInvitation    `json:"invitation,omitempty"`
+	}{page, events, invitation})
 }
 
 func listGuestSchedule(ctx context.Context, db workspaceRowsQueryer, hash []byte, token string) ([]guestScheduleEvent, error) {
 	return queryWorkspace(ctx, db, func(row *sql.Rows, event *guestScheduleEvent) error {
-		return row.Scan(&event.Name, &event.StartsAt, &event.Venue, &event.MapURL)
-	}, `SELECT f.name,f.starts_at,`+guestVenue+`,COALESCE(p.map_url,'') FROM wedding_guest_schedule_links l
+		return row.Scan(&event.ID, &event.Name, &event.StartsAt, &event.Venue, &event.MapURL)
+	}, `SELECT f.id,f.name,f.starts_at,`+guestVenue+`,COALESCE(p.map_url,'') FROM wedding_guest_schedule_links l
 		JOIN weddings w ON w.id=l.wedding_id JOIN wedding_functions f ON f.wedding_id=l.wedding_id `+guestPlaceJoin+`
 		WHERE `+guestScheduleToken+` AND (l.scope_date IS NULL OR (f.starts_at AT TIME ZONE w.time_zone)::date=l.scope_date)
 		AND (l.function_id IS NULL OR f.id=l.function_id)

@@ -112,3 +112,16 @@
   .rsvp-share-content { grid-template-columns: minmax(0, 1fr); }
   .rsvp-share-content > div:last-child { grid-row: 1; }
 }
+.inv-editor-group { margin: .75rem 0; border: 1px solid #e3cab6; border-radius: .8rem; background: #fffdf9; }
+.inv-editor-group > summary { padding: .85rem 1rem; font-weight: 700; cursor: pointer; }
+.inv-editor-body { padding: 0 1rem 1rem; display: grid; gap: .75rem; }
+.inv-editor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; align-items: end; }
+.inv-editor-box { min-width: 0; margin: 0; padding: .85rem; border: 1px solid #ecdccb; border-radius: .7rem; display: grid; gap: .65rem; }
+.inv-editor-box legend { padding: 0 .35rem; font-weight: 700; }
+.inv-editor-card { display: grid; gap: .6rem; padding: .75rem; border-left: 3px solid #e3cab6; background: #fff9f0; border-radius: .4rem; }
+.inv-editor-checks { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; }
+.inv-editor-checks label, .inv-editor-toggle { display: inline-flex; align-items: center; gap: .45rem; font-weight: 600; }
+.inv-editor-hint { margin: 0; font-size: .85rem; opacity: .8; }
+.inv-editor-file { position: relative; overflow: hidden; cursor: pointer; }
+.inv-editor-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.inv-editor-save { position: sticky; bottom: .5rem; z-index: 2; padding: .6rem; background: #fffaf3; border: 1px solid #e3cab6; border-radius: .7rem; }

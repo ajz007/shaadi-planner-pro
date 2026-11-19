@@ -312,6 +312,7 @@ func testPrivateWorkspaceHTTP(t *testing.T, origin string) {
 		strings.Contains(body, "Guest A") || strings.Contains(body, "invitations") {
 		t.Fatalf("schedule link should show only the date's public events: %s", body)
 	}
+	testInvitationHTTP(t, request, handler, origin, rsvpPath, owner, brother, function, reception, householdSecret, scheduleSecret)
 	readRSVP(scheduleSecret, 404)
 	request("POST", schedulePath+"/"+scheduleID, "{}", origin, owner, 204)
 	request("POST", "/api/guest-schedule", scheduleBody, origin, nil, 404)

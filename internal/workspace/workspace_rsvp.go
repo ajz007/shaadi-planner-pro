@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -351,11 +352,23 @@ func (a *workspaceHTTP) guestRSVP(w http.ResponseWriter, r *http.Request) {
 		workspaceFailure(w, err)
 		return
 	}
+	functionIDs := make([]string, 0, len(invitations))
+	for _, row := range invitations {
+		if !slices.Contains(functionIDs, row.FunctionID) {
+			functionIDs = append(functionIDs, row.FunctionID)
+		}
+	}
+	invitation, err := loadPublicInvitation(ctx, tx, wedding, functionIDs)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
 	httpx.Reply(w, http.StatusOK, struct {
 		guestPageDetails
 		Invitations []rsvpInvitation   `json:"invitations"`
 		Travel      []guestTravelReply `json:"travel"`
-	}{page, invitations, travel})
+		Invitation  *publicInvitation  `json:"invitation,omitempty"`
+	}{page, invitations, travel, invitation})
 }
 
 type guestRSVPUpdate struct {
