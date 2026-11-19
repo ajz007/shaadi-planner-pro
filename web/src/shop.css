@@ -41,5 +41,16 @@
 .shop-pass { padding: 1.15rem; }
 .shop-pass > div { max-width: 50ch; }
 .shop-pass p:last-child { margin-bottom: 0; }
+.shop-online-showcase { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); align-items: center; gap: 2rem; background: #203c32; color: #fff8e9; padding: clamp(1.25rem,4vw,2.5rem); border-radius: 1rem; }
+.shop-online-showcase h3 { font: 400 clamp(1.75rem,3.5vw,2.65rem)/1.15 Georgia,serif; margin: .8rem 0; }
+.shop-online-showcase h3 em { color: #d9c59e; }
+.shop-online-showcase > div > p { max-width: 45ch; color: #d9e0cc; }
+.shop-online-showcase > div > a { display: inline-flex; align-items: center; gap: .75rem; min-height: 44px; color: #fff8e9; font-weight: 650; }
+.shop-online-invite { display: flex; flex-direction: column; align-items: center; gap: .65rem; background: #fff5e5; border: 1px solid #c7a771; color: #762747; padding: 1.6rem 1rem; border-radius: 45% 45% .5rem .5rem / 15% 15% .5rem .5rem; text-decoration: none; transform: rotate(3deg); }
+.shop-online-invite strong { font: 400 2rem Georgia,serif; text-align: center; }
+.shop-online-invite strong em { display: block; font-size: 1.2rem; }
+.shop-online-invite > span { font-size: .75rem; }
+.shop-online-invite .shop-online-seal { background: #762747; color: #fff0cf; border: 2px solid #b18c4e; width: 55px; height: 55px; display: grid; place-items: center; border-radius: 50%; margin-top: .2rem; font: 1rem Georgia,serif; }
 @media (max-width: 900px) { .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .shop-feature, .shop-grid { grid-template-columns: minmax(0, 1fr); } .shop-cover-link .product-image img { height: auto; max-height: 420px; } }
+@media (max-width: 640px) { .shop-online-showcase { grid-template-columns: minmax(0,1fr); } .shop-online-invite { transform: none; max-width: 330px; width: 100%; margin-inline: auto; } }

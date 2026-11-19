@@ -62,25 +62,13 @@ export function Shop() {
     </section>)}
     <section className="shop-section" aria-labelledby="shop-online">
       <h2 id="shop-online">Online planner</h2>
-      <div className="shop-pass">
-        <div><h3>{weddingPass.name}</h3><p>{weddingPass.summary}</p><p><strong>{rupees(weddingPass.amount)}</strong> planned one-time price for one wedding.</p></div>
-        <a href={productURL(weddingPass)}>Preview Wedding Pass <span aria-hidden="true">→</span></a>
+      <div className="shop-online-showcase">
+        <div><p className="shop-format">INVITATIONS · RSVPS · FAMILY COORDINATION</p><h3>An invitation they’ll love.<br /><em>A plan your family can share.</em></h3>
+          <p>{weddingPass.summary}</p><a href={productURL(weddingPass)}>Discover the online planner <span aria-hidden="true">↗</span></a></div>
+        <a href={productURL(weddingPass)} className="shop-online-invite" aria-label="Preview the Online Planner invitation">
+          <span>You’re invited</span><strong>Meera <em>&amp;</em> Aarav</strong><span>15 February 2027 · Varanasi</span><span className="shop-online-seal">M &amp; A</span>
+        </a>
       </div>
-    </section>
-  </main>
-}
-
-export function WeddingPass() {
-  useEffect(() => { document.title = 'Wedding Pass | ShaadiPlannerPro' }, [])
-  return <main className="public-shell wedding-shop">
-    <ShopNav />
-    <header className="shop-intro"><h1>{weddingPass.name}</h1><p>{weddingPass.summary}</p></header>
-    <section className="shop-pass">
-      <div>
-        <h2>{rupees(weddingPass.amount)} planned one-time price</h2>
-        <p>Online planning for one wedding. Checkout is coming later.</p>
-      </div>
-      <a className="shop-primary" href="/#demo">Explore the sample wedding</a>
     </section>
   </main>
 }
