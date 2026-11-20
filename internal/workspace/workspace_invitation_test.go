@@ -176,7 +176,8 @@ func testInvitationHTTP(t *testing.T, request testRequest, handler http.Handler,
 		len(schedule.Invitation.Content.Events) != 1 || strings.Contains(rec.Body.String(), "Dance night") {
 		t.Fatalf("a date-scoped schedule must show only that date's functions and their styles: %s", rec.Body)
 	}
-	if settings = readSettings(); !settings.Live || !settings.EverPublished || settings.PublishedAt == nil || settings.UnpublishedChanges {
+	if settings = readSettings(); !settings.Live || !settings.EverPublished || settings.PublishedAt == nil || settings.SavedAt == nil ||
+		settings.UnpublishedChanges {
 		t.Fatalf("just published, with no further edits: %+v", settings)
 	}
 

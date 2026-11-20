@@ -11,7 +11,7 @@ import { Gallery } from './Gallery'
 import { PreviewFrame } from './PreviewFrame'
 import './studio.css'
 
-type Status = { live: boolean; everPublished: boolean; publishedAt?: string; unpublishedChanges: boolean }
+type Status = { live: boolean; everPublished: boolean; publishedAt?: string; savedAt?: string; unpublishedChanges: boolean }
 type Settings = Status & { template: InvitationDesign; content: InvitationContent; hasMusic: boolean; musicName: string; revision: number; events: InvitationEvent[] }
 type View = 'designs' | 'edit' | 'publish'
 type Step = { key: string; title: string; section?: SectionKey; hint: string }
@@ -268,11 +268,19 @@ export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding
       <div className="studio-status">
         <span className={'studio-pill' + status[1]}>{status[0]}</span>
         {dirty && <span className="studio-unsaved">Unsaved changes</span>}
+        <button type="button" className="focus-secondary" onClick={openFullPreview}>Preview draft</button>
         <button type="button" className="focus-secondary" disabled={busy || !dirty} onClick={() => void save()}>{busy ? 'Working…' : 'Save draft'}</button>
         <button type="button" disabled={busy || !canPublish} onClick={() => void change('publish')}>
           {settings.everPublished && settings.live ? 'Publish changes' : 'Publish'}</button>
       </div>
     </div>
+    {settings.revision > 0 && view !== 'publish' && <p className="studio-draft-note">
+      <strong>Your draft</strong>{settings.savedAt && <> · last saved {publishedTime.format(new Date(settings.savedAt))}</>}
+      {' · '}{!settings.everPublished ? 'Not published yet, so guests can’t see it.'
+        : !settings.live ? 'Hidden from guests.'
+          : settings.unpublishedChanges || dirty ? 'Guests see an earlier published version.' : 'Guests see this version.'}
+      {' '}<button type="button" className="studio-link" onClick={openFullPreview}>Open full-screen preview</button>
+    </p>}
     {error && <p role="alert" className="studio-message">{error}</p>}
     {notice && <p role="status" className="studio-message">{notice}</p>}
 
