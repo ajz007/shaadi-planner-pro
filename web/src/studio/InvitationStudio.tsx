@@ -11,7 +11,8 @@ import { Gallery } from './Gallery'
 import { PreviewFrame } from './PreviewFrame'
 import './studio.css'
 
-type Settings = { enabled: boolean; template: InvitationDesign; content: InvitationContent; hasMusic: boolean; musicName: string; revision: number; events: InvitationEvent[] }
+type Status = { live: boolean; everPublished: boolean; publishedAt?: string; unpublishedChanges: boolean }
+type Settings = Status & { template: InvitationDesign; content: InvitationContent; hasMusic: boolean; musicName: string; revision: number; events: InvitationEvent[] }
 type View = 'designs' | 'edit' | 'publish'
 type Step = { key: string; title: string; section?: SectionKey; hint: string }
 
@@ -29,7 +30,16 @@ const steps: Step[] = [
 
 const previewKey = 'shaadi-invitation-preview'
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong. Try again.'
-const snapshot = (settings: Settings) => JSON.stringify({ enabled: settings.enabled, template: settings.template, content: settings.content })
+const snapshot = (settings: Settings) => JSON.stringify({ template: settings.template, content: settings.content })
+const publishedTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+
+// The server stores a draft and a published snapshot. Organizers edit the
+// draft; guests only ever see the snapshot, which changes when they publish.
+function normalize(result: Settings): Settings {
+  const design = templateFor(result.template?.id)
+  return { ...result, content: withDefaults(result.content, result.revision),
+    template: { id: design.id, version: design.version, options: optionsFor(design, result.template?.options) } }
+}
 
 export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding']; rsvpHref: string }) {
   const { request } = useWorkspaceData()
@@ -49,9 +59,7 @@ export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding
     Promise.all([request<Settings>(path + '/invitation', undefined, controller.signal), request<GuestPage>(path + '/page', undefined, controller.signal)])
       .then(([result, guestPage]) => {
         if (controller.signal.aborted) return
-        const design = templateFor(result.template?.id)
-        const loaded = { ...result, content: withDefaults(result.content, result.revision),
-          template: { id: design.id, version: design.version, options: optionsFor(design, result.template?.options) } }
+        const loaded = normalize(result)
         setSettings(loaded)
         setSaved(snapshot(loaded))
         setPage(guestPage)
@@ -89,22 +97,43 @@ export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding
     set({ events: { ...content.events, [id]: { ...current, ...patch } } })
   }
 
-  async function save(enabled = settings!.enabled) {
+  const reload = async () => {
+    const loaded = normalize(await request<Settings>(path + '/invitation'))
+    setSettings(loaded)
+    setSaved(snapshot(loaded))
+  }
+  // Saves the draft only. Returns the new revision, or undefined on failure.
+  async function saveDraft(): Promise<number | undefined> {
+    const contacts = content.contacts.filter(contact => contact.name.trim() || contact.phone.trim())
+    const result = await request<{ revision: number }>(path + '/invitation', {
+      content: { ...content, contacts }, template: { id: settings!.template.id, options: settings!.template.options }, revision: settings!.revision,
+    })
+    const next = { ...settings!, revision: result.revision, content: { ...content, contacts } }
+    setSettings(next)
+    setSaved(snapshot(next))
+    return result.revision
+  }
+  async function run(work: () => Promise<string>) {
     setBusy(true)
     setError('')
     setNotice('')
-    try {
-      const contacts = content.contacts.filter(contact => contact.name.trim() || contact.phone.trim())
-      const result = await request<{ revision: number }>(path + '/invitation', {
-        enabled, content: { ...content, contacts }, template: { id: settings!.template.id, options: settings!.template.options }, revision: settings!.revision,
-      })
-      const next = { ...settings!, enabled, revision: result.revision, content: { ...content, contacts } }
-      setSettings(next)
-      setSaved(snapshot(next))
-      setNotice(enabled ? 'Saved. Guests see this invitation on their RSVP and schedule links.' : 'Saved as a draft. Guests still see the simple page.')
-    } catch (error) { setError(errorText(error)) }
+    try { setNotice(await work()) } catch (error) { setError(errorText(error)) }
     finally { setBusy(false) }
   }
+  const save = () => run(async () => {
+    await saveDraft()
+    await reload()
+    return settings!.everPublished ? 'Draft saved. Guests keep seeing the published version until you publish.'
+      : 'Draft saved. Publish when you’re ready for guests to see it.'
+  })
+  const change = (action: 'publish' | 'unpublish' | 'discard') => run(async () => {
+    const revision = action === 'publish' && dirty ? await saveDraft() : settings!.revision
+    await request(path + '/invitation/publish', { action, revision })
+    await reload()
+    return action === 'publish' ? 'Published. Guests now see this version on their RSVP and schedule links.'
+      : action === 'unpublish' ? 'Hidden from guests. Their links show the simple RSVP page until you publish again.'
+        : 'Unpublished changes discarded. The draft now matches what guests see.'
+  })
   async function uploadMusic(file?: File) {
     setBusy(true)
     setError('')
@@ -143,6 +172,10 @@ export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding
   const current = steps.find(item => item.key === step) ?? steps[0]
   const index = steps.indexOf(current)
   const unused = current.section && !design.sections.includes(current.section)
+  const canPublish = dirty || settings.unpublishedChanges || !settings.live
+  const status = !settings.everPublished ? ['Not published yet', '']
+    : !settings.live ? ['Hidden from guests', '']
+      : settings.unpublishedChanges || dirty ? ['Live · unpublished changes', ' is-pending'] : ['Live for guests', ' is-live']
   const checklist: [boolean, string][] = [
     [!!(content.groom.name || content.bride.name), 'The couple’s names are filled in'],
     [guestEvents.length > 0, 'At least one guest function is in the planner'],
@@ -233,9 +266,11 @@ export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding
           <button key={key} type="button" aria-current={view === key ? 'step' : undefined} onClick={() => setView(key)}>{label}</button>)}
       </nav>
       <div className="studio-status">
-        <span className={'studio-pill' + (settings.enabled ? ' is-live' : '')}>{settings.enabled ? 'Live for guests' : 'Draft'}</span>
+        <span className={'studio-pill' + status[1]}>{status[0]}</span>
         {dirty && <span className="studio-unsaved">Unsaved changes</span>}
-        <button type="button" disabled={busy || !dirty} onClick={() => void save()}>{busy ? 'Saving…' : 'Save'}</button>
+        <button type="button" className="focus-secondary" disabled={busy || !dirty} onClick={() => void save()}>{busy ? 'Working…' : 'Save draft'}</button>
+        <button type="button" disabled={busy || !canPublish} onClick={() => void change('publish')}>
+          {settings.everPublished && settings.live ? 'Publish changes' : 'Publish'}</button>
       </div>
     </div>
     {error && <p role="alert" className="studio-message">{error}</p>}
@@ -269,20 +304,34 @@ export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding
 
     {view === 'publish' && <div className="studio-publish">
       <section className="focus-card">
-        <h2>Share with guests</h2>
-        <p>When the invitation is live, every guest who opens their RSVP or schedule link sees it, with their own RSVP inside.
-          Create and share those links in <a href={rsvpHref}>Guest RSVP</a>.</p>
+        <h2>Publish to guests</h2>
+        <p>Guests see the <strong>published</strong> version when they open their RSVP or schedule link, with their own RSVP inside.
+          Saving keeps your changes in a draft that only you see, until you publish. Publishing doesn’t message anyone: share the links
+          from <a href={rsvpHref}>Guest RSVP</a>.</p>
+        <dl className="studio-state">
+          <div><dt>Guests see</dt><dd>{settings.live ? 'This invitation' : 'The simple RSVP page'}</dd></div>
+          <div><dt>Last published</dt><dd>{settings.publishedAt ? publishedTime.format(new Date(settings.publishedAt)) : 'Never'}</dd></div>
+          <div><dt>Your draft</dt><dd>{dirty ? 'Has unsaved changes' : settings.unpublishedChanges ? 'Has changes guests don’t see yet'
+            : settings.everPublished ? 'Matches what guests see' : 'Not published yet'}</dd></div>
+        </dl>
         <ul className="studio-checklist">
           {checklist.map(([done, label]) => <li key={label} className={done ? 'is-done' : undefined}>
             <span className="studio-sr">{done ? 'Done: ' : 'To do: '}</span>{label}</li>)}
         </ul>
-        <label className="inv-editor-toggle"><input type="checkbox" checked={settings.enabled}
-          onChange={event => update({ enabled: event.target.checked })} />Show this invitation to guests</label>
         <div className="focus-actions">
-          <button type="button" disabled={busy || !dirty} onClick={() => void save()}>{busy ? 'Saving…' : !dirty ? (settings.enabled ? 'Published' : 'Saved as draft') : settings.enabled ? 'Save and publish' : 'Save as draft'}</button>
+          <button type="button" disabled={busy || !canPublish} onClick={() => void change('publish')}>
+            {!settings.everPublished ? 'Publish invitation' : settings.live ? (canPublish ? 'Publish changes' : 'Published') : 'Publish again'}</button>
           <button type="button" className="focus-secondary" onClick={openFullPreview}>Open full-screen preview</button>
           <a className="focus-secondary" href={rsvpHref}>Go to Guest RSVP links</a>
         </div>
+        {(settings.unpublishedChanges || settings.live) && <div className="focus-actions studio-quiet-actions">
+          {settings.unpublishedChanges && !dirty && <button type="button" className="focus-secondary" disabled={busy} onClick={() => {
+            if (window.confirm('Discard the changes guests haven’t seen? Your draft goes back to the published version.')) void change('discard')
+          }}>Discard unpublished changes</button>}
+          {settings.live && <button type="button" className="focus-secondary" disabled={busy} onClick={() => {
+            if (window.confirm('Stop showing this invitation? Guests will see the simple RSVP page until you publish again.')) void change('unpublish')
+          }}>Stop showing to guests</button>}
+        </div>}
       </section>
       <div className="studio-preview-column"><PreviewFrame draft={draft} /></div>
     </div>}

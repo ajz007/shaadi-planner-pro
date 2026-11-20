@@ -126,3 +126,9 @@
   .studio-card { transition: none; }
   .studio-card:hover { transform: none; }
 }
+.studio-pill.is-pending { background: #fff1d6; color: #8a4b0b; }
+.studio-state { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .6rem; margin: 0; }
+.studio-state div { padding: .6rem .8rem; border: 1px solid var(--studio-line); border-radius: .7rem; background: #fff; }
+.studio-state dt { font-size: .8rem; color: var(--studio-muted); font-weight: 650; }
+.studio-state dd { margin: .15rem 0 0; font-weight: 700; }
+.studio-quiet-actions { padding-top: .6rem; border-top: 1px dashed var(--studio-line); }

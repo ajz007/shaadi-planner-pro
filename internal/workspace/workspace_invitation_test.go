@@ -110,43 +110,93 @@ func testInvitationHTTP(t *testing.T, request testRequest, handler http.Handler,
 	path := rsvpPath + "/invitation"
 	request("GET", path, "", "", brother, 404)
 	var settings invitationSettings
-	if rec := request("GET", path, "", "", owner, 200); json.Unmarshal(rec.Body.Bytes(), &settings) != nil ||
-		settings.Revision != 0 || settings.Enabled || len(settings.Events) < 2 || settings.Template.ID != "blush-envelope" {
-		t.Fatalf("unexpected first invitation settings: %s", rec.Body)
+	readSettings := func() invitationSettings {
+		t.Helper()
+		var result invitationSettings
+		if rec := request("GET", path, "", "", owner, 200); json.Unmarshal(rec.Body.Bytes(), &result) != nil {
+			t.Fatalf("invalid settings: %s", rec.Body)
+		}
+		return result
 	}
-	design := `"template":{"id":"blush-envelope","options":{"palette":"royal","lanterns":false}}`
-	request("POST", path, `{"enabled":true,"revision":0,"content":{},"template":{"id":"blush-envelope","options":{"palette":"neon"}}}`, origin, owner, 422)
-	request("POST", path, `{"enabled":true,"revision":0,"content":{},"template":{"id":"no-such-design","options":{}}}`, origin, owner, 422)
-	request("POST", path, `{"enabled":true,"revision":0,"content":{},`+design+`}`, "https://other.example", owner, 403)
-	request("POST", path, `{"enabled":true,"revision":0,"content":{},`+design+`}`, origin, brother, 404)
-	content := `{"groom":{"name":"Aarav Sharma","shortName":"Aarav"},"bride":{"name":"Meera Iyer","shortName":"Meera"},` +
-		`"events":{"` + sangeet + `":{"icon":"sangeet","subtitle":"Dance night","timeLabel":""},"` + reception +
-		`":{"icon":"reception","subtitle":"followed by dinner","timeLabel":""}},"contacts":[{"name":"Rohan","role":"Brother","phone":"0000000011"}]}`
-	save := func(enabled bool, revision, want int) *httptest.ResponseRecorder {
-		return request("POST", path, `{"enabled":`+strconv.FormatBool(enabled)+`,"revision":`+strconv.Itoa(revision)+`,"content":`+content+`,`+design+`}`,
-			origin, owner, want)
+	if settings = readSettings(); settings.Revision != 0 || settings.Live || settings.EverPublished || len(settings.Events) < 2 ||
+		settings.Template.ID != "blush-envelope" {
+		t.Fatalf("unexpected first invitation settings: %+v", settings)
 	}
-	save(false, 0, 200)
-	save(false, 0, 409)
-	public := request("POST", "/api/guest-rsvp", `{"token":"`+householdSecret+`"}`, origin, nil, 200)
-	if strings.Contains(public.Body.String(), `"invitation"`) {
-		t.Fatal("a draft invitation must not reach guests")
+	design := func(palette string) string {
+		return `"template":{"id":"blush-envelope","options":{"palette":"` + palette + `","lanterns":false}}`
 	}
-	save(true, 1, 200)
+	request("POST", path, `{"revision":0,"content":{},"template":{"id":"blush-envelope","options":{"palette":"neon"}}}`, origin, owner, 422)
+	request("POST", path, `{"revision":0,"content":{},"template":{"id":"no-such-design","options":{}}}`, origin, owner, 422)
+	request("POST", path, `{"revision":0,"content":{},`+design("royal")+`}`, "https://other.example", owner, 403)
+	request("POST", path, `{"revision":0,"content":{},`+design("royal")+`}`, origin, brother, 404)
+	content := func(shortName string) string {
+		return `{"groom":{"name":"Aarav Sharma","shortName":"` + shortName + `"},"bride":{"name":"Meera Iyer","shortName":"Meera"},` +
+			`"events":{"` + sangeet + `":{"icon":"sangeet","subtitle":"Dance night","timeLabel":""},"` + reception +
+			`":{"icon":"reception","subtitle":"followed by dinner","timeLabel":""}},"contacts":[{"name":"Rohan","role":"Brother","phone":"0000000011"}]}`
+	}
+	save := func(shortName, palette string, revision, want int) {
+		t.Helper()
+		request("POST", path, `{"revision":`+strconv.Itoa(revision)+`,"content":`+content(shortName)+`,`+design(palette)+`}`, origin, owner, want)
+	}
+	publish := func(action string, revision, want int) {
+		t.Helper()
+		request("POST", path+"/publish", `{"action":"`+action+`","revision":`+strconv.Itoa(revision)+`}`, origin, owner, want)
+	}
+	guest := func() *publicInvitation {
+		t.Helper()
+		var rsvp struct{ Invitation *publicInvitation }
+		rec := request("POST", "/api/guest-rsvp", `{"token":"`+householdSecret+`"}`, origin, nil, 200)
+		if json.Unmarshal(rec.Body.Bytes(), &rsvp) != nil {
+			t.Fatalf("invalid guest response: %s", rec.Body)
+		}
+		return rsvp.Invitation
+	}
 
-	var rsvp struct{ Invitation *publicInvitation }
-	if rec := request("POST", "/api/guest-rsvp", `{"token":"`+householdSecret+`"}`, origin, nil, 200); json.Unmarshal(rec.Body.Bytes(), &rsvp) != nil ||
-		rsvp.Invitation == nil || rsvp.Invitation.Content.Groom.ShortName != "Aarav" || len(rsvp.Invitation.Events) != 2 ||
-		rsvp.Invitation.HasMusic || len(rsvp.Invitation.Content.Contacts) != 1 || rsvp.Invitation.Template.ID != "blush-envelope" ||
-		rsvp.Invitation.Template.Options["palette"] != "royal" || rsvp.Invitation.Template.Options["lanterns"] != false ||
-		rsvp.Invitation.Template.Options["flightPath"] != true || strings.Contains(rec.Body.String(), "familyOnly") {
-		t.Fatalf("household link should show the invitation with its two functions: %s", rec.Body)
+	save("Aarav", "royal", 0, 200)
+	save("Aarav", "royal", 0, 409)
+	if guest() != nil {
+		t.Fatal("a saved draft must not reach guests before it is published")
+	}
+	publish("discard", 1, 409)
+	publish("launch", 1, 422)
+	request("POST", path+"/publish", `{"action":"publish","revision":1}`, origin, brother, 404)
+	publish("publish", 1, 200)
+	if invitation := guest(); invitation == nil || invitation.Content.Groom.ShortName != "Aarav" || len(invitation.Events) != 2 ||
+		invitation.HasMusic || len(invitation.Content.Contacts) != 1 || invitation.Template.ID != "blush-envelope" ||
+		invitation.Template.Options["palette"] != "royal" || invitation.Template.Options["lanterns"] != false ||
+		invitation.Template.Options["flightPath"] != true {
+		t.Fatalf("household link should show the published invitation with its two functions: %+v", invitation)
+	}
+	if rec := request("POST", "/api/guest-rsvp", `{"token":"`+householdSecret+`"}`, origin, nil, 200); strings.Contains(rec.Body.String(), "familyOnly") {
+		t.Fatal("guests never need the organizer's family-only flag")
 	}
 	var schedule struct{ Invitation *publicInvitation }
 	if rec := request("POST", "/api/guest-schedule", `{"token":"`+scheduleSecret+`"}`, origin, nil, 200); json.Unmarshal(rec.Body.Bytes(), &schedule) != nil ||
 		schedule.Invitation == nil || len(schedule.Invitation.Events) != 1 || schedule.Invitation.Events[0].ID != reception ||
 		len(schedule.Invitation.Content.Events) != 1 || strings.Contains(rec.Body.String(), "Dance night") {
 		t.Fatalf("a date-scoped schedule must show only that date's functions and their styles: %s", rec.Body)
+	}
+	if settings = readSettings(); !settings.Live || !settings.EverPublished || settings.PublishedAt == nil || settings.UnpublishedChanges {
+		t.Fatalf("just published, with no further edits: %+v", settings)
+	}
+
+	// Edits after publishing stay in the draft until published again.
+	save("Arjun", "rose-gold", 2, 200)
+	if invitation := guest(); invitation.Content.Groom.ShortName != "Aarav" || invitation.Template.Options["palette"] != "royal" {
+		t.Fatal("guests must keep seeing the published version while the draft changes")
+	}
+	if settings = readSettings(); !settings.UnpublishedChanges || settings.Content.Groom.ShortName != "Arjun" {
+		t.Fatalf("the organizer should see the draft and its unpublished changes: %+v", settings)
+	}
+	publish("discard", 3, 200)
+	if settings = readSettings(); settings.UnpublishedChanges || settings.Content.Groom.ShortName != "Aarav" ||
+		settings.Template.Options["palette"] != "royal" {
+		t.Fatalf("discarding should restore the published version: %+v", settings)
+	}
+	save("Arjun", "rose-gold", 4, 200)
+	publish("publish", 5, 200)
+	if invitation := guest(); invitation.Content.Groom.ShortName != "Arjun" || invitation.Template.Options["palette"] != "rose-gold" {
+		t.Fatal("publishing again should show the new version")
 	}
 
 	upload := func(body []byte, contentType string, revision, want int) *httptest.ResponseRecorder {
@@ -165,12 +215,12 @@ func testInvitationHTTP(t *testing.T, request testRequest, handler http.Handler,
 		return rec
 	}
 	music := append([]byte("ID3\x04\x00\x00"), bytes.Repeat([]byte{1}, 2048)...)
-	upload([]byte("<html>not music</html>"), "audio/mpeg", 2, 422)
+	upload([]byte("<html>not music</html>"), "audio/mpeg", 6, 422)
 	upload(music, "audio/mpeg", 1, 409)
-	upload(music, "audio/mpeg", 2, 200)
-	if rec := request("GET", path, "", "", owner, 200); json.Unmarshal(rec.Body.Bytes(), &settings) != nil ||
-		!settings.HasMusic || settings.MusicName != "shehnai.mp3" || settings.Revision != 3 || settings.Content.Groom.Name != "Aarav Sharma" {
-		t.Fatalf("music should be saved without touching the content: %s", rec.Body)
+	upload(music, "audio/mpeg", 6, 200)
+	if settings = readSettings(); !settings.HasMusic || settings.MusicName != "shehnai.mp3" || settings.Revision != 7 ||
+		settings.Content.Groom.Name != "Aarav Sharma" {
+		t.Fatalf("music should be saved without touching the content: %+v", settings)
 	}
 	for _, secret := range []string{householdSecret, scheduleSecret} {
 		rec := request("POST", "/api/guest-invitation-music", `{"token":"`+secret+`"}`, origin, nil, 200)
@@ -184,12 +234,15 @@ func testInvitationHTTP(t *testing.T, request testRequest, handler http.Handler,
 		t.Fatal("organizers should be able to preview the music")
 	}
 	request("GET", path+"/music", "", "", brother, 404)
-	upload(nil, "", 3, 200)
-	request("POST", "/api/guest-invitation-music", `{"token":"`+householdSecret+`"}`, origin, nil, 404)
 
-	save(false, 4, 200)
+	publish("unpublish", 6, 409)
+	publish("unpublish", 7, 200)
 	request("POST", "/api/guest-invitation-music", `{"token":"`+householdSecret+`"}`, origin, nil, 404)
 	if rec := request("POST", "/api/guest-schedule", `{"token":"`+scheduleSecret+`"}`, origin, nil, 200); strings.Contains(rec.Body.String(), `"invitation"`) {
-		t.Fatal("turning the invitation off should restore the simple page")
+		t.Fatal("stopping the invitation should restore the simple page")
 	}
+	if settings = readSettings(); settings.Live || !settings.EverPublished || settings.Content.Groom.ShortName != "Arjun" {
+		t.Fatalf("stopping keeps the draft and the published snapshot: %+v", settings)
+	}
+	upload(nil, "", 8, 200)
 }
