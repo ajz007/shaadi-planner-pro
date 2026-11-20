@@ -21,6 +21,8 @@
 .studio-pill.is-live { background: #e3f1e4; color: #1f6a32; }
 .studio-unsaved { font-size: .85rem; font-weight: 650; color: #9a4b12; }
 .studio-message { margin: 0; }
+.studio-draft-note { margin: 0; padding: .6rem .9rem; border-radius: .7rem; background: var(--planner-accent-tint); }
+.studio .studio-link { padding: 0; border: 0; background: none; color: var(--planner-accent); font: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: .2em; }
 
 /* Gallery */
 .studio-gallery-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: .5rem 1rem; }

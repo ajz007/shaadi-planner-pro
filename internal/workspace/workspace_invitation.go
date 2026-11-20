@@ -307,6 +307,7 @@ type invitationSettings struct {
 	Live               bool              `json:"live"`
 	EverPublished      bool              `json:"everPublished"`
 	PublishedAt        *time.Time        `json:"publishedAt,omitempty"`
+	SavedAt            *time.Time        `json:"savedAt,omitempty"`
 	UnpublishedChanges bool              `json:"unpublishedChanges"`
 	Template           invitationDesign  `json:"template"`
 	Content            invitationContent `json:"content"`
@@ -325,19 +326,22 @@ func (a *workspaceHTTP) invitationSettings(w http.ResponseWriter, r *http.Reques
 	var raw, options []byte
 	var template string
 	var version int
-	var publishedAt sql.NullTime
+	var publishedAt, savedAt sql.NullTime
 	err := a.store.db.QueryRowContext(ctx, `SELECT enabled AND published IS NOT NULL,published IS NOT NULL,published_at,
 		published IS NOT NULL AND published IS DISTINCT FROM `+draftSnapshot+`,
-		content,template_id,template_version,template_options,music IS NOT NULL,music_name,revision
+		content,template_id,template_version,template_options,music IS NOT NULL,music_name,revision,updated_at
 		FROM wedding_invitations WHERE wedding_id=$1`, wedding).
 		Scan(&settings.Live, &settings.EverPublished, &publishedAt, &settings.UnpublishedChanges,
-			&raw, &template, &version, &options, &settings.HasMusic, &settings.MusicName, &settings.Revision)
+			&raw, &template, &version, &options, &settings.HasMusic, &settings.MusicName, &settings.Revision, &savedAt)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		workspaceFailure(w, err)
 		return
 	}
 	if publishedAt.Valid {
 		settings.PublishedAt = &publishedAt.Time
+	}
+	if savedAt.Valid {
+		settings.SavedAt = &savedAt.Time
 	}
 	settings.Content = decodeInvitationContent(raw)
 	settings.Template = storedDesign(template, version, options)
