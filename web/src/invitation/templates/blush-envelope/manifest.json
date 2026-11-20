@@ -5,6 +5,16 @@
   "name": "Envelope & Roses",
   "description": "A sealed envelope opens to a blush-and-gold invitation with a marigold toran, falling petals and a paper-plane trail.",
   "premium": false,
+  "tags": {
+    "mood": [
+      "romantic",
+      "festive"
+    ],
+    "region": [
+      "all-india"
+    ],
+    "time": "any"
+  },
   "sections": [
     "blessing",
     "hero",
@@ -26,15 +36,30 @@
       "choices": [
         {
           "value": "rose-gold",
-          "label": "Blush & Gold"
+          "label": "Blush & Gold",
+          "swatch": [
+            "#fbf7f1",
+            "#e7a0a6",
+            "#b98a3e"
+          ]
         },
         {
           "value": "marigold",
-          "label": "Marigold"
+          "label": "Marigold",
+          "swatch": [
+            "#fff8ea",
+            "#f6b73c",
+            "#7a1f12"
+          ]
         },
         {
           "value": "royal",
-          "label": "Royal Maroon (dark)"
+          "label": "Royal Maroon (dark)",
+          "swatch": [
+            "#2c0f19",
+            "#d6ae5c",
+            "#c25a6c"
+          ]
         }
       ]
     },

@@ -286,7 +286,7 @@ html.t-royal-scroll-locked, html.t-royal-scroll-locked body { overflow: hidden; 
 .t-royal-scroll [data-reveal] { opacity: 0; transform: translateY(16px) scale(.985); transition: opacity .9s ease, transform .9s cubic-bezier(.2, .7, .2, 1); }
 .t-royal-scroll [data-reveal].is-in { opacity: 1; transform: none; }
 .t-royal-scroll .rs-section { position: relative; padding: clamp(2.25rem, 7vw, 3.75rem) 0; text-align: center; }
-.t-royal-scroll .rs-section + .rs-section::before { content: ""; position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
+.t-royal-scroll .rs-section ~ .rs-section::before { content: ""; position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
   background: linear-gradient(90deg, transparent, var(--rs-line), transparent); }
 
 .t-royal-scroll .rs-rule { width: min(200px, 70%); margin: 1rem auto; }

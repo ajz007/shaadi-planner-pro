@@ -6,9 +6,11 @@ export type SectionKey = 'blessing' | 'hero' | 'countdown' | 'couple' | 'events'
 export type TemplateOption =
   | { key: string; label: string; type: 'boolean'; default: boolean; help?: string }
   | { key: string; label: string; type: 'text'; default: string; max: number; help?: string }
-  | { key: string; label: string; type: 'choice'; default: string; choices: { value: string; label: string }[]; help?: string }
+  | { key: string; label: string; type: 'choice'; default: string; choices: { value: string; label: string; swatch?: string[] }[]; help?: string }
+export type TemplateTags = { mood: string[]; region: string[]; time: 'day' | 'night' | 'any' }
 export type TemplateManifest = {
-  id: string; version: number; order: number; name: string; description: string; premium: boolean; sections: SectionKey[]; options: TemplateOption[]
+  id: string; version: number; order: number; name: string; description: string; premium: boolean; tags: TemplateTags
+  sections: SectionKey[]; options: TemplateOption[]
 }
 export type OptionValues = Record<string, string | boolean>
 export type InvitationDesign = { id: string; version: number; options: OptionValues }

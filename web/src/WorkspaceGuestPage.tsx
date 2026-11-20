@@ -4,7 +4,6 @@ import type { Plan } from './Workspace'
 import { useWorkspaceData } from './WorkspaceData'
 import { WeddingInvitationHeader, weddingDay } from './GuestWeddingPage'
 import type { GuestPage } from './GuestWeddingPage'
-import { WorkspaceInvitation } from './WorkspaceInvitation'
 
 type PageSettings = GuestPage & { revision: number }
 type ScheduleLink = { id: string; date: string; functionId: string; familyFunctionIds: string[]; expiresAt: string; url: string }
@@ -37,8 +36,8 @@ async function prepareCover(file: File): Promise<string> {
   throw new Error('Could not reduce this photo enough. Try a smaller image.')
 }
 
-export function WorkspaceGuestPage({ path, wedding, functions, onSavedDesign }: {
-  path: string; wedding: Plan['wedding']; functions: Plan['functions']; onSavedDesign: (page: GuestPage) => void
+export function WorkspaceGuestPage({ path, wedding, functions, onSavedDesign, invitationHref }: {
+  path: string; wedding: Plan['wedding']; functions: Plan['functions']; onSavedDesign: (page: GuestPage) => void; invitationHref: string
 }) {
   const { request } = useWorkspaceData()
   const [page, setPage] = useState<PageSettings>()
@@ -91,7 +90,13 @@ export function WorkspaceGuestPage({ path, wedding, functions, onSavedDesign }: 
     finally { setPageBusy(false) }
   }
   return <>
-    <WorkspaceInvitation path={path} page={page} />
+    <section className="focus-card studio-callout">
+      <div>
+        <h2>Digital invitation</h2>
+        <p>Choose an animated design, personalise it with a live preview, and publish it to every guest link.</p>
+      </div>
+      <a className="package-button" href={invitationHref}>Open the invitation studio</a>
+    </section>
     <details className="focus-card guest-page-editor">
       <summary>Customize the wedding page</summary>
       <p>Your cover, welcome message, and style appear on RSVP and shared schedule links.</p>

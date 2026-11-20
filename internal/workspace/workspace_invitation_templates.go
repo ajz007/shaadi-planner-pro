@@ -20,9 +20,40 @@ var invitationSections = []string{"blessing", "hero", "countdown", "couple", "ev
 
 var templateKey = regexp.MustCompile(`^[a-z][a-zA-Z0-9]{0,39}$`)
 
+// Gallery filters. Tags come from fixed lists so filters stay consistent as
+// designs are added.
+var (
+	templateMoods   = []string{"festive", "royal", "minimal", "romantic", "serene", "playful", "glamorous", "heritage"}
+	templateRegions = []string{"all-india", "north", "south", "east", "west"}
+	templateTimes   = []string{"day", "night", "any"}
+	swatchColour    = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+)
+
+type templateTags struct {
+	Mood   []string `json:"mood"`
+	Region []string `json:"region"`
+	Time   string   `json:"time"`
+}
+
+func (t templateTags) valid() bool {
+	inList := func(values, allowed []string) bool {
+		if len(values) == 0 || len(values) > 3 {
+			return false
+		}
+		for i, value := range values {
+			if !slices.Contains(allowed, value) || slices.Index(values, value) != i {
+				return false
+			}
+		}
+		return true
+	}
+	return inList(t.Mood, templateMoods) && inList(t.Region, templateRegions) && slices.Contains(templateTimes, t.Time)
+}
+
 type templateChoice struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
+	Value  string   `json:"value"`
+	Label  string   `json:"label"`
+	Swatch []string `json:"swatch,omitempty"`
 }
 
 type templateOption struct {
@@ -42,6 +73,7 @@ type invitationTemplate struct {
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
 	Premium     bool             `json:"premium"`
+	Tags        templateTags     `json:"tags"`
 	Sections    []string         `json:"sections"`
 	Options     []templateOption `json:"options"`
 }
@@ -101,6 +133,9 @@ func checkTemplates(list []invitationTemplate) (map[string]invitationTemplate, e
 			len(template.Sections) == 0 {
 			return nil, fmt.Errorf("template %q: missing id, version, name or sections", template.ID)
 		}
+		if !template.Tags.valid() {
+			return nil, fmt.Errorf("template %q: tags need 1-3 moods and regions from the allowed lists, and a time of day", template.ID)
+		}
 		if _, duplicate := templates[template.ID]; duplicate {
 			return nil, fmt.Errorf("template %q is listed twice", template.ID)
 		}
@@ -124,6 +159,12 @@ func checkTemplates(list []invitationTemplate) (map[string]invitationTemplate, e
 			}
 			if option.Type == "choice" && len(option.Choices) == 0 {
 				return nil, fmt.Errorf("template %q option %q: choice needs choices", template.ID, option.Key)
+			}
+			for _, choice := range option.Choices {
+				invalid := func(colour string) bool { return !swatchColour.MatchString(colour) }
+				if option.Key == "palette" && (len(choice.Swatch) != 3 || slices.ContainsFunc(choice.Swatch, invalid)) {
+					return nil, fmt.Errorf("template %q palette %q: needs a swatch of three #rrggbb colours", template.ID, choice.Value)
+				}
 			}
 			if _, ok := option.check(value); !ok {
 				return nil, fmt.Errorf("template %q option %q: default does not match its type", template.ID, option.Key)

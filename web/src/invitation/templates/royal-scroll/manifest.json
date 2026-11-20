@@ -5,7 +5,29 @@
   "name": "Royal Scroll",
   "description": "A sealed scroll with a silk tassel unrolls into one long painted parchment, with court-painting cartouches of elephants and peacocks between the sections.",
   "premium": false,
-  "sections": ["blessing", "hero", "countdown", "couple", "events", "rsvp", "family", "venue", "contacts", "closing"],
+  "tags": {
+    "mood": [
+      "royal",
+      "heritage"
+    ],
+    "region": [
+      "north",
+      "west"
+    ],
+    "time": "night"
+  },
+  "sections": [
+    "blessing",
+    "hero",
+    "countdown",
+    "couple",
+    "events",
+    "rsvp",
+    "family",
+    "venue",
+    "contacts",
+    "closing"
+  ],
   "options": [
     {
       "key": "palette",
@@ -13,9 +35,33 @@
       "type": "choice",
       "default": "maroon",
       "choices": [
-        { "value": "maroon", "label": "Maroon & Gold (dark)" },
-        { "value": "indigo", "label": "Indigo & Gold (dark)" },
-        { "value": "ivory", "label": "Ivory Parchment" }
+        {
+          "value": "maroon",
+          "label": "Maroon & Gold (dark)",
+          "swatch": [
+            "#521526",
+            "#f2d58f",
+            "#16030a"
+          ]
+        },
+        {
+          "value": "indigo",
+          "label": "Indigo & Gold (dark)",
+          "swatch": [
+            "#232c6b",
+            "#f2d58f",
+            "#070a20"
+          ]
+        },
+        {
+          "value": "ivory",
+          "label": "Ivory Parchment",
+          "swatch": [
+            "#fcf5e3",
+            "#7a1c22",
+            "#d3bb8c"
+          ]
+        }
       ]
     },
     {
