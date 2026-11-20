@@ -27,6 +27,8 @@ Reference for turning Shaadi Planner Pro's guest page into a full digital invita
 - **Weight:** about 12 KB JS + 6 KB CSS gzipped, loaded only on guest pages, against several megabytes for a typical custom invite.
 - **Tests:** content validation, organizer and guest endpoints, link scoping, draft versus live, music upload and access, against PostgreSQL.
 
+- **Invitation studio** (Phase 1 of the product plan): a "Digital Invitation" planner section with a design gallery (thumbnails, palette swatches, mood/region/time filters, full preview with the couple's own details), a step-by-step editor beside a live phone or desktop preview that follows the section being edited, and a publish screen with a checklist. The preview is the real guest page in an iframe (`/invitation-preview?embed`) that receives the draft by `postMessage`. Guest RSVP links to it.
+
 ### Known gaps, in suggested order
 
 1. **WhatsApp link preview.** Guest tokens live in the URL fragment, which the server never sees, so the preview card is the generic site card. Option: a short public `/i/{slug}` share page per wedding with server-rendered `og:` tags that hands off to the personal link.

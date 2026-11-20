@@ -7,6 +7,7 @@ import { dayKey, dayLabel, lines, longDate, timeLabel } from '../../format'
 import { useMusic } from '../../music'
 import type { InvitationContent, InvitationEvent, InvitationPerson, SectionKey } from '../../model'
 import type { TemplateProps } from '../../types'
+import { SectionAnchor } from '../../SectionAnchor'
 import { BananaLeaf, Bloom, DiyaBowl, Door, GarlandRule, Ladi, LadiDefs, MangoToran, MedalBloom, SymbolBloom, Wreath } from './art'
 import './style.css'
 
@@ -382,7 +383,7 @@ export default function MarigoldMandap({ page, invitation, manifest: design, opt
         <MangoToran className="mm-canopy-toran" />
       </div>
       <div className="mm-sheet">
-        {order.map(key => <Fragment key={key}>{render[key]()}</Fragment>)}
+        {order.map(key => <Fragment key={key}><SectionAnchor section={key} />{render[key]()}</Fragment>)}
       </div>
     </main>
 

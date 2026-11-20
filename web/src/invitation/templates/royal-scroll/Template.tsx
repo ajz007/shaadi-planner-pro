@@ -7,6 +7,7 @@ import { dayKey, dayLabel, lines, longDate, timeLabel } from '../../format'
 import { useMusic } from '../../music'
 import type { InvitationContent, InvitationEvent, InvitationPerson, SectionKey } from '../../model'
 import type { TemplateProps } from '../../types'
+import { SectionAnchor } from '../../SectionAnchor'
 import { BorderStrip, Cartouche, Coin, Corner, ElephantSolo, Finial, Jhalar, JaliField, Rule, SymbolMedal, Tassel, WaxSeal } from './art'
 import type { Scene } from './art'
 import './style.css'
@@ -395,7 +396,7 @@ export default function RoyalScroll({ page, invitation, manifest: design, option
       <div className="rs-paper">
         <BorderStrip className="rs-strip is-l" /><BorderStrip className="rs-strip is-r" />
         <div className="rs-paper-body">
-          {order.map(key => <Fragment key={key}>{render[key]()}</Fragment>)}
+          {order.map(key => <Fragment key={key}><SectionAnchor section={key} />{render[key]()}</Fragment>)}
         </div>
       </div>
       <div ref={end}><Roll className="is-end" /></div>

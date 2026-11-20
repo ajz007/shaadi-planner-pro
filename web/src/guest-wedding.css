@@ -127,3 +127,6 @@
 .inv-editor-save { position: sticky; bottom: .5rem; z-index: 2; padding: .6rem; background: #fffaf3; border: 1px solid #e3cab6; border-radius: .7rem; }
 .inv-editor-group.is-unused > summary { opacity: .65; }
 .inv-editor-group > summary small { font-weight: 500; }
+.studio-callout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem 1.5rem; margin-bottom: 1rem; }
+.studio-callout h2 { margin: 0 0 .25rem; }
+.studio-callout p { margin: 0; }

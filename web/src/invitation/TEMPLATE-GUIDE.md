@@ -33,10 +33,14 @@ Adding a template must not require changes anywhere else. Do not edit other temp
   "name": "Marigold Mandap",
   "description": "One sentence a family reads in the design picker.",
   "premium": false,
+  "tags": { "mood": ["festive", "playful"], "region": ["north", "west"], "time": "day" },
   "sections": ["blessing", "hero", "countdown", "couple", "events", "rsvp", "family", "venue", "contacts", "closing"],
   "options": [
     { "key": "palette", "label": "Palette", "type": "choice", "default": "saffron",
-      "choices": [{ "value": "saffron", "label": "Saffron" }, { "value": "rani", "label": "Rani Pink" }] },
+      "choices": [
+        { "value": "saffron", "label": "Saffron", "swatch": ["#fde9c2", "#b23c06", "#5c1d08"] },
+        { "value": "rani", "label": "Rani Pink", "swatch": ["#fde0e6", "#ad1457", "#640d33"] }
+      ] },
     { "key": "petals", "label": "Falling petals", "type": "boolean", "default": true }
   ]
 }
@@ -44,7 +48,8 @@ Adding a template must not require changes anywhere else. Do not edit other temp
 
 - `id` is lowercase with hyphens and matches the folder name. `order` is the brief number from the backlog. `version` starts at 1. `premium` stays `false`.
 - `sections` are the shared sections this design shows, in display order. Allowed keys: `blessing`, `hero`, `countdown`, `couple`, `events`, `rsvp`, `family`, `venue`, `contacts`, `closing`. Include all ten unless the brief says otherwise; drop or reorder only when the design calls for it. `rsvp` must be included.
-- `options`: always a `palette` choice with two or three palettes. Add at most three more options (boolean, choice, or text with `max`). Keys are camelCase. Every option needs a `default` of the right type.
+- `tags` feed the design gallery's filters. `mood`: one to three of `festive`, `royal`, `minimal`, `romantic`, `serene`, `playful`, `glamorous`, `heritage`. `region`: one to three of `all-india`, `north`, `south`, `east`, `west`. `time`: `day`, `night` or `any`. Pick honestly; families filter by these.
+- `options`: always a `palette` choice with two or three palettes. Every palette choice has a `swatch` of exactly three `#rrggbb` colours taken from your CSS: the background, the main accent, and the deepest ink. The gallery shows them as colour dots. Add at most three more options (boolean, choice, or text with `max`). Keys are camelCase. Every option needs a `default` of the right type.
 - The Go test `TestInvitationTemplates` validates every manifest. Run it.
 
 ## Template.tsx
@@ -75,6 +80,8 @@ Requirements:
 8. **Music**: when `invitation.hasMusic`, a large labelled Music On/Off button fixed in a corner, visible after the opening.
 9. Set `document.title` to "<Names> | Wedding Invitation" and restore it on unmount.
 10. Load fonts with `useFonts(href)` from `../../effects`, using Google Fonts with `display=swap`.
+11. **Section anchors.** Render `<SectionAnchor section={key} />` (from `../../SectionAnchor`) immediately before each section, as blush-envelope does: `order.map(key => <Fragment key={key}><SectionAnchor section={key} />{render[key]()}</Fragment>)`. The studio's live preview scrolls to these while the family edits a section.
+12. **Studio preview.** The studio opens the invitation by clicking the `data-open` element, then clicks near the top-left corner of the page about 2.6 seconds later to continue. Make sure that sequence lands on the page, and that a draft update (new props) changes the content in place without restarting the opening.
 
 ## style.css
 
@@ -82,6 +89,7 @@ Requirements:
 - Scope every rule under this template's root: give the outer element `className="t-<id>"` and start every selector with `.t-<id>`. The only exception is the scroll-lock class on `<html>`, which must also include the id (`html.t-<id>-locked`).
 - Define colours as custom properties on the root, one block per palette: `.t-<id>[data-palette="saffron"] { --c-paper: …; }`.
 - The RSVP panel uses the existing `.invite-panel` markup. Restyle it inside your scope (see the end of blush-envelope's `style.css`) so it matches your design.
+- Section anchors sit between sections, so never style sections with the adjacent-sibling selector (`.x-section + .x-section`); use the general sibling selector (`.x-section ~ .x-section`) instead.
 - Animate only `opacity` and `transform`. Under `@media (prefers-reduced-motion: reduce)` switch every animation and transition off and show everything.
 - No horizontal scroll from 320 px to 1920 px. Use a 16 px side gutter on phones.
 

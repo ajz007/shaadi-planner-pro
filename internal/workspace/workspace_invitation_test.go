@@ -83,10 +83,14 @@ func TestInvitationTemplates(t *testing.T) {
 		t.Fatalf("a removed template should fall back to the default: %+v", design)
 	}
 	for name, manifest := range map[string]string{
-		"unknown section": `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero","gallery"],"options":[]}]`,
-		"bad default":     `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero"],"options":[{"key":"k","label":"K","type":"boolean","default":"no"}]}]`,
-		"no default":      `[{"id":"other","version":1,"name":"A","sections":["hero"],"options":[]}]`,
-		"text no max":     `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero"],"options":[{"key":"k","label":"K","type":"text","default":""}]}]`,
+		"unknown section":        `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero","gallery"],"options":[]}]`,
+		"bad default":            `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero"],"options":[{"key":"k","label":"K","type":"boolean","default":"no"}]}]`,
+		"no default":             `[{"id":"other","version":1,"name":"A","sections":["hero"],"options":[]}]`,
+		"no tags":                `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero"],"options":[]}]`,
+		"unknown mood":           `[{"id":"blush-envelope","version":1,"name":"A","tags":{"mood":["spooky"],"region":["north"],"time":"day"},"sections":["hero"],"options":[]}]`,
+		"palette without swatch": `[{"id":"blush-envelope","version":1,"name":"A","tags":{"mood":["royal"],"region":["north"],"time":"day"},"sections":["hero"],"options":[{"key":"palette","label":"P","type":"choice","default":"a","choices":[{"value":"a","label":"A"}]}]}]`,
+		"bad swatch colour":      `[{"id":"blush-envelope","version":1,"name":"A","tags":{"mood":["royal"],"region":["north"],"time":"day"},"sections":["hero"],"options":[{"key":"palette","label":"P","type":"choice","default":"a","choices":[{"value":"a","label":"A","swatch":["#fff","#000000","#111111"]}]}]}]`,
+		"text no max":            `[{"id":"blush-envelope","version":1,"name":"A","sections":["hero"],"options":[{"key":"k","label":"K","type":"text","default":""}]}]`,
 	} {
 		var list []invitationTemplate
 		if err := json.Unmarshal([]byte(manifest), &list); err != nil {

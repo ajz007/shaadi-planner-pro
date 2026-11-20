@@ -7,6 +7,7 @@ import { dayKey, dayLabel, lines, longDate, timeLabel } from '../../format'
 import { useMusic } from '../../music'
 import type { InvitationContent, InvitationEvent, InvitationPerson, SectionKey } from '../../model'
 import type { TemplateProps } from '../../types'
+import { SectionAnchor } from '../../SectionAnchor'
 import './style.css'
 
 const fonts = 'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Noto+Serif+Devanagari:wght@500;600&display=swap'
@@ -336,7 +337,7 @@ export default function BlushEnvelope({ page, invitation, manifest: design, opti
     {preview && <p className="inv-preview-banner">Preview · This is how your guests will see the invitation</p>}
     <main className="inv-main" ref={root} aria-hidden={!open && stage !== 'leaving'}>
       <Toran className="is-top" />
-      {order.map(key => <Fragment key={key}>{render[key]()}</Fragment>)}
+      {order.map(key => <Fragment key={key}><SectionAnchor section={key} />{render[key]()}</Fragment>)}
       <Toran className="is-bottom" />
     </main>
 
