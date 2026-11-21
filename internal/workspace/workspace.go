@@ -70,13 +70,24 @@ var workspaceBudgetMigration string
 //go:embed migrations/018_wedding_invitation.sql
 var workspaceInvitationMigration string
 
+//go:embed migrations/019_family_passes.sql
+var familyPassMigration string
+
+//go:embed migrations/020_family_pass_access.sql
+var familyPassAccessMigration string
+
 var (
-	errWorkspaceNotFound = errors.New("record not found or access denied")
-	errWorkspaceConflict = errors.New("record changed or no longer available")
-	errWorkspaceInput    = errors.New("invalid workspace data")
+	errWorkspaceNotFound    = errors.New("record not found or access denied")
+	errWorkspaceConflict    = errors.New("record changed or no longer available")
+	errWorkspaceInput       = errors.New("invalid workspace data")
+	errFamilyPassRequired   = errors.New("family pass required")
+	errFamilyWeddingExpired = errors.New("wedding date is outside access period")
 )
 
-type workspaceStore struct{ db *sql.DB }
+type workspaceStore struct {
+	db       *sql.DB
+	passMode string
+}
 
 func openWorkspace(ctx context.Context, connection string) (*workspaceStore, error) {
 	db, err := sql.Open("pgx", connection)
@@ -109,7 +120,7 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 		workspaceTransportMigration, workspaceArrivalRepairMigration, workspaceLogisticsMigration, workspaceFinanceMigration,
 		workspaceReadinessMigration, workspaceGuestStayMigration, workspaceGuestRSVPMigration, workspaceRunSheetMigration,
 		workspaceGuestPageMigration, workspaceReusableScheduleMigration, workspaceFunctionVisibilityMigration,
-		workspaceGuestLabelsMigration, workspaceBudgetMigration, workspaceInvitationMigration,
+		workspaceGuestLabelsMigration, workspaceBudgetMigration, workspaceInvitationMigration, familyPassMigration, familyPassAccessMigration,
 	}
 	for i, migration := range migrations {
 		version := i + 1
@@ -158,12 +169,80 @@ func (s *workspaceStore) syncAccount(ctx context.Context, subject, name string) 
 }
 
 func (s *workspaceStore) createWedding(ctx context.Context, account, name, date, zone string) (string, error) {
+	return s.createWeddingFromDraft(ctx, account, name, date, zone, nil)
+}
+
+type weddingDraft struct {
+	Bride, Groom, Function, FunctionTime string
+}
+
+func (s *workspaceStore) createWeddingFromDraft(ctx context.Context, account, name, date, zone string, draft *weddingDraft) (string, error) {
 	_, dateErr := time.Parse(time.DateOnly, date)
-	_, zoneErr := time.LoadLocation(zone)
+	location, zoneErr := time.LoadLocation(zone)
 	if !validLabel(name, 120) || dateErr != nil || zoneErr != nil || zone == "" || zone == "Local" {
 		return "", errWorkspaceInput
 	}
-	return createWorkspaceWedding(ctx, s.db, account, name, date, zone)
+	var startsAt time.Time
+	if draft != nil {
+		var err error
+		startsAt, err = time.ParseInLocation("2006-01-02T15:04", date+"T"+draft.FunctionTime, location)
+		if err != nil || !validLabel(draft.Bride, 56) || !validLabel(draft.Groom, 56) || !validLabel(draft.Function, 120) {
+			return "", errWorkspaceInput
+		}
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	id, err := s.createWeddingWithPass(ctx, tx, account, name, date, zone)
+	if err != nil {
+		return "", err
+	}
+	if draft != nil {
+		_, err = tx.ExecContext(ctx, `INSERT INTO wedding_invitations (wedding_id, content)
+			VALUES ($1, jsonb_build_object('bride', jsonb_build_object('name', $2::text),
+			'groom', jsonb_build_object('name', $3::text)))`, id, strings.TrimSpace(draft.Bride), strings.TrimSpace(draft.Groom))
+		if err != nil {
+			return "", err
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO wedding_functions (wedding_id, name, venue, starts_at)
+			VALUES ($1, $2, '', $3)`, id, strings.TrimSpace(draft.Function), startsAt)
+		if err != nil {
+			return "", err
+		}
+	}
+	return id, tx.Commit()
+}
+
+func (s *workspaceStore) createWeddingWithPass(ctx context.Context, tx *sql.Tx, account, name, date, zone string) (string, error) {
+	if s.passMode == "" {
+		return createWorkspaceWedding(ctx, tx, account, name, date, zone)
+	}
+	var expired bool
+	if err := tx.QueryRowContext(ctx, `SELECT (($1::date + 91)::timestamp AT TIME ZONE $2) <= now()`, date, zone).Scan(&expired); err != nil {
+		return "", err
+	}
+	if expired {
+		return "", errFamilyWeddingExpired
+	}
+	var pass string
+	err := tx.QueryRowContext(ctx, `
+		SELECT id FROM family_passes
+		WHERE account_id=$1 AND mode=$2 AND consumed_at IS NULL AND revoked_at IS NULL
+		ORDER BY granted_at, id LIMIT 1 FOR UPDATE`, account, s.passMode).Scan(&pass)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", errFamilyPassRequired
+	}
+	if err != nil {
+		return "", err
+	}
+	wedding, err := createWorkspaceWedding(ctx, tx, account, name, date, zone)
+	if err != nil {
+		return "", err
+	}
+	_, err = tx.ExecContext(ctx, "UPDATE family_passes SET wedding_id=$1, consumed_at=now() WHERE id=$2", wedding, pass)
+	return wedding, err
 }
 
 type workspaceQueryer interface {
@@ -256,6 +335,8 @@ func (s *workspaceStore) acceptInvite(ctx context.Context, actor, token string) 
 		WITH accepted AS (
 			UPDATE wedding_invites SET consumed_at = now()
 			WHERE token_hash = $2 AND expires_at > now() AND revoked_at IS NULL AND consumed_at IS NULL
+			AND NOT EXISTS (SELECT 1 FROM family_wedding_access a
+				WHERE a.wedding_id = wedding_invites.wedding_id AND (a.revoked_at IS NOT NULL OR a.delete_at <= now()))
 			RETURNING wedding_id, person_id, role
 		)
 		INSERT INTO wedding_memberships (wedding_id, account_id, person_id, role)

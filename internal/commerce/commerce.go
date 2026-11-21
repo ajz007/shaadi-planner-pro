@@ -25,10 +25,11 @@ import (
 )
 
 const (
-	product   = "excel-english-v1.3.1"
-	currency  = "INR"
-	kitName   = "Shaadi_Planner_Pro_V1_3_1_English_Launch_Package.zip"
-	kitSHA256 = "db792ef5b7e0f49677b950a055cc9b4a864a142eb6202428a950f5d521c9dbdf"
+	familyPassID = "wedding-pass"
+	product      = "excel-english-v1.3.1"
+	currency     = "INR"
+	kitName      = "Shaadi_Planner_Pro_V1_3_1_English_Launch_Package.zip"
+	kitSHA256    = "db792ef5b7e0f49677b950a055cc9b4a864a142eb6202428a950f5d521c9dbdf"
 )
 
 //go:embed schema.sql
@@ -46,11 +47,15 @@ type Shop struct {
 	testAccess                              string
 	mailer                                  receiptMailer
 	packages                                map[string][]byte
-	acceptOrders                            bool
+	acceptOrders, acceptFamilyPass          bool
 }
 
 func Configure(ctx context.Context, origin string) (*Shop, error) {
 	mode := os.Getenv("SHAADI_EXCEL_MODE")
+	if os.Getenv("SHAADI_FAMILY_PASS_ACCEPT_ORDERS") == "1" && mode == "live" &&
+		os.Getenv("SHAADI_FAMILY_PASS_POLICY_READY") != "1" {
+		return nil, errors.New("confirm Family Pass launch policies before opening live orders")
+	}
 	if mode == "" {
 		return nil, nil
 	}
@@ -101,6 +106,7 @@ func Configure(ctx context.Context, origin string) (*Shop, error) {
 		mailer:     receiptMailer{client: sesv2.NewFromConfig(cfg), from: emailFrom, replyTo: replyTo},
 		testAccess: testAccess,
 		packages:   packages, acceptOrders: os.Getenv("SHAADI_EXCEL_ACCEPT_ORDERS") == "1",
+		acceptFamilyPass: os.Getenv("SHAADI_FAMILY_PASS_REQUIRED") == "1" && os.Getenv("SHAADI_FAMILY_PASS_ACCEPT_ORDERS") == "1",
 	}, nil
 }
 
@@ -137,6 +143,7 @@ func (s *Shop) Register(mux *http.ServeMux) {
 			"test":               s != nil && s.mode == "test",
 			"recovery":           s != nil,
 			"testAccessRequired": s != nil && s.mode == "test" && s.testAccess != "",
+			"familyPassOnSale":   s != nil && s.mode == "live" && s.acceptFamilyPass,
 		})
 	})
 	if s == nil {
@@ -206,40 +213,48 @@ func (s *Shop) createOrder(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, 400, "Enter a valid email for your receipt.")
 		return
 	}
+	id, err := s.openOrder(r.Context(), s.db, item, email, nil)
+	if err != nil {
+		s.fail(w)
+		return
+	}
+	httpx.Reply(w, 201, map[string]string{"code": s.accessCode(id)})
+}
+
+type orderWriter interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func (s *Shop) openOrder(ctx context.Context, db orderWriter, item listing, email string, account *string) (string, error) {
 	receipt := "excel_" + rand.Text()
 	var order struct {
 		ID, Currency, Receipt string
 		Amount                int
 	}
-	err := s.gateway.request(r.Context(), "POST", "/orders", map[string]any{
+	err := s.gateway.request(ctx, "POST", "/orders", map[string]any{
 		"amount": item.Amount, "currency": currency, "receipt": receipt,
 		"partial_payment": false, "notes": map[string]string{"product": item.ID},
 	}, &order)
 	if err != nil || !orderID.MatchString(order.ID) || order.Amount != item.Amount || order.Currency != currency || order.Receipt != receipt {
-		s.fail(w)
-		return
+		return "", errors.New("could not create Razorpay order")
 	}
-	_, err = s.db.ExecContext(r.Context(), `INSERT INTO excel_orders
-		(razorpay_order_id, mode, buyer_email, product, amount_paise, currency) VALUES ($1,$2,$3,$4,$5,$6)`,
-		order.ID, s.mode, email, item.ID, item.Amount, currency)
-	if err != nil {
-		s.fail(w)
-		return
-	}
-	httpx.Reply(w, 201, map[string]string{"code": s.accessCode(order.ID)})
+	_, err = db.ExecContext(ctx, `INSERT INTO excel_orders
+		(razorpay_order_id, mode, buyer_email, product, amount_paise, currency, workspace_account_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)`, order.ID, s.mode, email, item.ID, item.Amount, currency, account)
+	return order.ID, err
 }
 
 type purchase struct {
 	Email, Payment, Product, Currency string
 	Amount                            int
-	PaidAt                            sql.NullTime
+	PaidAt, RefundedAt                sql.NullTime
 }
 
 func (s *Shop) purchase(ctx context.Context, id string) (purchase, error) {
 	var p purchase
 	err := s.db.QueryRowContext(ctx, `SELECT buyer_email, COALESCE(razorpay_payment_id, ''), product,
-		amount_paise, currency, paid_at FROM excel_orders WHERE razorpay_order_id=$1 AND mode=$2`, id, s.mode).
-		Scan(&p.Email, &p.Payment, &p.Product, &p.Amount, &p.Currency, &p.PaidAt)
+		amount_paise, currency, paid_at, refunded_at FROM excel_orders WHERE razorpay_order_id=$1 AND mode=$2`, id, s.mode).
+		Scan(&p.Email, &p.Payment, &p.Product, &p.Amount, &p.Currency, &p.PaidAt, &p.RefundedAt)
 	return p, err
 }
 
@@ -248,17 +263,35 @@ func (s *Shop) markPaid(ctx context.Context, id string, p purchase, pay payment)
 		pay.Currency != p.Currency || pay.Status != "captured" || pay.Refunded != 0 {
 		return false, nil
 	}
-	result, err := s.db.ExecContext(ctx, `UPDATE excel_orders SET razorpay_payment_id=$1, paid_at=now(), receipt_due_at=now()
-		WHERE razorpay_order_id=$2 AND mode=$3 AND paid_at IS NULL`, pay.ID, id, s.mode)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE excel_orders SET razorpay_payment_id=$1, paid_at=now(), receipt_due_at=now()
+		WHERE razorpay_order_id=$2 AND mode=$3 AND paid_at IS NULL AND refunded_at IS NULL`, pay.ID, id, s.mode)
 	if err != nil {
 		return false, err
 	}
 	updated, err := result.RowsAffected()
-	if updated == 1 || err != nil {
-		return updated == 1, err
+	if err != nil {
+		return false, err
+	}
+	if updated == 1 && p.Product == familyPassID {
+		_, err = tx.ExecContext(ctx, `INSERT INTO family_passes (account_id, source, mode)
+			SELECT workspace_account_id, razorpay_order_id, mode FROM excel_orders WHERE razorpay_order_id=$1`, id)
+		if err != nil {
+			return false, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	if updated == 1 {
+		return true, nil
 	}
 	current, err := s.purchase(ctx, id)
-	return current.PaidAt.Valid, err
+	return current.PaidAt.Valid && !current.RefundedAt.Valid, err
 }
 
 func (s *Shop) download(w http.ResponseWriter, r *http.Request) {

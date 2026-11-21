@@ -467,7 +467,9 @@ func (a *workspaceHTTP) guestInvitationMusic(w http.ResponseWriter, r *http.Requ
 	}
 	var music []byte
 	err := scanWorkspace(a.store.db.QueryRowContext(r.Context(), `SELECT i.music FROM wedding_invitations i
-		WHERE i.enabled AND i.music IS NOT NULL AND i.wedding_id IN (
+		WHERE i.enabled AND i.music IS NOT NULL
+		AND NOT EXISTS (SELECT 1 FROM family_wedding_access a WHERE a.wedding_id=i.wedding_id
+			AND (a.revoked_at IS NOT NULL OR a.delete_at <= now())) AND i.wedding_id IN (
 			SELECT wedding_id FROM wedding_rsvp_links WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now()
 			UNION ALL
 			SELECT l.wedding_id FROM wedding_guest_schedule_links l WHERE `+guestScheduleToken+` AND `+activeSchedule+`)

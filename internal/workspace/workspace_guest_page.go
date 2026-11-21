@@ -108,6 +108,8 @@ type guestScheduleLink struct {
 }
 
 const activeSchedule = `revoked_at IS NULL AND expires_at>now()`
+const activeGuestWedding = `NOT EXISTS (SELECT 1 FROM family_wedding_access a
+	WHERE a.wedding_id=l.wedding_id AND (a.revoked_at IS NOT NULL OR a.delete_at <= now()))`
 
 func (a *workspaceHTTP) scheduleURL(token string) string {
 	return a.origin + "/wedding-schedule#" + token
@@ -287,7 +289,7 @@ func (a *workspaceHTTP) guestSchedule(w http.ResponseWriter, r *http.Request) {
 	hash := inviteHash(input.Token)
 	var page guestPageDetails
 	err = scanGuestPage(tx.QueryRowContext(ctx, `SELECT `+guestPageColumns+` FROM weddings w JOIN wedding_guest_schedule_links l
-		ON l.wedding_id=w.id WHERE `+guestScheduleToken+` AND `+activeSchedule, hash, input.Token), &page)
+		ON l.wedding_id=w.id WHERE `+guestScheduleToken+` AND `+activeSchedule+` AND `+activeGuestWedding, hash, input.Token), &page)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
@@ -299,7 +301,7 @@ func (a *workspaceHTTP) guestSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	var wedding string
 	err = scanWorkspace(tx.QueryRowContext(ctx, `SELECT l.wedding_id FROM wedding_guest_schedule_links l
-		WHERE `+guestScheduleToken+` AND `+activeSchedule, hash, input.Token), &wedding)
+		WHERE `+guestScheduleToken+` AND `+activeSchedule+` AND `+activeGuestWedding, hash, input.Token), &wedding)
 	if err != nil {
 		workspaceFailure(w, err)
 		return

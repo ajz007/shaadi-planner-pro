@@ -416,3 +416,6 @@ html.inv-locked, html.inv-locked body { overflow: hidden; }
   .inv [data-reveal] { opacity: 1; transform: none; }
 }
 .inv[data-palette="royal"] .inv-event-card::after { opacity: .16; }
+
+.inv-brand-footer { padding: 1rem 0 2rem; text-align: center; font-size: .875rem; }
+.inv-brand-footer a { color: inherit; }

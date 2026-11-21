@@ -7,7 +7,7 @@ import { ProductImage } from './ProductImage'
 import './excel-kit.css'
 
 type Checkout = { key: string; order: string; email: string; amount: number; currency: string }
-type Purchase = { state: 'pending' | 'paid'; test: boolean; checkout?: Checkout; payment?: string; product: string }
+type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; checkout?: Checkout; payment?: string; product: string }
 type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean }
 type Confirmation = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
 type Razorpay = new (options: {
@@ -274,10 +274,19 @@ export function ShopPurchase({ code }: { code: string }) {
     {code && <section className="excel-card">
       {purchase?.test && <p className="excel-notice">Test purchase. No money was charged.</p>}
       {item && <p><strong>{item.name}</strong></p>}
-      {purchase?.state === 'paid' ? <>
+      {purchase?.state === 'refunded' ? <>
+        <h2>Payment refunded</h2>
+        <p>If you already created a wedding, check My weddings for any remaining time to export your plan.</p>
+        <a className="shop-primary" href="/#workspace">My weddings</a>
+      </> : purchase?.state === 'paid' ? <>
         <h2>Payment confirmed</h2>
-        <p>Your download is ready. Keep your emailed receipt to download it again.</p>
-        <button disabled={Boolean(busy)} onClick={download}>Download your purchase</button>
+        {purchase.product === 'wedding-pass' ? <>
+          <p>Your Family Pass is ready. Open wedding setup with the Google account used to purchase it.</p>
+          <a className="shop-primary" href="/#workspace/setup">Continue wedding setup</a>
+        </> : <>
+          <p>Your download is ready. Keep your emailed receipt to download it again.</p>
+          <button disabled={Boolean(busy)} onClick={download}>Download your purchase</button>
+        </>}
         <p className="excel-reference">Razorpay reference {purchase.payment}</p>
       </> : <>
         {purchase && <h2>{purchase.checkout ? 'Ready to pay' : 'Payment awaiting confirmation'}</h2>}

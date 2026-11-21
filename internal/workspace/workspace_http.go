@@ -57,6 +57,13 @@ func Configure(ctx context.Context, publicOrigin string) (*workspaceHTTP, error)
 	if err != nil {
 		return nil, errors.New("could not connect to or migrate the workspace database")
 	}
+	if os.Getenv("SHAADI_FAMILY_PASS_REQUIRED") == "1" {
+		store.passMode = os.Getenv("SHAADI_EXCEL_MODE")
+		if store.passMode != "test" && store.passMode != "live" {
+			store.db.Close()
+			return nil, errors.New("Family Pass access requires a configured checkout mode")
+		}
+	}
 	if localTest {
 		return &workspaceHTTP{store: store, origin: origin, localTest: true}, nil
 	}
@@ -94,6 +101,22 @@ func (a *workspaceHTTP) protected(next workspaceRequest) http.HandlerFunc {
 			workspaceFailure(w, err)
 			return
 		}
+		if wedding := r.PathValue("wedding"); workspaceUUID.MatchString(wedding) {
+			var blocked bool
+			err := a.store.db.QueryRowContext(r.Context(), `SELECT EXISTS (
+				SELECT 1 FROM family_wedding_access a JOIN wedding_memberships m ON m.wedding_id=a.wedding_id
+				WHERE a.wedding_id=$1 AND m.account_id=$2
+				AND (a.delete_at <= now() OR (a.revoked_at IS NOT NULL AND NOT ($3 AND m.role='owner')))
+			)`, wedding, account, r.Pattern == "GET /api/workspace/weddings/{wedding}/snapshot.xlsx").Scan(&blocked)
+			if err != nil {
+				workspaceFailure(w, err)
+				return
+			}
+			if blocked {
+				httpx.Fail(w, http.StatusGone, "Access to this wedding has ended.")
+				return
+			}
+		}
 		next(w, r, account)
 	}
 }
@@ -109,12 +132,13 @@ func (a *workspaceHTTP) Register(mux *http.ServeMux) {
 			httpx.Reply(w, http.StatusOK, map[string]any{"configured": true, "workspaceURL": a.origin + "/#workspace"})
 			return
 		}
-		_, name, err := a.session(r.Context(), r)
+		account, name, err := a.session(r.Context(), r)
 		if err != nil && !errors.Is(err, errWorkspaceNotFound) {
 			workspaceFailure(w, err)
 			return
 		}
-		httpx.Reply(w, http.StatusOK, map[string]any{"configured": true, "name": name, "localTest": a.localTest})
+		httpx.Reply(w, http.StatusOK, map[string]any{"configured": true, "name": name, "localTest": a.localTest,
+			"familyPassRequired": a.store.passMode != "", "accountId": account})
 	})
 	if a == nil {
 		return
@@ -174,9 +198,20 @@ func (a *workspaceHTTP) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/snapshot.xlsx", a.protected(a.weddingSnapshot))
 }
 
+func (a *workspaceHTTP) RegisterFamilyPass(mux *http.ServeMux, status, create func(http.ResponseWriter, *http.Request, string)) {
+	if a != nil {
+		mux.HandleFunc("GET /api/workspace/family-pass", a.protected(status))
+		mux.HandleFunc("POST /api/workspace/family-pass", a.protected(create))
+	}
+}
+
 func workspaceFailure(w http.ResponseWriter, err error) {
 	var dbError *pgconn.PgError
 	switch {
+	case errors.Is(err, errFamilyWeddingExpired):
+		httpx.Fail(w, http.StatusUnprocessableEntity, "Choose a wedding date within the Family Pass access period.")
+	case errors.Is(err, errFamilyPassRequired):
+		httpx.Fail(w, http.StatusPaymentRequired, "Activate a Family Pass to create a wedding.")
 	case errors.Is(err, errWorkspaceNotFound):
 		httpx.Fail(w, http.StatusNotFound, "This record is unavailable.")
 	case errors.Is(err, errWorkspaceInput):
@@ -194,12 +229,14 @@ func workspaceFailure(w http.ResponseWriter, err error) {
 }
 
 type weddingSummary struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Date     string `json:"date"`
-	TimeZone string `json:"timeZone"`
-	Role     string `json:"role"`
-	PersonID string `json:"personId"`
+	ExportOnly   bool       `json:"exportOnly,omitempty"`
+	AccessEndsAt *time.Time `json:"accessEndsAt,omitempty"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Date         string     `json:"date"`
+	TimeZone     string     `json:"timeZone"`
+	Role         string     `json:"role"`
+	PersonID     string     `json:"personId"`
 }
 
 type workspacePerson struct {
@@ -238,10 +275,12 @@ func queryWorkspace[T any](ctx context.Context, db workspaceRowsQueryer, scan fu
 
 func (a *workspaceHTTP) weddings(w http.ResponseWriter, r *http.Request, actor string) {
 	items, err := queryWorkspace(r.Context(), a.store.db, func(row *sql.Rows, item *weddingSummary) error {
-		return row.Scan(&item.ID, &item.Name, &item.Date, &item.TimeZone, &item.Role, &item.PersonID)
-	}, `SELECT w.id, w.name, w.wedding_date::text, w.time_zone, m.role, m.person_id
+		return row.Scan(&item.ID, &item.Name, &item.Date, &item.TimeZone, &item.Role, &item.PersonID, &item.ExportOnly, &item.AccessEndsAt)
+	}, `SELECT w.id, w.name, w.wedding_date::text, w.time_zone, m.role, m.person_id, a.revoked_at IS NOT NULL, a.delete_at
 		FROM weddings w JOIN wedding_memberships m ON w.id = m.wedding_id
-		WHERE m.account_id = $1 ORDER BY w.created_at, w.id`, actor)
+		LEFT JOIN family_wedding_access a ON a.wedding_id=w.id
+		WHERE m.account_id = $1 AND (a.wedding_id IS NULL OR
+			(a.delete_at > now() AND (a.revoked_at IS NULL OR m.role='owner'))) ORDER BY w.created_at, w.id`, actor)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
@@ -250,11 +289,14 @@ func (a *workspaceHTTP) weddings(w http.ResponseWriter, r *http.Request, actor s
 }
 
 func (a *workspaceHTTP) create(w http.ResponseWriter, r *http.Request, actor string) {
-	var input struct{ Name, Date, TimeZone string }
+	var input struct {
+		Name, Date, TimeZone string
+		Draft                *weddingDraft
+	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
-	id, err := a.store.createWedding(r.Context(), actor, input.Name, input.Date, input.TimeZone)
+	id, err := a.store.createWeddingFromDraft(r.Context(), actor, input.Name, input.Date, input.TimeZone, input.Draft)
 	workspaceCreated(w, id, err)
 }
 

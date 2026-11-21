@@ -323,7 +323,9 @@ func (a *workspaceHTTP) guestRSVP(w http.ResponseWriter, r *http.Request) {
 	var page guestPageDetails
 	err = scanGuestPage(tx.QueryRowContext(ctx, `SELECT `+guestPageColumns+`
 		FROM weddings w JOIN wedding_rsvp_links l ON l.wedding_id=w.id
-		WHERE l.token_hash=$1 AND l.revoked_at IS NULL AND l.expires_at>now()`, hash), &page)
+		WHERE l.token_hash=$1 AND l.revoked_at IS NULL AND l.expires_at>now()
+		AND NOT EXISTS (SELECT 1 FROM family_wedding_access a WHERE a.wedding_id=l.wedding_id
+			AND (a.revoked_at IS NOT NULL OR a.delete_at <= now()))`, hash), &page)
 	if err != nil {
 		workspaceFailure(w, err)
 		return
@@ -384,7 +386,10 @@ func (s *workspaceStore) withRSVPLink(ctx context.Context, hash []byte, work fun
 	defer tx.Rollback()
 	var wedding, link string
 	err = scanWorkspace(tx.QueryRowContext(ctx, `SELECT wedding_id,id FROM wedding_rsvp_links
-		WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now() FOR UPDATE`, hash), &wedding, &link)
+		WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now()
+		AND NOT EXISTS (SELECT 1 FROM family_wedding_access a WHERE a.wedding_id=wedding_rsvp_links.wedding_id
+			AND (a.revoked_at IS NOT NULL OR a.delete_at <= now()))
+		FOR UPDATE`, hash), &wedding, &link)
 	if err != nil {
 		return err
 	}

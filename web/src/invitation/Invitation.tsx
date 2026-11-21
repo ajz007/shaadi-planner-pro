@@ -15,6 +15,7 @@ type Props = {
   rsvp?: ReactNode
   loadMusic?: () => Promise<Blob>
   preview?: boolean
+  embedded?: boolean
 }
 
 type Stage = 'closed' | 'opening' | 'risen' | 'leaving' | 'done'
@@ -201,7 +202,7 @@ function Families({ content }: { content: InvitationContent }) {
   </section>)}</>
 }
 
-export function Invitation({ page, invitation, greeting, rsvp, loadMusic, preview }: Props) {
+export function Invitation({ page, invitation, greeting, rsvp, loadMusic, preview, embedded }: Props) {
   useInvitationFonts()
   const { content, events } = invitation
   const design = templateFor(invitation.template?.id)
@@ -393,6 +394,7 @@ export function Invitation({ page, invitation, greeting, rsvp, loadMusic, previe
   }
   const order: SectionKey[] = design.sections.includes('rsvp') ? design.sections : [...design.sections, 'rsvp']
 
+  const Container = embedded ? "div" : "main"
   return <div className="inv" data-template={design.id} data-palette={palette} data-stage={stage}>
     {stage !== 'done' && <Opening names={names} date={longDate(page.date)} greeting={greeting} hint={String(options.envelopeHint ?? '')}
       stage={stage} onOpen={openEnvelope} onContinue={finish} />}
@@ -401,11 +403,14 @@ export function Invitation({ page, invitation, greeting, rsvp, loadMusic, previe
       <canvas ref={flight} className="inv-flight" /><canvas ref={petals} className="inv-petals" />
     </div>
     {preview && <p className="inv-preview-banner">Preview · This is how your guests will see the invitation</p>}
-    <main className="inv-main" ref={root} aria-hidden={!open && stage !== 'leaving'}>
+    <Container className="inv-main" ref={root} aria-hidden={!open && stage !== 'leaving'}>
       <Toran className="is-top" />
       {order.map(key => <Fragment key={key}>{render[key]()}</Fragment>)}
+      {!preview && <footer className="inv-brand-footer">
+        <a href="/shop/wedding-pass?utm_source=wedding_invitation" referrerPolicy="no-referrer">Made with Shaadi Planner Pro</a>
+      </footer>}
       <Toran className="is-bottom" />
-    </main>
+    </Container>
 
     {lanterns.map(lantern => <div key={lantern.id} className="inv-lantern" style={{
       left: lantern.left + '%', '--dl': lantern.delay + 's', '--t': lantern.time + 's', '--sx': lantern.drift + 'px',

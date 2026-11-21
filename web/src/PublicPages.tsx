@@ -9,6 +9,7 @@ const supportEmail = import.meta.env.VITE_SUPPORT_EMAIL?.trim() || 'support@shaa
 export const publicPages = {
   '/privacy': 'Privacy Policy',
   '/terms': 'Terms of Service',
+  '/refunds': 'Family Pass Refund Policy',
   '/contact': 'Contact & Support',
 } as const
 
@@ -20,6 +21,7 @@ export function PublicFooter() {
       <a href="/shop/purchase">Find a purchase</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
+      <a href="/refunds">Family Pass refunds</a>
       <a href="/contact">Contact</a>
     </nav>
   </footer>
@@ -84,7 +86,6 @@ export function PublicInfoPage({ path }: { path: keyof typeof publicPages }) {
   return <main className="public-shell public-document">
     <p><a href="/">← Shaadi Planner Pro</a></p>
     <h1>{title}</h1>
-    <p className="public-draft">Pre-launch draft. Retention and support procedures are pending verification.</p>
     {path === '/privacy' ? <>
       <h2>Information used by the planner</h2>
       <p>For shop orders, we store your checkout email, product, order and payment references, amount and payment date. We use them to confirm purchases, email receipts and restore downloads. Razorpay processes your payment details and our email provider delivers your receipt.</p>
@@ -95,7 +96,8 @@ export function PublicInfoPage({ path }: { path: keyof typeof publicPages }) {
       <p>Access depends on the role an organizer grants within the wedding. Owners and co-organizers can work with guest and logistics records. Family members have limited access to their wedding’s planning tools. Owners can download an Excel snapshot, and organizers can print planning lists. Copies can be shared with people outside the planner.</p>
       <h2>Imports and retention</h2>
       <p>Unconfirmed import previews expire after 30 minutes and are cleared automatically. After confirmation, imported records remain in the wedding’s import history. The planner uses Railway to host its application and database.</p>
-      <p>Under the proposed policy, owners can export their wedding plan for 90 days after the wedding date. Wedding records are then removed from the live service. Verified deletion requests can be handled earlier. Backup copies would expire within 30 days of removal from the live service.</p>
+      <p>For a Family Pass wedding, access lasts through the 90th day after the wedding, in the wedding's time zone. The live workspace and the guest records it contains are then scheduled for removal. A fully refunded wedding can be removed sooner as described in the <a href="/refunds">Family Pass Refund Policy</a>.</p>
+      <p>Payment and order records are kept separately for receipts, support and accounting. Wedding data in provider backups may remain until those backups rotate out. This schedule applies to weddings created with a Family Pass.</p>
       <h2>Corrections and deletion requests</h2>
       <p>Contact the wedding organizer to correct details they entered about you, or use <a href="/contact">Contact & Support</a> for privacy and deletion requests.</p>
     </> : path === '/terms' ? <>
@@ -104,8 +106,16 @@ export function PublicInfoPage({ path }: { path: keyof typeof publicPages }) {
       <h2>Wedding records and sharing</h2>
       <p>Upload only information you’re permitted to use for wedding planning. Invite people who should have access, and review guest information before printing, exporting or sharing it. Confirm arrangements such as pickup times, rooms and vendor commitments with the people responsible for them.</p>
       <h2>Access and copies</h2>
-      <p>Owners can download an Excel snapshot of the current wedding plan. See the <a href="/privacy">Privacy Policy</a> for the proposed post-wedding access and retention period. Pricing and refund terms will be published before paid sales open.</p>
+      <p>The Family Pass is a one-time payment for one wedding and its functions. After payment is confirmed, the pass appears in wedding setup for the Google account used to purchase it. You can create a wedding from your private draft or import a supported workbook. Guests can reply through their private links.</p>
+      <p>Access lasts through the 90th day after the wedding in its time zone. The owner can export the plan until access ends. Guest links can expire earlier, as shown when you share them. Contact support before the current access deadline if your wedding is postponed.</p>
+      <p>See the <a href="/refunds">Family Pass Refund Policy</a> for eligibility and what happens to your workspace after a full refund.</p>
       <p>For help with an account or a wedding, see <a href="/contact">Contact & Support</a>.</p>
+    </> : path === '/refunds' ? <>
+      <h2>Request a refund</h2>
+      <p>Contact <a href={'mailto:' + supportEmail}>{supportEmail}</a> with your receipt reference and the reason for the request. Request a refund within seven days of purchase if your Family Pass is unused. Contact us about duplicate payments, activation problems or service issues even if you have already created a wedding. Approved refunds are returned to the original payment method.</p>
+      <h2>After a full refund</h2>
+      <p>An unused pass can no longer be activated. For an activated wedding, editing and all guest and collaborator access end. The owner can export the workbook from My weddings for 30 days from the refund, or until the original access deadline if that comes first. The live workspace is then scheduled for removal.</p>
+      <p>This policy applies to the Family Pass. Any rights that apply under applicable law continue to apply.</p>
     </> : <>
       <h2>Get help with the planner</h2>
       <p>Shaadi Planner Pro is operated by {sellerName}.</p>

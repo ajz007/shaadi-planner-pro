@@ -21,6 +21,7 @@ type payment struct {
 	Currency string `json:"currency"`
 	Status   string `json:"status"`
 	Refunded int    `json:"amount_refunded"`
+	Captured bool   `json:"captured"`
 }
 
 func (g gateway) request(ctx context.Context, method, path string, body, result any) error {

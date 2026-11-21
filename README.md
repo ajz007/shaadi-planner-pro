@@ -20,6 +20,8 @@ The sample workbook and sample wedding are available at `/#dashboard` and `/#dem
 
 ## Wedding Shop checkout
 
+See the [family launch plan](FAMILY-LAUNCH.md) for the Family Pass flow, staging checks and requirements for public sales.
+
 The shop at `/shop` lists seven downloads and the Wedding Pass preview. Checkout is off by default. Each order records the exact product edition, mode, email, payment and order references, amount, currency and capture confirmation time in PostgreSQL. Downloads need no planner sign-in. The Wedding Pass preview links to the demo. Selling the pass requires access terms and activation.
 
 1. Create a dedicated S3 bucket with **Block Public Access** on and ACLs disabled. Use **US West (N. California), `us-west-1`**, for the current California deployment, or use the actual region of an existing bucket. Set `SHAADI_EXCEL_S3_BUCKET` to the full bucket name, including its suffix if you chose the account regional namespace. Set `AWS_REGION` to the bucket region and configure SES there too. Upload the approved files using the keys below. The server reads each configured private package at startup and verifies its SHA-256 before accepting orders. Use `SHAADI_EXCEL_S3_KEY` to retain a previously configured Excel object key. Buyers download the ZIP or PDF from their purchase page after payment verification.

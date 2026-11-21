@@ -79,6 +79,7 @@ func main() {
 	}
 	app.Register(mux)
 	shop.Register(mux)
+	app.RegisterFamilyPass(mux, shop.FamilyPassStatus, shop.CreateFamilyPassOrder)
 	server := &http.Server{
 		Addr: address, Handler: handler,
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
@@ -126,7 +127,7 @@ func routes(assets http.FileSystem, sandbox bool) *http.ServeMux {
 	mux.HandleFunc("GET /excel-kit", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/shop/essentials", http.StatusMovedPermanently)
 	})
-	for _, path := range []string{"/privacy", "/terms", "/contact", "/rsvp", "/wedding-schedule", "/invitation-preview", "/excel-kit/purchase", "/shop", "/shop/{page}"} {
+	for _, path := range []string{"/privacy", "/terms", "/refunds", "/contact", "/rsvp", "/wedding-schedule", "/invitation-preview", "/excel-kit/purchase", "/shop", "/shop/{page}"} {
 		mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
 			if path == "/shop/{page}" && !commerce.HasShopPage(r.PathValue("page")) {
 				http.NotFound(w, r)

@@ -54,6 +54,10 @@ func (s *Shop) status(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		return
 	}
+	if p.RefundedAt.Valid {
+		httpx.Reply(w, 200, purchaseStatus{State: "refunded", Test: s.mode == "test", Payment: p.Payment, Product: p.Product})
+		return
+	}
 	if p.PaidAt.Valid {
 		httpx.Reply(w, 200, purchaseStatus{State: "paid", Test: s.mode == "test", Payment: p.Payment, Product: p.Product})
 		return
@@ -87,7 +91,8 @@ func (s *Shop) status(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	out := purchaseStatus{State: "pending", Test: s.mode == "test", Product: p.Product}
-	if !waiting && s.acceptOrders && p.Product != product && s.packages[p.Product] != nil {
+	if !waiting && ((s.acceptOrders && p.Product != product && s.packages[p.Product] != nil) ||
+		(p.Product == familyPassID && s.acceptFamilyPass)) {
 		out.Checkout = &checkoutInfo{Key: s.gateway.key, Order: id, Email: p.Email, Amount: p.Amount, Currency: p.Currency}
 	}
 	httpx.Reply(w, 200, out)
@@ -106,6 +111,10 @@ func (s *Shop) confirm(w http.ResponseWriter, r *http.Request) {
 	if input.Order != id || !paymentID.MatchString(input.Payment) || err != nil ||
 		!hmac.Equal(signature, digest(s.gateway.secret, id+"|"+input.Payment)) {
 		httpx.Fail(w, 400, "Payment confirmation could not be verified. Check your purchase status.")
+		return
+	}
+	if p.RefundedAt.Valid {
+		httpx.Reply(w, 200, purchaseStatus{State: "refunded", Test: s.mode == "test", Payment: p.Payment, Product: p.Product})
 		return
 	}
 	if p.PaidAt.Valid {
@@ -149,6 +158,10 @@ func (s *Shop) webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pay := event.Payload.Payment.Entity
+	if event.Event == "refund.processed" {
+		s.confirmFamilyRefund(w, r, pay)
+		return
+	}
 	if event.Event != "payment.captured" || !orderID.MatchString(pay.OrderID) || !paymentID.MatchString(pay.ID) {
 		w.WriteHeader(204)
 		return

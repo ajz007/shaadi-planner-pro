@@ -92,7 +92,11 @@ func (a *workspaceHTTP) cookie(w http.ResponseWriter, name, value, path string, 
 func (a *workspaceHTTP) startLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	state, verifier := workspaceSecret(), workspaceSecret()
-	a.cookie(w, workspaceFlowCookie, state+"."+verifier, "/auth/google/callback", 300)
+	flow := state + "." + verifier
+	if r.URL.Query().Get("setup") == "1" {
+		flow += ".setup"
+	}
+	a.cookie(w, workspaceFlowCookie, flow, "/auth/google/callback", 300)
 	http.Redirect(w, r, a.login.authorizationURL(state, verifier), http.StatusSeeOther)
 }
 
@@ -104,7 +108,8 @@ func (a *workspaceHTTP) finishLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/#workspace?login=failed", http.StatusSeeOther)
 		return
 	}
-	state, verifier, valid := strings.Cut(cookie.Value, ".")
+	flow, setup := strings.CutSuffix(cookie.Value, ".setup")
+	state, verifier, valid := strings.Cut(flow, ".")
 	code := r.URL.Query().Get("code")
 	if !valid || len(state) != 43 || len(verifier) != 43 || code == "" ||
 		subtle.ConstantTimeCompare([]byte(state), []byte(r.URL.Query().Get("state"))) != 1 {
@@ -119,7 +124,11 @@ func (a *workspaceHTTP) finishLogin(w http.ResponseWriter, r *http.Request) {
 	if !a.openSession(w, r, identity) {
 		return
 	}
-	http.Redirect(w, r, "/#workspace", http.StatusSeeOther)
+	destination := "/#workspace"
+	if setup {
+		destination += "/setup"
+	}
+	http.Redirect(w, r, destination, http.StatusSeeOther)
 }
 
 func (a *workspaceHTTP) openSession(w http.ResponseWriter, r *http.Request, identity workspaceIdentity) bool {

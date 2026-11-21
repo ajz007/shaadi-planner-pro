@@ -15,4 +15,9 @@ CREATE TABLE IF NOT EXISTS excel_orders (
 );
 
 CREATE INDEX IF NOT EXISTS excel_orders_buyer ON excel_orders (mode, buyer_email, paid_at DESC);
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS workspace_account_id uuid;
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS refunded_at timestamptz;
+CREATE INDEX IF NOT EXISTS family_pass_orders ON excel_orders (workspace_account_id, mode, created_at DESC)
+    WHERE workspace_account_id IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS excel_orders_receipt ON excel_orders (receipt_due_at) WHERE receipt_due_at IS NOT NULL;

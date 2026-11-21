@@ -83,6 +83,10 @@ func (s *Shop) sendReceipt(ctx context.Context) (bool, error) {
 	name := productName(productID)
 	text := fmt.Sprintf("ShaadiPlannerPro · %s\nOne-time payment: %s %d.%02d\nDate: %s\nRazorpay payment: %s\n\nOpen your private purchase page to download your files again:\n%s/shop/purchase#%s\n\nKeep this link private. You can request your receipt again from Find a purchase in the shop.",
 		name, currency, amount/100, amount%100, paid.In(india).Format("2 Jan 2006, 15:04 MST"), payID, s.origin, s.accessCode(id))
+	if productID == familyPassID {
+		text = fmt.Sprintf("Shaadi Planner Pro Family Pass\nOne-time payment: %s %d.%02d\nDate: %s\nRazorpay payment: %s\n\nSign in with the Google account you used to buy the pass:\n%s/#workspace/setup\n",
+			currency, amount/100, amount%100, paid.In(india).Format("2 Jan 2006, 15:04 MST"), payID, s.origin)
+	}
 	if s.mode == "test" {
 		text = "Test purchase. No money was charged.\n\n" + text
 	}

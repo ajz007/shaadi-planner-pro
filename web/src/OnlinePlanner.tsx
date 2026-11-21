@@ -87,7 +87,14 @@ const features = [
 ]
 
 export function OnlinePlanner() {
-  useEffect(() => { document.title = 'Online Wedding Planner | ShaadiPlannerPro' }, [])
+  const [onSale, setOnSale] = useState(false)
+  useEffect(() => {
+    document.title = 'Online Wedding Planner | ShaadiPlannerPro'
+    const controller = new AbortController()
+    fetch('/api/excel/shop', { signal: controller.signal })
+      .then(response => response.json()).then(shop => setOnSale(shop.familyPassOnSale === true)).catch(() => {})
+    return () => controller.abort()
+  }, [])
   return <main className="public-shell online-planner">
     <ShopNav />
     <section className="online-hero" aria-labelledby="online-title">
@@ -96,10 +103,10 @@ export function OnlinePlanner() {
         <h1 id="online-title">An invitation they’ll love.<br /><em>A plan your family can share.</em></h1>
         <p className="online-lede">From the first “we’ll be there” to the last airport pickup. Bring your invitations, guests and wedding-day details together.</p>
         <div className="online-actions">
-          <a className="online-primary" href="/#demo">Explore the sample wedding <span aria-hidden="true">↗</span></a>
+          <a className="online-primary" href="/#workspace/setup">Preview your invitation <span aria-hidden="true">↗</span></a>
           <a className="online-secondary" href="#invitation-demo">Open a sample invitation <span aria-hidden="true">↓</span></a>
         </div>
-        <p className="online-small">Explore with sample data. No sign-in needed.</p>
+        <p className="online-small">Free private preview. {rupees(weddingPass.amount)} once to activate one wedding.</p>
         <div className="online-hero-footnote"><span>One wedding.</span><span>Every function.</span><span>Your whole family.</span></div>
       </div>
       <InvitationDemo />
@@ -131,18 +138,18 @@ export function OnlinePlanner() {
     <section className="online-excel-bridge" aria-labelledby="online-excel">
       <div><p className="online-eyebrow">ALREADY PLANNING IN EXCEL?</p><h2 id="online-excel">Bring the plan you’ve already started.</h2>
         <p>Import your supported Shaadi Planner Pro workbook, review the functions and guests, and start coordinating together online. You can also start with a blank wedding.</p></div>
-      <a href="/#workspace">Start your wedding <span aria-hidden="true">↗</span></a>
+      <a href="/#workspace/setup">Start your wedding <span aria-hidden="true">↗</span></a>
     </section>
     <section className="online-pass" aria-labelledby="online-pass-title">
-      <div><p className="online-eyebrow">WEDDING PASS · COMING SOON</p><h2 id="online-pass-title">One wedding.<br />One planned payment.</h2>
-        <p>We’re preparing paid access for families running one multi-function wedding. Access dates, guest-link availability and export terms will be shown before payment.</p></div>
-      <div className="online-pass-price"><strong>{rupees(weddingPass.amount)}</strong><span>planned one-time price</span>
-        <a className="online-primary" href="/#demo">Try the sample planner <span aria-hidden="true">↗</span></a></div>
+      <div><p className="online-eyebrow">{onSale ? "FAMILY PASS" : "FAMILY PASS PREVIEW"}</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>
+        <p>Share invitations and manage RSVPs, rooms, pickups and budgets with your family from one wedding workspace.</p></div>
+      <div className="online-pass-price"><strong>{rupees(weddingPass.amount)}</strong><span>one-time price per wedding</span>
+        <a className="online-primary" href="/#workspace/setup">Preview your invitation <span aria-hidden="true">↗</span></a></div>
     </section>
     <div className="online-faq">
       <details><summary>Can guests reply without an account?</summary><p>Yes. Guests open their private household invitation on their phone and reply to the functions they’re invited to.</p></details>
       <details><summary>Can I share the schedule in a family group?</summary><p>Yes. The reusable schedule link gives the group a read-only schedule. Household RSVP links are shared privately.</p></details>
-      <details><summary>Can I try the planner before the Wedding Pass launches?</summary><p>Explore the sample wedding without signing in. Open your own wedding workspace to see the current planning tools.</p></details>
+      <details><summary>Can I try the planner before paying?</summary><p>Explore the sample wedding without signing in. Sign in to preview an invitation with your own wedding details.</p></details>
     </div>
   </main>
 }
