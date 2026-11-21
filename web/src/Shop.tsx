@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import catalog from './shop-catalog.json'
 import './shop.css'
 import { ProductImage } from './ProductImage'
+import { SiteNav } from './SiteNav'
 
 export type ShopProduct = (typeof catalog)[number]
 export const featured = catalog[0]
@@ -12,13 +13,6 @@ export const productURL = (item: ShopProduct) => '/shop/' + item.slug
 export const rupees = (paise: number) => new Intl.NumberFormat('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: paise % 100 === 0 ? 0 : 2,
 }).format(paise / 100)
-
-export function ShopNav() {
-  return <nav className="shop-nav" aria-label="Shop">
-    <a className="shop-brand" href="/">ShaadiPlannerPro</a>
-    <div><a href="/shop">Shop</a><a href="/shop/purchase">Find a purchase</a></div>
-  </nav>
-}
 
 function ProductCard({ item }: { item: ShopProduct }) {
   return <article className="shop-card">
@@ -38,7 +32,7 @@ function ProductCard({ item }: { item: ShopProduct }) {
 export function Shop() {
   useEffect(() => { document.title = 'Wedding Shop | ShaadiPlannerPro' }, [])
   return <main className="public-shell wedding-shop">
-    <ShopNav />
+    <SiteNav shop />
     <header className="shop-intro">
       <h1>Wedding Shop</h1>
       <p>Planning workbooks, ready-to-send messages and Sangeet scripts for families organising an Indian wedding.</p>

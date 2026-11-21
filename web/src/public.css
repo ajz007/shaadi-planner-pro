@@ -62,3 +62,16 @@
 .public-document { max-width: 46rem; overflow-wrap: anywhere; }
 .public-document h2 { margin-top: 1.5rem; }
 .public-draft { border-left: .2rem solid #82622d; padding: .65rem .8rem; background: #fff1d7; }
+.site-nav, .site-nav > div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .25rem 1.15rem; }
+.site-nav { border-bottom: 1px solid #dfd5c5; padding-block: .55rem; margin-bottom: 1.45rem; }
+.site-nav a { display: inline-flex; align-items: center; min-height: 44px; color: #294c3c; }
+.site-brand { font: 700 1.2rem Georgia, serif; text-decoration: none; }
+.site-nav .site-account { padding-inline: 1rem; border: 1.5px solid #294c3c; border-radius: .65rem; font-weight: 700; text-decoration: none; }
+.site-nav .site-account:hover { background: #294c3c; color: #fff9ed; }
+.site-nav :focus-visible { outline: 2px solid #a35821; outline-offset: 3px; }
+.public-returning { margin: .35rem 0 0; color: #e2e7d8; font-size: .95rem; }
+.public-returning a { color: #fff9ed; font-weight: 700; }
+@media (max-width: 420px) {
+  .site-nav .site-nav-optional { display: none; }
+  .site-nav > div { gap: .25rem .85rem; }
+}

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { sampleOverview } from './WorkspaceDemo'
 import { shownDate } from './WorkspaceGuests'
 import './public.css'
+import { SiteNav, useAccountLink } from './SiteNav'
 
 const sellerName = import.meta.env.VITE_SELLER_NAME?.trim() || 'Ajit Shukla'
 const supportEmail = import.meta.env.VITE_SUPPORT_EMAIL?.trim() || 'support@shaadiplannerpro.com'
@@ -13,9 +14,11 @@ export const publicPages = {
 } as const
 
 export function PublicFooter() {
+  const account = useAccountLink()
   return <footer className="public-footer">
     <a href="/">Shaadi Planner Pro</a>
     <nav aria-label="Product information">
+      <a href={account.href}>{account.label}</a>
       <a href="/shop">Shop</a>
       <a href="/shop/purchase">Find a purchase</a>
       <a href="/privacy">Privacy</a>
@@ -29,7 +32,9 @@ export function PublicHome() {
   const sangeetTime = new Intl.DateTimeFormat('en-IN', {
     day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: sampleOverview.timeZone,
   }).format(new Date(sampleOverview.sangeet.startsAt))
+  const account = useAccountLink()
   return <main className="public-shell public-home">
+    <SiteNav />
     <header className="public-hero">
       <div className="public-hero-copy">
         <p className="public-kicker">SHAADI PLANNER PRO</p>
@@ -41,6 +46,9 @@ export function PublicHome() {
           <a className="public-sample-link" href="/#demo">Explore the wedding demo</a>
         </div>
         <p className="public-sample-note">No sign-in needed for the demo.</p>
+        {account.signedIn
+          ? <p className="public-returning">Welcome back. <a href={account.href}>Open my weddings <span aria-hidden="true">→</span></a></p>
+          : <p className="public-returning">Already have an account? <a href={account.href}>Sign in</a></p>}
       </div>
       <section className="public-preview" aria-labelledby="sample-preview-title">
         <div className="public-preview-heading">
@@ -70,7 +78,7 @@ export function PublicHome() {
       <div><h2 id="public-workbook">Already planning in Excel?</h2>
         <p>Bring your Shaadi Planner workbook into your wedding and export an updated copy as plans change.</p></div>
       <div><a href="/#dashboard">Explore the Excel workbook example <span aria-hidden="true">→</span></a><br />
-        <a href="/#workspace">Open the web planner <span aria-hidden="true">→</span></a></div>
+        <a href="/#workspace">Import your workbook into the web planner <span aria-hidden="true">→</span></a></div>
     </section>
   </main>
 }
@@ -82,7 +90,7 @@ export function PublicInfoPage({ path }: { path: keyof typeof publicPages }) {
   }, [title])
 
   return <main className="public-shell public-document">
-    <p><a href="/">← Shaadi Planner Pro</a></p>
+    <SiteNav />
     <h1>{title}</h1>
     <p className="public-draft">Pre-launch draft. Retention and support procedures are pending verification.</p>
     {path === '/privacy' ? <>
