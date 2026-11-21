@@ -64,7 +64,8 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
     setError('')
     try {
       const result = await workspaceRequest<{ id: string }>('/weddings', {
-        name: draft.bride.trim() + ' & ' + draft.groom.trim(), date: draft.date, timeZone: 'Asia/Kolkata', draft,
+        name: draft.bride.trim() + ' & ' + draft.groom.trim(), date: draft.date, timeZone: 'Asia/Kolkata',
+        draft: { bride: draft.bride, groom: draft.groom, function: draft.function, functionTime: draft.functionTime },
       })
       await finish(result.id)
     } catch (failure) {
