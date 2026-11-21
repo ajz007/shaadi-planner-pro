@@ -1,0 +1,54 @@
+name: Family Pass PostgreSQL upgrade
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/family-pass-postgres.yml'
+      - 'cmd/shaadi-planner/**'
+      - 'internal/workspace/**'
+      - 'web/assets.go'
+      - 'go.mod'
+      - 'go.sum'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  family-pass-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: shaadi_ci
+          POSTGRES_PASSWORD: shaadi_ci
+          POSTGRES_DB: shaadi_family_upgrade
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U shaadi_ci -d shaadi_family_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SHAADI_FAMILY_UPGRADE_DATABASE_URL: postgres://shaadi_ci:shaadi_ci@127.0.0.1:${{ job.services.postgres.ports[5432] }}/shaadi_family_upgrade?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install the workspace schema from before Family Pass
+        shell: bash
+        run: |
+          baseline="$(mktemp -d)"
+          # This main revision includes invitation publishing at migration 019.
+          git archive fa62c81ff02a2402fec523e2a5f90202d830d354 | tar -x -C "$baseline"
+          cd "$baseline"
+          SHAADI_DATABASE_URL="$SHAADI_FAMILY_UPGRADE_DATABASE_URL" go run ./cmd/shaadi-planner migrate-workspace
+      - name: Verify the upgrade and Family Pass lifecycle
+        run: go test ./internal/workspace -run '^TestFamilyPassUpgradeAndRetention$' -count=1 -v
