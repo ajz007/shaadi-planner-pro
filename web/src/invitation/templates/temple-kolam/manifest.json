@@ -1,0 +1,72 @@
+{
+  "id": "temple-kolam",
+  "version": 1,
+  "order": 4,
+  "name": "Temple & Kolam",
+  "description": "A kolam draws itself around a brass lamp that lights for the muhurtham, opening onto a gopuram, jasmine strings and ceremonies laid out like temple steps.",
+  "premium": false,
+  "tags": {
+    "mood": [
+      "serene",
+      "heritage"
+    ],
+    "region": [
+      "south"
+    ],
+    "time": "day"
+  },
+  "sections": [
+    "hero",
+    "blessing",
+    "couple",
+    "countdown",
+    "events",
+    "rsvp",
+    "family",
+    "venue",
+    "contacts",
+    "closing"
+  ],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "temple-red",
+      "choices": [
+        {
+          "value": "temple-red",
+          "label": "Temple Red",
+          "swatch": [
+            "#fbf4e6",
+            "#b8321a",
+            "#3d1109"
+          ]
+        },
+        {
+          "value": "silk-gold",
+          "label": "Silk Gold",
+          "swatch": [
+            "#fbf7ea",
+            "#d4a017",
+            "#0f3a22"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "lampLine",
+      "label": "Line under the lamp",
+      "type": "text",
+      "max": 90,
+      "default": "",
+      "help": "Leave empty for “Touch the lamp to light it and open … invitation”."
+    },
+    {
+      "key": "bells",
+      "label": "Temple bells swing as each section appears",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
