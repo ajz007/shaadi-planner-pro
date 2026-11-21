@@ -21,5 +21,8 @@ export function Invitation(props: Omit<TemplateProps, 'manifest' | 'options'>) {
   const Template = component(manifest.id)
   return <Suspense fallback={<p className="guest-wedding-page" role="status">Opening your invitation…</p>}>
     <Template {...props} manifest={manifest} options={optionsFor(manifest, props.invitation.template?.options)} />
+    {!props.preview && <footer className="inv-brand-footer">
+      <a href="/shop/wedding-pass?utm_source=wedding_invitation" referrerPolicy="no-referrer">Made with Shaadi Planner Pro</a>
+    </footer>}
   </Suspense>
 }

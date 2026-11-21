@@ -14,4 +14,5 @@ export type TemplateProps = {
   rsvp?: ReactNode
   loadMusic?: () => Promise<Blob>
   preview?: boolean
+  embedded?: boolean
 }

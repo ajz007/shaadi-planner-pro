@@ -44,6 +44,12 @@ func (s *workspaceStore) maintainImportPreviews(ctx context.Context) {
 		if err != nil && ctx.Err() == nil {
 			log.Printf("Could not clean up expired workbook previews: %T", err)
 		}
+		cleanup, cancel = context.WithTimeout(ctx, 10*time.Second)
+		err = s.purgeExpiredFamilyWeddings(cleanup)
+		cancel()
+		if err != nil && ctx.Err() == nil {
+			log.Printf("Could not clean up expired Family Pass weddings: %T", err)
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -74,7 +80,7 @@ func (s *workspaceStore) confirmImport(ctx context.Context, actor, token string)
 	if err := json.Unmarshal(payload, &plan); err != nil {
 		return "", err
 	}
-	wedding, err := createWorkspaceWedding(ctx, tx, actor, plan.Name, plan.Date, plan.TimeZone)
+	wedding, err := s.createWeddingWithPass(ctx, tx, actor, plan.Name, plan.Date, plan.TimeZone)
 	if err != nil {
 		return "", err
 	}
@@ -177,6 +183,21 @@ func writeImportedSections(ctx context.Context, tx *sql.Tx, wedding string, plan
 }
 
 func (a *workspaceHTTP) importPreview(w http.ResponseWriter, r *http.Request, actor string) {
+	if a.store.passMode != "" {
+		var available bool
+		err := a.store.db.QueryRowContext(r.Context(), `SELECT EXISTS (
+			SELECT 1 FROM family_passes WHERE account_id=$1 AND mode=$2
+			AND consumed_at IS NULL AND revoked_at IS NULL
+		)`, actor, a.store.passMode).Scan(&available)
+		if err != nil {
+			workspaceFailure(w, err)
+			return
+		}
+		if !available {
+			workspaceFailure(w, errFamilyPassRequired)
+			return
+		}
+	}
 	zone := r.Header.Get("X-Wedding-Time-Zone")
 	if zone == "" {
 		zone = "Asia/Kolkata"

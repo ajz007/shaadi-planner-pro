@@ -18,9 +18,10 @@ import { WorkspaceRSVP } from './WorkspaceRSVP'
 import { WorkspaceRunSheet } from './WorkspaceRunSheet'
 
 const InvitationStudio = lazy(() => import('./studio/InvitationStudio').then(module => ({ default: module.InvitationStudio })))
+const FamilyPass = lazy(() => import('./FamilyPass').then(module => ({ default: module.FamilyPass })))
 
-type Session = { configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
-type Wedding = { id: string; name: string; date: string; timeZone: string; role: string; personId: string }
+type Session = { accountId?: string; familyPassRequired?: boolean; configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
+type Wedding = { exportOnly?: boolean; accessEndsAt?: string; id: string; name: string; date: string; timeZone: string; role: string; personId: string }
 type Person = { id: string; name: string }
 type WeddingFunction = { id: string; name: string; venue: string; startsAt: string; familyOnly?: boolean }
 type Task = { id: string; title: string; assignee: string | null; function: string | null; due: string | null; claimable: boolean; done: boolean; revision: number }
@@ -483,7 +484,7 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
           }}>{label}</button>)}</div>
       </> : <><p>{pendingInvite ? 'Use your Google account to accept the invitation and see your tasks.'
         : 'After signing in, you can create a wedding, import your workbook, or open a wedding you’ve joined.'}</p>
-        <a className="package-button" href="/auth/google/start" onClick={() => {
+        <a className="package-button" href={setup ? "/auth/google/start?setup=1" : "/auth/google/start"} onClick={() => {
           if (pendingInvite) try { sessionStorage.setItem(pendingInviteKey, pendingInvite) } catch { /* Reopen the link after sign-in. */ }
         }}>Continue with Google</a></>)}
       <p className="wedding-sample-link"><a href="#demo">Explore the wedding demo</a> <span>· No sign-in needed</span></p>
@@ -516,7 +517,11 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
         {!!weddings?.length && <ul className="wedding-list" aria-label="Your wedding plans">
           {weddings.map(wedding => <li className="focus-card wedding-list-item" key={wedding.id}>
             <div><h2>{wedding.name}</h2><p>{shownDate(wedding.date)} · {weddingRoleLabels[wedding.role] ?? wedding.role}</p></div>
-            <a className="package-button" href={weddingPage(wedding.id)} aria-label={'Open plan for ' + wedding.name}>Open plan <span aria-hidden="true">→</span></a>
+            {wedding.accessEndsAt && <p>{wedding.exportOnly ? 'Refunded. Export available until' : 'Access ends'}{' '}
+              {new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: wedding.timeZone }).format(new Date(wedding.accessEndsAt))}</p>}
+            {wedding.exportOnly
+              ? <a className="package-button" href={'/api/workspace/weddings/' + wedding.id + '/snapshot.xlsx'}>Export wedding workbook</a>
+              : <a className="package-button" href={weddingPage(wedding.id)} aria-label={'Open plan for ' + wedding.name}>Open plan <span aria-hidden="true">→</span></a>}
           </li>)}
         </ul>}
         <div className="focus-actions wedding-list-actions">
@@ -524,6 +529,9 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
           <a href="#demo">Explore the wedding demo</a>
         </div>
       </> : <div className="focus-record-grid">
+        {session.familyPassRequired && session.accountId ? <Suspense fallback={<p role="status">Opening wedding setup.</p>}>
+          <FamilyPass key={session.accountId} accountId={session.accountId} onCreated={refreshList} />
+        </Suspense> : <>
         <WorkspaceForm title="Create a wedding" label="Create wedding" voice onSave={async data => {
           const result = await workspaceRequest<{ id: string }>('/weddings', {
             name: field(data, 'name'), date: field(data, 'date'), timeZone: field(data, 'zone'),
@@ -534,13 +542,14 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
           <TextField name="date" label="Wedding date" type="date" />
           <TextField name="zone" label="Time zone" value={Intl.DateTimeFormat().resolvedOptions().timeZone} />
         </WorkspaceForm>
+        <WorkspaceImport onCreated={refreshList} />
+        </>}
         <WorkspaceForm title="Join a wedding" label="Join wedding" onSave={async data => {
           const result = await workspaceRequest<{ id: string }>('/join', { token: field(data, 'code') })
           await refreshList(result.id)
         }}>
           <TextField name="code" label="Invite code" maxLength={43} />
         </WorkspaceForm>
-        <WorkspaceImport onCreated={refreshList} />
       </div>}
   </main>
 }

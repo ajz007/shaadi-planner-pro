@@ -75,3 +75,6 @@
   .site-nav .site-nav-optional { display: none; }
   .site-nav > div { gap: .25rem .85rem; }
 }
+
+.inv-brand-footer { padding: 1rem 0 2rem; text-align: center; font-size: .875rem; }
+.inv-brand-footer a { color: inherit; }

@@ -137,7 +137,7 @@ function Families({ content }: { content: InvitationContent }) {
   </section>)}</>
 }
 
-export default function BlushEnvelope({ page, invitation, manifest: design, options, greeting, rsvp, loadMusic, preview }: TemplateProps) {
+export default function BlushEnvelope({ page, invitation, manifest: design, options, greeting, rsvp, loadMusic, preview, embedded }: TemplateProps) {
   useFonts(fonts)
   const { content, events } = invitation
   const palette = String(options.palette ?? 'rose-gold')
@@ -327,6 +327,7 @@ export default function BlushEnvelope({ page, invitation, manifest: design, opti
   }
   const order: SectionKey[] = design.sections.includes('rsvp') ? design.sections : [...design.sections, 'rsvp']
 
+  const Container = embedded ? "div" : "main"
   return <div className="inv" data-template={design.id} data-palette={palette} data-stage={stage}>
     {stage !== 'done' && <Opening names={names} date={longDate(page.date)} greeting={greeting} hint={String(options.envelopeHint ?? '')}
       stage={stage} onOpen={openEnvelope} onContinue={finish} />}
@@ -335,11 +336,11 @@ export default function BlushEnvelope({ page, invitation, manifest: design, opti
       <canvas ref={flight} className="inv-flight" /><canvas ref={petals} className="inv-petals" />
     </div>
     {preview && <p className="inv-preview-banner">Preview · This is how your guests will see the invitation</p>}
-    <main className="inv-main" ref={root} aria-hidden={!open && stage !== 'leaving'}>
+    <Container className="inv-main" ref={root} aria-hidden={!open && stage !== 'leaving'}>
       <Toran className="is-top" />
       {order.map(key => <Fragment key={key}><SectionAnchor section={key} />{render[key]()}</Fragment>)}
       <Toran className="is-bottom" />
-    </main>
+    </Container>
 
     {lanterns.map(lantern => <div key={lantern.id} className="inv-lantern" style={{
       left: lantern.left + '%', '--dl': lantern.delay + 's', '--t': lantern.time + 's', '--sx': lantern.drift + 'px',
