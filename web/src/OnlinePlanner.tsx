@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ShopNav, rupees, weddingPass } from './Shop'
+import { rupees, weddingPass } from './Shop'
+import { SiteNav } from './SiteNav'
 import { Mandala, EventArt } from './invitation/art'
 import workbook from './workbook-demo.json'
 import './online-planner.css'
@@ -89,7 +90,7 @@ const features = [
 export function OnlinePlanner() {
   useEffect(() => { document.title = 'Online Wedding Planner | ShaadiPlannerPro' }, [])
   return <main className="public-shell online-planner">
-    <ShopNav />
+    <SiteNav />
     <section className="online-hero" aria-labelledby="online-title">
       <div className="online-hero-copy">
         <p className="online-eyebrow">THE ONLINE WEDDING PLANNER</p>

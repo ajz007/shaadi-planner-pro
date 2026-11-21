@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { productByID, rupees, ShopNav } from './Shop'
+import { productByID, rupees } from './Shop'
+import { SiteNav } from './SiteNav'
 import type { ShopProduct } from './Shop'
 import { ProductDescription, productDescription } from './ProductDescription'
 import { ProductImage } from './ProductImage'
@@ -93,7 +94,7 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
   }
 
   return <main className="public-shell excel-kit">
-    <ShopNav />
+    <SiteNav shop />
     <header className="excel-product-heading">
       <p className="excel-edition">{item.format}</p>
       <h1>{item.name}</h1>
@@ -269,7 +270,7 @@ export function ShopPurchase({ code }: { code: string }) {
   }
 
   return <main className="public-shell excel-kit excel-purchase">
-    <ShopNav />
+    <SiteNav shop />
     <h1>{code ? 'Your purchase' : 'Find your purchase'}</h1>
     {code && <section className="excel-card">
       {purchase?.test && <p className="excel-notice">Test purchase. No money was charged.</p>}
