@@ -3,8 +3,13 @@ package workspace
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -65,10 +70,22 @@ func TestFamilyPassUpgradeAndRetention(t *testing.T) {
 		VALUES ($1, 'upgrade-test:pass', 'test')`, owner); err != nil {
 		t.Fatal(err)
 	}
-	paidWedding, err := store.createWedding(ctx, owner, "Paid wedding", date, "Asia/Kolkata")
-	if err != nil {
-		t.Fatal(err)
+	// A browser kept open during the deploy may still send the date twice.
+	body := fmt.Sprintf(`{"name":"Paid wedding","date":%q,"timeZone":"Asia/Kolkata",
+		"draft":{"bride":"Test","groom":"Example","date":%q,"function":"Wedding","functionTime":"02:30"}}`, date, date)
+	req := httptest.NewRequest(http.MethodPost, "/api/workspace/weddings", strings.NewReader(body)).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app := &workspaceHTTP{store: store}
+	app.create(response, req, owner)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create paid wedding: got %d: %s", response.Code, response.Body)
 	}
+	var created struct{ ID string }
+	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil || created.ID == "" {
+		t.Fatalf("invalid wedding creation response: %v", err)
+	}
+	paidWedding := created.ID
 	if _, err := store.createWedding(ctx, owner, "Second wedding", date, "Asia/Kolkata"); !errors.Is(err, errFamilyPassRequired) {
 		t.Fatalf("reuse of the consumed pass: %v", err)
 	}

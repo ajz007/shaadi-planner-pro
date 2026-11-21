@@ -177,6 +177,8 @@ func (s *workspaceStore) createWedding(ctx context.Context, account, name, date,
 
 type weddingDraft struct {
 	Bride, Groom, Function, FunctionTime string
+	// Older browser tabs sent the date both here and on the request.
+	Date string
 }
 
 func (s *workspaceStore) createWeddingFromDraft(ctx context.Context, account, name, date, zone string, draft *weddingDraft) (string, error) {
@@ -189,7 +191,8 @@ func (s *workspaceStore) createWeddingFromDraft(ctx context.Context, account, na
 	if draft != nil {
 		var err error
 		startsAt, err = time.ParseInLocation("2006-01-02T15:04", date+"T"+draft.FunctionTime, location)
-		if err != nil || !validLabel(draft.Bride, 56) || !validLabel(draft.Groom, 56) || !validLabel(draft.Function, 120) {
+		if err != nil || (draft.Date != "" && draft.Date != date) ||
+			!validLabel(draft.Bride, 56) || !validLabel(draft.Groom, 56) || !validLabel(draft.Function, 120) {
 			return "", errWorkspaceInput
 		}
 	}
