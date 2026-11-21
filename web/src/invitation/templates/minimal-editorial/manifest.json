@@ -1,0 +1,47 @@
+{
+  "id": "minimal-editorial",
+  "version": 1,
+  "order": 5,
+  "name": "Ivory Editorial",
+  "description": "A heavy ivory card turns over to your names in large type, then the invitation reads like a quiet magazine: numbered sections, fine rules and a clean agenda.",
+  "premium": false,
+  "tags": {
+    "mood": ["minimal", "romantic"],
+    "region": ["all-india"],
+    "time": "any"
+  },
+  "sections": ["hero", "blessing", "countdown", "couple", "events", "rsvp", "family", "venue", "contacts", "closing"],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "ivory",
+      "choices": [
+        { "value": "ivory", "label": "Ivory & Ink", "swatch": ["#f6f1e7", "#9b3a22", "#161412"] },
+        { "value": "sage", "label": "Sage & Ink", "swatch": ["#e8ece0", "#47643f", "#161e17"] },
+        { "value": "blush", "label": "Blush & Ink", "swatch": ["#f6e8e2", "#a13e4c", "#221316"] }
+      ]
+    },
+    {
+      "key": "cardLine",
+      "label": "Line under the card",
+      "type": "text",
+      "max": 80,
+      "default": "",
+      "help": "Leave empty for “Turn the card over”."
+    },
+    {
+      "key": "grid",
+      "label": "Fine column rules behind the page",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "letterReveal",
+      "label": "Headings set letter by letter as guests scroll",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
