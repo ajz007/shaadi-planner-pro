@@ -18,22 +18,6 @@ jobs:
   family-pass-upgrade:
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: shaadi_ci
-          POSTGRES_PASSWORD: shaadi_ci
-          POSTGRES_DB: shaadi_family_upgrade
-        ports:
-          - 5432/tcp
-        options: >-
-          --health-cmd "pg_isready -U shaadi_ci -d shaadi_family_upgrade"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      SHAADI_FAMILY_UPGRADE_DATABASE_URL: postgres://shaadi_ci:shaadi_ci@127.0.0.1:${{ job.services.postgres.ports[5432] }}/shaadi_family_upgrade?sslmode=disable
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,13 +26,31 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Install the workspace schema from before Family Pass
+      - name: Verify the upgrade and Family Pass lifecycle
         shell: bash
         run: |
+          db_password="$(openssl rand -hex 24)"
+          printf '::add-mask::%s\n' "$db_password"
+          container="$(POSTGRES_PASSWORD="$db_password" docker run --detach --rm \
+            --env POSTGRES_PASSWORD --env POSTGRES_USER=shaadi_ci --env POSTGRES_DB=shaadi_family_upgrade \
+            --publish 127.0.0.1::5432 postgres:18)"
+          trap 'docker rm --force "$container" >/dev/null' EXIT
+
+          for attempt in {1..30}; do
+            if docker exec "$container" pg_isready -h 127.0.0.1 -U shaadi_ci -d shaadi_family_upgrade >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo 'The disposable PostgreSQL server did not become ready.' >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          port_binding="$(docker port "$container" 5432/tcp)"
+          export SHAADI_FAMILY_UPGRADE_DATABASE_URL="postgres://shaadi_ci:$db_password@127.0.0.1:${port_binding##*:}/shaadi_family_upgrade?sslmode=disable"
           baseline="$(mktemp -d)"
           # This main revision includes invitation publishing at migration 019.
           git archive fa62c81ff02a2402fec523e2a5f90202d830d354 | tar -x -C "$baseline"
-          cd "$baseline"
-          SHAADI_DATABASE_URL="$SHAADI_FAMILY_UPGRADE_DATABASE_URL" go run ./cmd/shaadi-planner migrate-workspace
-      - name: Verify the upgrade and Family Pass lifecycle
-        run: go test ./internal/workspace -run '^TestFamilyPassUpgradeAndRetention$' -count=1 -v
+          (cd "$baseline" && SHAADI_DATABASE_URL="$SHAADI_FAMILY_UPGRADE_DATABASE_URL" go run ./cmd/shaadi-planner migrate-workspace)
+          go test ./internal/workspace -run '^TestFamilyPassUpgradeAndRetention$' -count=1 -v
