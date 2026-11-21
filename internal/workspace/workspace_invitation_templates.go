@@ -3,6 +3,8 @@ package workspace
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"path"
 	"regexp"
 	"slices"
 
@@ -10,7 +12,7 @@ import (
 )
 
 // An invitation template is a design that renders the shared invitation
-// content. Its manifest (web/src/invitation/templates.json) is read by both
+// content. Its manifest (web/src/invitation/templates/<id>/manifest.json) is read by both
 // the editor and this server: the editor builds the "Design options" form
 // from it, and the server accepts only the options a template declares.
 
@@ -18,9 +20,40 @@ var invitationSections = []string{"blessing", "hero", "countdown", "couple", "ev
 
 var templateKey = regexp.MustCompile(`^[a-z][a-zA-Z0-9]{0,39}$`)
 
+// Gallery filters. Tags come from fixed lists so filters stay consistent as
+// designs are added.
+var (
+	templateMoods   = []string{"festive", "royal", "minimal", "romantic", "serene", "playful", "glamorous", "heritage"}
+	templateRegions = []string{"all-india", "north", "south", "east", "west"}
+	templateTimes   = []string{"day", "night", "any"}
+	swatchColour    = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+)
+
+type templateTags struct {
+	Mood   []string `json:"mood"`
+	Region []string `json:"region"`
+	Time   string   `json:"time"`
+}
+
+func (t templateTags) valid() bool {
+	inList := func(values, allowed []string) bool {
+		if len(values) == 0 || len(values) > 3 {
+			return false
+		}
+		for i, value := range values {
+			if !slices.Contains(allowed, value) || slices.Index(values, value) != i {
+				return false
+			}
+		}
+		return true
+	}
+	return inList(t.Mood, templateMoods) && inList(t.Region, templateRegions) && slices.Contains(templateTimes, t.Time)
+}
+
 type templateChoice struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
+	Value  string   `json:"value"`
+	Label  string   `json:"label"`
+	Swatch []string `json:"swatch,omitempty"`
 }
 
 type templateOption struct {
@@ -36,9 +69,11 @@ type templateOption struct {
 type invitationTemplate struct {
 	ID          string           `json:"id"`
 	Version     int              `json:"version"`
+	Order       int              `json:"order"`
 	Name        string           `json:"name"`
 	Description string           `json:"description"`
 	Premium     bool             `json:"premium"`
+	Tags        templateTags     `json:"tags"`
 	Sections    []string         `json:"sections"`
 	Options     []templateOption `json:"options"`
 }
@@ -53,26 +88,53 @@ const defaultInvitationTemplate = "blush-envelope"
 
 var invitationTemplates = mustLoadTemplates(web.InvitationTemplates)
 
-func mustLoadTemplates(raw []byte) map[string]invitationTemplate {
-	templates, err := loadTemplates(raw)
-	if err != nil {
-		panic("invalid invitation template manifest: " + err.Error())
+func mustLoadTemplates(files fs.FS) map[string]invitationTemplate {
+	list, err := readTemplates(files)
+	if err == nil {
+		var templates map[string]invitationTemplate
+		if templates, err = checkTemplates(list); err == nil {
+			return templates
+		}
 	}
-	return templates
+	panic("invalid invitation template manifest: " + err.Error())
 }
 
-// loadTemplates checks every manifest, so a broken manifest fails at startup
-// and in tests rather than when a family saves.
-func loadTemplates(raw []byte) (map[string]invitationTemplate, error) {
-	var list []invitationTemplate
-	if err := json.Unmarshal(raw, &list); err != nil {
+// readTemplates reads one manifest per template folder. The folder name must
+// match the manifest id, so the editor and server always agree on the id.
+func readTemplates(files fs.FS) ([]invitationTemplate, error) {
+	paths, err := fs.Glob(files, "src/invitation/templates/*/manifest.json")
+	if err != nil {
 		return nil, err
 	}
+	list := make([]invitationTemplate, 0, len(paths))
+	for _, file := range paths {
+		raw, err := fs.ReadFile(files, file)
+		if err != nil {
+			return nil, err
+		}
+		var template invitationTemplate
+		if err := json.Unmarshal(raw, &template); err != nil {
+			return nil, fmt.Errorf("%s: %w", file, err)
+		}
+		if folder := path.Base(path.Dir(file)); folder != template.ID {
+			return nil, fmt.Errorf("%s: id %q does not match its folder %q", file, template.ID, folder)
+		}
+		list = append(list, template)
+	}
+	return list, nil
+}
+
+// checkTemplates checks every manifest, so a broken manifest fails at startup
+// and in tests rather than when a family saves.
+func checkTemplates(list []invitationTemplate) (map[string]invitationTemplate, error) {
 	templates := map[string]invitationTemplate{}
 	for _, template := range list {
 		if !regexp.MustCompile(`^[a-z0-9-]{1,40}$`).MatchString(template.ID) || template.Version < 1 || template.Name == "" ||
 			len(template.Sections) == 0 {
 			return nil, fmt.Errorf("template %q: missing id, version, name or sections", template.ID)
+		}
+		if !template.Tags.valid() {
+			return nil, fmt.Errorf("template %q: tags need 1-3 moods and regions from the allowed lists, and a time of day", template.ID)
 		}
 		if _, duplicate := templates[template.ID]; duplicate {
 			return nil, fmt.Errorf("template %q is listed twice", template.ID)
@@ -97,6 +159,12 @@ func loadTemplates(raw []byte) (map[string]invitationTemplate, error) {
 			}
 			if option.Type == "choice" && len(option.Choices) == 0 {
 				return nil, fmt.Errorf("template %q option %q: choice needs choices", template.ID, option.Key)
+			}
+			for _, choice := range option.Choices {
+				invalid := func(colour string) bool { return !swatchColour.MatchString(colour) }
+				if option.Key == "palette" && (len(choice.Swatch) != 3 || slices.ContainsFunc(choice.Swatch, invalid)) {
+					return nil, fmt.Errorf("template %q palette %q: needs a swatch of three #rrggbb colours", template.ID, choice.Value)
+				}
 			}
 			if _, ok := option.check(value); !ok {
 				return nil, fmt.Errorf("template %q option %q: default does not match its type", template.ID, option.Key)

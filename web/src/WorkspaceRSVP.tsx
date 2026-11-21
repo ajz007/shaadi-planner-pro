@@ -92,8 +92,8 @@ function InvitationPicker({ guests, functions, timeZone, existing }: {
   </div>
 }
 
-export function WorkspaceRSVP({ wedding, functions, guestsHref, functionsHref, followUpHref, initialHousehold }: {
-  wedding: Plan['wedding']; functions: Plan['functions']; guestsHref: string; functionsHref: string; followUpHref: string; initialHousehold: string
+export function WorkspaceRSVP({ wedding, functions, invitationHref, guestsHref, functionsHref, followUpHref, initialHousehold }: {
+  wedding: Plan['wedding']; functions: Plan['functions']; invitationHref: string; guestsHref: string; functionsHref: string; followUpHref: string; initialHousehold: string
 }) {
   const { request } = useWorkspaceData()
   const weddingPath = '/weddings/' + wedding.id
@@ -179,7 +179,7 @@ export function WorkspaceRSVP({ wedding, functions, guestsHref, functionsHref, f
     {error && <p role="alert">{error}</p>}
     {feedback && <p role="status">{feedback}</p>}
     {!data && !error && <p role="status">Loading guest RSVPs…</p>}
-    <WorkspaceGuestPage path={path} wedding={wedding} functions={functions} onSavedDesign={setSavedDesign} />
+    <WorkspaceGuestPage path={path} wedding={wedding} functions={functions} onSavedDesign={setSavedDesign} invitationHref={invitationHref} />
     <details className="focus-card guest-page-editor">
       <summary>Headcounts by function</summary>
       <button className="focus-secondary" disabled={!data || busy} onClick={() => void perform()}>Refresh replies</button>

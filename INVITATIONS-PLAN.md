@@ -18,7 +18,7 @@ Reference for turning Shaadi Planner Pro's guest page into a full digital invita
 ### Built (branch `feature/digital-invitation`)
 
 - **Data:** migration `018_wedding_invitation.sql` adds `wedding_invitations` (on/off switch, JSON content, template ID, version and options, optional MP3, revision).
-- **Templates:** manifest-driven sections and options from `web/src/invitation/templates.json`, validated by the server. One template so far (`blush-envelope`), with palette, envelope line, paper-plane trail and lantern options. Function names, times and venues still come from `wedding_functions` and `wedding_places`; the invitation only adds an icon, subtitle and time label per function.
+- **Templates:** one folder per design in `web/src/invitation/templates/<id>/` (manifest, component, styles), discovered automatically by the frontend and the Go server. Each design is its own code chunk. One template so far (`blush-envelope`). `npm run shots -- <id>` screenshots any template with sample data. Function names, times and venues still come from `wedding_functions` and `wedding_places`; the invitation only adds an icon, subtitle and time label per function.
 - **Organizer API:** `GET/POST /api/workspace/weddings/{id}/guest-rsvp/invitation`, `GET/POST …/invitation/music` (raw MP3 body, 5 MB limit, revision checked).
 - **Guest API:** `/api/guest-rsvp` and `/api/guest-schedule` include `invitation` when it is switched on, limited to the functions on that link. `/api/guest-invitation-music` serves the music for an active link, with the token in the POST body.
 - **Editor:** "Design the digital invitation" on the Guest RSVP screen (`web/src/WorkspaceInvitation.tsx`): palette, couple, blessings and symbols, per-function icon/subtitle/time label, family sections, dress code, reply-by date, contacts, closing, music, and a preview at `/invitation-preview`.
@@ -27,7 +27,11 @@ Reference for turning Shaadi Planner Pro's guest page into a full digital invita
 - **Weight:** about 12 KB JS + 6 KB CSS gzipped, loaded only on guest pages, against several megabytes for a typical custom invite.
 - **Tests:** content validation, organizer and guest endpoints, link scoping, draft versus live, music upload and access, against PostgreSQL.
 
+- **Invitation studio** (Phase 1 of the product plan): a "Digital Invitation" planner section with a design gallery (thumbnails, palette swatches, mood/region/time filters, full preview with the couple's own details), a step-by-step editor beside a live phone or desktop preview that follows the section being edited, and a publish screen with a checklist. Organizers edit a draft; guests see a published snapshot (migration `019_invitation_publishing.sql`) that changes only when they publish. They can also stop showing the invitation or discard unpublished changes. The preview is the real guest page in an iframe (`/invitation-preview?embed`) that receives the draft by `postMessage`. Guest RSVP links to it.
+
 ### Known gaps, in suggested order
+
+- **Photo and music are not drafted.** The couple photo (set in Guest RSVP) and the background music go live as soon as they are saved, unlike the rest of the invitation. Move both into the studio and into the published snapshot.
 
 1. **WhatsApp link preview.** Guest tokens live in the URL fragment, which the server never sees, so the preview card is the generic site card. Option: a short public `/i/{slug}` share page per wedding with server-rendered `og:` tags that hands off to the personal link.
 2. **Music library.** Families upload their own MP3. Add two or three licensed shehnai or instrumental tracks to choose from.
@@ -43,9 +47,9 @@ Indian wedding cards share a structure: invocation, blessings, hosts, the couple
 ```
  Content (per wedding)        wedding_invitations.content      one form, template-independent
       │ same JSON for every design
- Template manifest            web/src/invitation/templates.json   id, version, sections in order, options
+ Template manifest            templates/<id>/manifest.json         id, version, sections in order, options
       │
- Renderer                     web/src/invitation/Invitation.tsx   web today; Ad Studio video, image, PDF later
+ Renderer                     templates/<id>/Template.tsx          web today; Ad Studio video, image, PDF later
 ```
 
 ### Storage
@@ -60,7 +64,7 @@ Switching templates never loses content. Sections the new template doesn't show 
 
 ### The manifest
 
-`web/src/invitation/templates.json` is read by the editor and embedded in the Go server (`web.InvitationTemplates`):
+Each template's `web/src/invitation/templates/<id>/manifest.json` is read by the editor and embedded in the Go server (`web.InvitationTemplates`):
 
 - **`sections`:** which shared sections the design shows, in order. Allowed keys: `blessing`, `hero`, `countdown`, `couple`, `events`, `rsvp`, `family`, `venue`, `contacts`, `closing`. The RSVP always renders when the guest has one, even if a manifest leaves it out.
 - **`options`:** typed fields (`choice`, `text` with `max`, `boolean`), each with a default. The editor generates the "Design options" form from them. The server rejects unknown keys and wrong values, and fills in defaults for missing ones.
@@ -76,9 +80,7 @@ The server checks every manifest at startup and in tests: unknown or repeated se
 
 ### Adding a template
 
-1. Add its manifest to `templates.json`.
-2. Add its renderer (a component that takes the same `content`, `events` and `options`), or reuse the current one with different sections and options.
-3. No migration and no new form.
+Follow [the template guide](web/src/invitation/TEMPLATE-GUIDE.md): add one folder with a manifest, a component and styles. No migration, no new form, and no edits outside the folder.
 
 ### When content doesn't fit
 
@@ -92,6 +94,20 @@ The server checks every manifest at startup and in tests: unknown or repeated se
 2. **Label sets per language.** Section labels ("The Festivities", "Meet the couple") are English strings in the renderer. They should come from a label set so Hindi and Gujarati don't need new templates.
 3. **Version branches.** When a template change would alter live invitations, the renderer branches on `template.version` instead of changing old behaviour.
 4. **Premium unlock** through the Shop, checked on save.
+
+## Sourcing templates
+
+How others do it: Paperless Post runs an in-house studio plus licensed designer and brand collections. Minted crowdsources from an artist community and pays a prize plus about 6% of sales on stationery. Canva pays template creators from a monthly royalty pool shared by usage. Indian e-invite apps mostly design in-house or through freelancers and sell templates at roughly ₹99–₹999.
+
+Our plan, in order:
+
+1. **In-house, built by Claude (now).** Twenty distinct designs, one at a time, from [the backlog](web/src/invitation/TEMPLATE-BACKLOG.md) following [the template guide](web/src/invitation/TEMPLATE-GUIDE.md). A scheduled cloud agent builds one design per run and opens a PR; a person reviews and merges each one. Cost is close to zero.
+2. **Commissioned art packs (next).** Two packs from Indian illustrators under work-for-hire contracts with full rights, sold as premium designs. A custom couple caricature as a Shop add-on.
+3. **Designer marketplace (once families buy templates).** Free listing, reviewed before going live, designers paid a share of each sale through Razorpay Route. The share is to be tested with designers (a starting assumption of 20–30%, since they bring finished art). Needs a chartered accountant's advice on designer KYC, GST and TDS before launch.
+
+Do not use stock-marketplace templates without a licence that explicitly allows a template editor: Envato's licence bans "on-demand" apps where end users customise the product.
+
+**Structure for later:** today each template is a folder with its own code (`web/src/invitation/templates/<id>/`). For the marketplace, split a template into a **layout** (code, by us) and an **art pack** (files plus manifest, by anyone), stored in the database with a review status and the designer's revenue share.
 
 ## 1. What custom web invites typically include
 

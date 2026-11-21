@@ -1,6 +1,6 @@
 package web
 
-import _ "embed"
+import "embed"
 
 // WorkbookContract is shared with the frontend's filled workbook preview.
 //
@@ -10,8 +10,8 @@ var WorkbookContract []byte
 //go:embed src/shop-catalog.json
 var ShopCatalog []byte
 
-// InvitationTemplates lists the invitation template manifests. The server
-// validates saved template options against the same file the editor reads.
+// InvitationTemplates holds each template's manifest.json. The server
+// validates saved template options against the same files the editor reads.
 //
-//go:embed src/invitation/templates.json
-var InvitationTemplates []byte
+//go:embed src/invitation/templates/*/manifest.json
+var InvitationTemplates embed.FS

@@ -1,0 +1,452 @@
+/* Temple & Kolam. Every rule is scoped to .t-temple-kolam; colours are
+   tokens per palette; motion uses only opacity and transform and switches
+   off for reduced motion. */
+
+.t-temple-kolam {
+  --tk-paper: #fbf4e6;
+  --tk-paper-2: #f5e9d2;
+  --tk-card: #fffaf0;
+  --tk-ink: #3d1109;
+  --tk-text: #3b2219;
+  --tk-muted: #6b4a3c;
+  --tk-accent: #b8321a;
+  --tk-accent-2: #8f220f;
+  --tk-on-accent: #fff8ec;
+  --tk-turmeric: #e3a21a;
+  --tk-turmeric-deep: #96600a;
+  --tk-leaf: #4f7d2a;
+  --tk-leaf-deep: #2e5217;
+  --tk-leaf-light: #8ab84a;
+  --tk-leaf-vein: #e1f0bd;
+  --tk-trunk: #a3b665;
+  --tk-banana: #e6c235;
+  --tk-banana-bud: #8a2a3c;
+  --tk-brass: #c8902e;
+  --tk-brass-light: #f6d98f;
+  --tk-brass-deep: #7a5212;
+  --tk-floor: #7a2611;
+  --tk-floor-2: #2d0a04;
+  --tk-chalk: #fff8ec;
+  --tk-stone: #efe6d4;
+  --tk-stone-2: #e4d7be;
+  --tk-stone-edge: #bba786;
+  --tk-speck: rgb(90 60 30 / .2);
+  --tk-granite: radial-gradient(circle at 30% 40%, var(--tk-speck) 1px, transparent 1.6px), radial-gradient(circle at 70% 20%, var(--tk-speck) 1.4px, transparent 2px),
+    radial-gradient(circle at 60% 80%, rgb(255 255 255 / .5) .8px, transparent 1.3px);
+  --tk-stripe-a: #b8321a;
+  --tk-stripe-b: #fbf4e6;
+  --tk-gopuram: #c4452a;
+  --tk-gopuram-deep: #8a220f;
+  --tk-gopuram-line: #f3c75a;
+  --tk-kalasam: #e3a21a;
+  --tk-sun: #f6c453;
+  --tk-jasmine: #fffdf7;
+  --tk-jasmine-shade: #d6ceb2;
+  --tk-crossandra: #f2792b;
+  --tk-crossandra-core: #c2410c;
+  --tk-strand-thread: #a9bf73;
+  --tk-strand-edge: #cfc5a5;
+  --tk-plate-face: #fff8ec;
+  --tk-plate-line: #b8321a;
+  --tk-glyph: #b8321a;
+  --tk-tile: #fffaf0;
+  --tk-line: #e2cca3;
+  --tk-pulli: rgb(184 50 26 / .14);
+  --tk-shadow: rgb(80 30 10 / .16);
+  --tk-display: 'Marcellus', 'Trajan Pro', Georgia, serif;
+  --tk-serif: 'Alegreya', Georgia, 'Times New Roman', serif;
+  --tk-deva: 'Noto Serif Devanagari', 'Tiro Devanagari Hindi', 'Nirmala UI', 'Kohinoor Devanagari', serif;
+
+  /* The shared RSVP panel reads these. */
+  --invite-ink: var(--tk-text);
+  --invite-accent: var(--tk-accent);
+  --invite-line: var(--tk-line);
+  --invite-paper: var(--tk-card);
+  --invite-gold: var(--tk-turmeric);
+
+  position: relative;
+  min-height: 100vh;
+  overflow-x: clip;
+  color: var(--tk-text);
+  background: var(--tk-paper);
+  font-family: var(--tk-serif);
+  font-size: 1.06rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+.t-temple-kolam[data-palette="silk-gold"] {
+  --tk-paper: #fbf7ea;
+  --tk-paper-2: #f3ecd4;
+  --tk-card: #fffdf5;
+  --tk-ink: #0f3a22;
+  --tk-text: #1e3226;
+  --tk-muted: #4a5d50;
+  --tk-accent: #0f5a33;
+  --tk-accent-2: #0a4426;
+  --tk-on-accent: #fffbe8;
+  --tk-turmeric: #d4a017;
+  --tk-turmeric-deep: #7f5d00;
+  --tk-brass: #c99a2e;
+  --tk-floor: #12472c;
+  --tk-floor-2: #03170b;
+  --tk-chalk: #fff9e8;
+  --tk-stone: #f0eada;
+  --tk-stone-2: #e5dcc4;
+  --tk-stone-edge: #b9ad8a;
+  --tk-speck: rgb(40 60 30 / .18);
+  --tk-stripe-a: #d4a017;
+  --tk-stripe-b: #fbf7ea;
+  --tk-gopuram: #1f6b43;
+  --tk-gopuram-deep: #0d4227;
+  --tk-gopuram-line: #f0cf6a;
+  --tk-kalasam: #d4a017;
+  --tk-sun: #f1cf62;
+  --tk-plate-line: #0f5a33;
+  --tk-glyph: #0f5a33;
+  --tk-line: #e1d3a4;
+  --tk-pulli: rgb(15 90 51 / .14);
+  --tk-shadow: rgb(15 50 30 / .16);
+}
+
+html.t-temple-kolam-locked, html.t-temple-kolam-locked body { overflow: hidden; }
+.t-temple-kolam *, .t-temple-kolam *::before, .t-temple-kolam *::after { box-sizing: border-box; }
+.t-temple-kolam :where(h1, h2, h3, p, figure, ol, ul) { margin: 0; padding: 0; }
+.t-temple-kolam :where(ol, ul) { list-style: none; }
+.t-temple-kolam svg { display: block; }
+.t-temple-kolam .tk-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ---------------- Kolam ---------------- */
+.t-temple-kolam .tk-kolam { --kolam-ink: var(--tk-chalk); width: 100%; height: auto; overflow: visible; }
+.t-temple-kolam .tk-kolam-dots { fill: var(--kolam-ink); }
+.t-temple-kolam .tk-kolam-lines { stroke: var(--kolam-ink); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.t-temple-kolam .tk-kolam-lines path { transform-box: view-box; opacity: 0; transform: scale(.001); }
+@keyframes tk-draw { from { opacity: 0; transform: scale(.001); } 30% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes tk-dot { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: none; } }
+
+/* ---------------- Opening: the lamp on the kolam ---------------- */
+.t-temple-kolam .tk-opening {
+  --kw: min(66vw, 330px, 36vh);
+  position: fixed; inset: 0; z-index: 30; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 56px 16px max(20px, env(safe-area-inset-bottom));
+  color: var(--tk-chalk); text-align: center;
+  background: radial-gradient(120% 70% at 50% 78%, var(--tk-floor) 0%, var(--tk-floor-2) 100%);
+  transition: opacity .9s ease, transform .9s ease;
+}
+.t-temple-kolam .tk-opening[data-stage="leaving"] { opacity: 0; transform: scale(1.04); pointer-events: none; }
+.t-temple-kolam .tk-opening-glow {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(60vmax 50vmax at 50% 66%, rgb(255 196 92 / .38), rgb(255 160 60 / .12) 45%, transparent 70%);
+  transition: opacity 1.4s ease 1.5s;
+}
+.t-temple-kolam .tk-opening:not([data-stage="closed"]) .tk-opening-glow { opacity: 1; }
+.t-temple-kolam .tk-opening-strands { position: absolute; inset: 0 0 auto; height: 0; pointer-events: none; }
+.t-temple-kolam .tk-opening { --tk-strand-edge: transparent; }
+.t-temple-kolam .tk-opening-strand { position: absolute; top: -4px; width: 14px; height: auto; transform-origin: 50% 0;
+  animation: tk-sway 5s ease-in-out infinite; opacity: .95; }
+@keyframes tk-sway { 0%, 100% { transform: rotate(-2.2deg); } 50% { transform: rotate(2.2deg); } }
+
+.t-temple-kolam .tk-opening-words { position: relative; z-index: 2; width: min(100%, 34rem); text-shadow: 0 1px 10px var(--tk-floor-2); }
+.t-temple-kolam .tk-opening-dear { font: italic 500 clamp(1.1rem, 4.4vw, 1.35rem)/1.3 var(--tk-serif); color: var(--tk-brass-light); }
+.t-temple-kolam .tk-opening-title { margin-top: .35rem; font: 400 clamp(.85rem, 3.4vw, 1rem)/1.3 var(--tk-display); letter-spacing: .32em; text-transform: uppercase; }
+.t-temple-kolam .tk-opening-names { display: flex; flex-direction: column; align-items: center; margin-top: .4rem;
+  font: 400 clamp(2.5rem, 12vw, 4.4rem)/1.04 var(--tk-display); color: var(--tk-chalk); text-shadow: 0 2px 22px rgb(255 190 90 / .35);
+  opacity: 0; transform: translateY(12px); transition: opacity 1s ease 1.5s, transform 1s ease 1.5s; }
+.t-temple-kolam .tk-opening-names span { display: block; max-width: 100%; white-space: nowrap; }
+.t-temple-kolam .tk-opening-names em { font: italic 500 .5em/1.2 var(--tk-serif); color: var(--tk-brass-light); }
+.t-temple-kolam .tk-opening-date { margin-top: .5rem; font: 600 clamp(.85rem, 3.5vw, 1rem)/1.3 var(--tk-serif); letter-spacing: .2em; text-transform: uppercase; color: var(--tk-brass-light);
+  opacity: 0; transform: translateY(8px); transition: opacity 1s ease 1.8s, transform 1s ease 1.8s; }
+.t-temple-kolam .tk-opening:not([data-stage="closed"]) :is(.tk-opening-names, .tk-opening-date) { opacity: 1; transform: none; }
+
+.t-temple-kolam .tk-threshold { position: relative; z-index: 1; flex: none; width: min(100%, 560px); height: calc(var(--kw) * 1.66); margin-top: 4px; perspective: 900px; }
+.t-temple-kolam .tk-floor { position: absolute; left: 50%; bottom: calc(var(--kw) * .5); width: var(--kw); height: var(--kw);
+  margin: 0 0 calc(var(--kw) / -2) calc(var(--kw) / -2); transform: rotateX(60deg) rotate(45deg); }
+.t-temple-kolam .tk-opening-kolam .tk-kolam-dots circle { opacity: 0; transform-box: fill-box; transform-origin: center;
+  animation: tk-dot .5s ease-out both; animation-delay: calc(.2s + var(--dot) * .9s); }
+.t-temple-kolam .tk-opening:not([data-stage="closed"]) .tk-opening-kolam .tk-kolam-lines path { animation: tk-draw .34s ease-out both; animation-delay: var(--seg); }
+
+.t-temple-kolam .tk-lamp-button { position: absolute; z-index: 2; left: 50%; bottom: calc(var(--kw) * .433); width: calc(var(--kw) * .5);
+  margin-left: calc(var(--kw) * -.25); padding: 0; border: 0; background: none; cursor: pointer; border-radius: 40px; -webkit-tap-highlight-color: transparent; }
+.t-temple-kolam .tk-lamp-button:focus-visible { outline: 2px dashed var(--tk-brass-light); outline-offset: 6px; }
+.t-temple-kolam .tk-opening:not([data-stage="closed"]) .tk-lamp-button { cursor: default; }
+.t-temple-kolam .tk-opening-lamp { width: 100%; height: auto; filter: drop-shadow(0 12px 14px rgb(0 0 0 / .45)); }
+.t-temple-kolam .tk-lamp-halo { position: absolute; left: -30%; right: -30%; top: -12%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 214 130 / .5), rgb(255 214 130 / 0) 62%); animation: tk-breathe 2.2s ease-in-out infinite; }
+.t-temple-kolam .tk-opening:not([data-stage="closed"]) .tk-lamp-halo { animation: tk-glow 1.2s ease-out 1.5s both; }
+@keyframes tk-breathe { 0%, 100% { opacity: .25; transform: scale(.85); } 50% { opacity: .9; transform: scale(1); } }
+@keyframes tk-glow { from { opacity: .3; transform: scale(.8); } to { opacity: 1; transform: scale(1.35); } }
+.t-temple-kolam .tk-flame { transform: scale(0); }
+.t-temple-kolam .tk-opening:not([data-stage="closed"]) .tk-flame {
+  animation: tk-light .55s cubic-bezier(.3, 1.6, .5, 1) both, tk-flicker 1.7s ease-in-out infinite;
+  animation-delay: calc(1.35s + var(--f) * .12s), calc(2.2s + var(--f) * .2s); }
+@keyframes tk-light { from { transform: scale(0); } to { transform: none; } }
+@keyframes tk-flicker { 0%, 100% { transform: none; } 30% { transform: scale(.94, 1.08) rotate(-2deg); } 65% { transform: scale(1.04, .95) rotate(2deg); } }
+
+.t-temple-kolam .tk-opening-hint { position: relative; z-index: 2; max-width: 24rem; margin-top: 2px;
+  font: italic 500 clamp(1rem, 4.1vw, 1.15rem)/1.4 var(--tk-serif); color: var(--tk-chalk); }
+.t-temple-kolam .tk-opening[data-stage="lit"] .tk-opening-hint { animation: tk-pulse-text 1.8s ease-in-out infinite; }
+@keyframes tk-pulse-text { 50% { opacity: .6; } }
+
+/* ---------------- Page frame ---------------- */
+.t-temple-kolam .tk-backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: radial-gradient(circle, var(--tk-pulli) 1.4px, transparent 2px); background-size: 26px 26px; background-position: 13px 13px; }
+.t-temple-kolam .tk-preview { position: sticky; top: 0; z-index: 20; padding: .55rem 1rem; text-align: center;
+  font: 600 .92rem var(--tk-serif); color: var(--tk-on-accent); background: var(--tk-accent); }
+.t-temple-kolam .tk-main { position: relative; z-index: 1; max-width: calc(46rem + 32px); margin: 0 auto; padding: 0 16px 0; }
+.t-temple-kolam:is([data-stage="closed"], [data-stage="drawing"], [data-stage="lit"]) .tk-main { visibility: hidden; }
+
+.t-temple-kolam [data-reveal] { opacity: 0; transform: translateY(18px); transition: opacity .9s ease, transform .9s cubic-bezier(.2, .7, .2, 1); }
+.t-temple-kolam [data-reveal].is-in { opacity: 1; transform: none; }
+.t-temple-kolam .tk-section { position: relative; padding: clamp(2.25rem, 7vw, 3.5rem) 0; text-align: center; }
+
+.t-temple-kolam .tk-kicker { font: 600 .82rem/1.3 var(--tk-serif); letter-spacing: .24em; text-transform: uppercase; color: var(--tk-accent); }
+.t-temple-kolam .tk-label { font: 600 .8rem/1.3 var(--tk-serif); letter-spacing: .16em; text-transform: uppercase; color: var(--tk-muted); }
+.t-temple-kolam .tk-soft { font: italic 400 1.12rem/1.4 var(--tk-serif); color: var(--tk-muted); }
+.t-temple-kolam .tk-note { margin-top: .2rem; font-style: italic; color: var(--tk-muted); }
+
+/* Section heads: a jasmine string with two temple bells. */
+.t-temple-kolam .tk-head { display: grid; justify-items: center; gap: .45rem; margin-bottom: 1.6rem; }
+.t-temple-kolam .tk-head-garland { position: relative; width: min(78%, 300px); margin-bottom: .55rem; }
+.t-temple-kolam .tk-head-swag { width: 100%; height: auto; }
+.t-temple-kolam .tk-head-bell { position: absolute; top: 0; width: 22px; height: auto; transform-origin: 50% 0; }
+.t-temple-kolam .tk-head-bell.is-l { left: -10px; }
+.t-temple-kolam .tk-head-bell.is-r { right: -10px; }
+.t-temple-kolam[data-bells="swing"] .tk-head.is-in .tk-head-bell { animation: tk-ring 2.8s cubic-bezier(.3, .5, .4, 1) .4s both; }
+.t-temple-kolam[data-bells="swing"] .tk-head.is-in .tk-head-bell.is-r { animation-delay: .6s; animation-direction: reverse; }
+@keyframes tk-ring { 0% { transform: none; } 12% { transform: rotate(18deg); } 28% { transform: rotate(-14deg); } 44% { transform: rotate(9deg); }
+  60% { transform: rotate(-5deg); } 76% { transform: rotate(2.5deg); } 100% { transform: none; } }
+.t-temple-kolam .tk-head h2 { font: 400 clamp(1.8rem, 6.4vw, 2.5rem)/1.15 var(--tk-display); color: var(--tk-ink); text-wrap: balance; }
+.t-temple-kolam .tk-head-leaf { width: min(58%, 220px); height: auto; margin-top: .2rem; }
+
+/* ---------------- Hero: gopuram over the striped temple wall ---------------- */
+.t-temple-kolam .tk-hero { padding-top: 0; }
+.t-temple-kolam .tk-crown { position: relative; height: min(74vw, 360px); margin: 0 -16px; overflow: hidden; }
+.t-temple-kolam .tk-sun { position: absolute; left: 50%; bottom: 12%; width: min(84vw, 420px); aspect-ratio: 1; margin-left: max(-42vw, -210px); border-radius: 50%;
+  background: radial-gradient(circle, var(--tk-sun) 0 34%, rgb(246 196 83 / .35) 35% 52%, transparent 70%); animation: tk-rise 2.4s ease-out both; }
+.t-temple-kolam[data-palette="silk-gold"] .tk-sun { background: radial-gradient(circle, var(--tk-sun) 0 34%, rgb(241 207 98 / .35) 35% 52%, transparent 70%); }
+@keyframes tk-rise { from { opacity: 0; transform: translateY(14%); } to { opacity: 1; transform: none; } }
+.t-temple-kolam .tk-crown-strand { position: absolute; top: -4px; width: 13px; height: auto; transform-origin: 50% 0; animation: tk-sway 5s ease-in-out infinite; }
+.t-temple-kolam .tk-crown-gopuram { position: absolute; left: 50%; bottom: 0; width: min(88vw, 440px); height: auto; transform: translateX(-50%); }
+.t-temple-kolam .tk-wall { height: 26px; margin: 0 -16px; border-block: 3px solid var(--tk-brass);
+  background: repeating-linear-gradient(90deg, var(--tk-stripe-a) 0 20px, var(--tk-stripe-b) 20px 40px); }
+.t-temple-kolam .tk-hero-body { padding-top: clamp(1.75rem, 6vw, 2.5rem); }
+.t-temple-kolam .tk-greeting { font: italic 500 1.25rem/1.35 var(--tk-serif); color: var(--tk-muted); margin-bottom: .6rem; }
+.t-temple-kolam .tk-hero-title { font: 400 1rem/1.3 var(--tk-display); letter-spacing: .34em; text-transform: uppercase; color: var(--tk-accent); }
+.t-temple-kolam .tk-names { display: flex; flex-direction: column; align-items: center; margin: .5rem 0 .65rem;
+  font: 400 clamp(3rem, 15vw, 5.4rem)/1.02 var(--tk-display); color: var(--tk-ink); }
+.t-temple-kolam .tk-names > span:not(.tk-amp) { display: block; max-width: 100%; white-space: nowrap; }
+.t-temple-kolam .tk-amp { font: italic 500 .48em/1.15 var(--tk-serif); color: var(--tk-turmeric-deep); }
+.t-temple-kolam .tk-date { display: inline-flex; align-items: center; gap: .8rem; font: 600 1rem/1.3 var(--tk-serif); letter-spacing: .22em; text-transform: uppercase; color: var(--tk-text); }
+.t-temple-kolam .tk-date::before, .t-temple-kolam .tk-date::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tk-turmeric);
+  box-shadow: 14px 0 0 -1px var(--tk-accent), -14px 0 0 -1px var(--tk-accent); margin: 0 14px; }
+
+.t-temple-kolam .tk-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; margin-top: 1.5rem; }
+.t-temple-kolam .tk-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.9rem; padding: .6rem 1.35rem;
+  border: 1.5px solid var(--tk-accent); border-radius: 8px; cursor: pointer; text-decoration: none;
+  font: 600 1.02rem/1.2 var(--tk-serif); color: var(--tk-on-accent); background: var(--tk-accent); box-shadow: 0 4px 0 var(--tk-accent-2); }
+.t-temple-kolam .tk-button:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--tk-accent-2); }
+.t-temple-kolam .tk-button.is-quiet { color: var(--tk-accent); background: var(--tk-card); }
+.t-temple-kolam .tk-button.is-small { min-height: 2.6rem; padding: .45rem .95rem; font-size: .95rem; }
+.t-temple-kolam :is(.tk-button, .tk-music) svg { width: 1.15rem; height: 1.15rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-temple-kolam :is(.tk-button, .tk-music, .tk-chip, .tk-link, .tk-step-place a):focus-visible { outline: 2px solid var(--tk-turmeric-deep); outline-offset: 3px; }
+
+/* ---------------- Blessing ---------------- */
+.t-temple-kolam .tk-blessing { display: grid; justify-items: center; gap: 1.1rem; }
+.t-temple-kolam .tk-plates { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.t-temple-kolam .tk-plate { width: 62px; height: 62px; filter: drop-shadow(0 4px 6px var(--tk-shadow)); }
+.t-temple-kolam .tk-plate.is-large { width: 84px; height: 84px; }
+.t-temple-kolam .tk-glyph { font: 600 34px var(--tk-deva); fill: var(--tk-glyph); }
+.t-temple-kolam .tk-glyph.is-shri { font-size: 27px; }
+.t-temple-kolam .tk-invocation { font: 600 clamp(1.2rem, 5vw, 1.45rem)/1.5 var(--tk-deva); color: var(--tk-accent); }
+.t-temple-kolam .tk-shloka { position: relative; display: grid; gap: .15rem; width: min(100%, 34rem); padding: 1.1rem 1.25rem;
+  font: 500 clamp(.98rem, 4vw, 1.12rem)/1.75 var(--tk-deva); color: var(--tk-text);
+  background-color: var(--tk-stone); background-image: var(--tk-granite); background-size: 23px 19px, 31px 37px, 13px 17px; background-position: 0 0, 11px 7px, 5px 9px;
+  border-radius: 6px; box-shadow: inset 0 0 0 1px var(--tk-stone-edge), inset 0 0 0 5px var(--tk-stone), inset 0 0 0 6px var(--tk-stone-edge); }
+.t-temple-kolam .tk-blessed { display: grid; gap: .15rem; }
+.t-temple-kolam .tk-deity { font: 400 clamp(1.5rem, 6vw, 1.9rem)/1.2 var(--tk-display); color: var(--tk-accent); }
+.t-temple-kolam .tk-elders { font: 600 1.2rem/1.35 var(--tk-serif); color: var(--tk-ink); text-wrap: balance; }
+.t-temple-kolam :is(.tk-soft, .tk-parents, .tk-address) { text-wrap: balance; }
+.t-temple-kolam .tk-intro { max-width: 30rem; text-wrap: balance; font: italic 500 clamp(1.2rem, 4.8vw, 1.4rem)/1.4 var(--tk-serif); color: var(--tk-ink); }
+.t-temple-kolam .tk-photo { width: min(78%, 320px); padding: 6px; border-radius: 999px 999px 10px 10px / 46% 46% 10px 10px;
+  background: linear-gradient(135deg, var(--tk-brass-light), var(--tk-brass) 50%, var(--tk-brass-deep)); box-shadow: 0 14px 26px -14px var(--tk-shadow); }
+.t-temple-kolam .tk-photo img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: inherit; }
+
+/* ---------------- Couple ---------------- */
+.t-temple-kolam .tk-couple { padding-top: .5rem; }
+.t-temple-kolam .tk-pair { display: grid; gap: 1rem; justify-items: center; }
+.t-temple-kolam .tk-arch { position: relative; width: 100%; padding: 2.6rem 1.3rem 1.6rem; background: var(--tk-card);
+  border-radius: 50% 50% 14px 14px / 74px 74px 14px 14px;
+  box-shadow: inset 0 0 0 1px var(--tk-line), inset 0 0 0 6px var(--tk-card), inset 0 0 0 7px var(--tk-line), 0 16px 30px -22px var(--tk-shadow); }
+.t-temple-kolam .tk-arch::before { content: ""; position: absolute; left: 50%; top: 12px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+  background: var(--tk-accent); box-shadow: -16px 6px 0 -2px var(--tk-turmeric), 16px 6px 0 -2px var(--tk-turmeric); }
+.t-temple-kolam .tk-tag { font: 400 .95rem/1.3 var(--tk-display); letter-spacing: .26em; text-transform: uppercase; color: var(--tk-accent); }
+.t-temple-kolam .tk-honorific { margin-top: .5rem; font: italic 500 1.05rem/1.3 var(--tk-serif); color: var(--tk-muted); }
+.t-temple-kolam .tk-person h3 { font: 400 clamp(1.65rem, 7vw, 2.05rem)/1.15 var(--tk-display); color: var(--tk-ink); overflow-wrap: anywhere; }
+.t-temple-kolam .tk-dots { display: flex; justify-content: center; gap: 9px; margin: .8rem 0 .55rem; }
+.t-temple-kolam .tk-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--tk-turmeric); }
+.t-temple-kolam .tk-dots i:nth-child(2) { background: var(--tk-accent); }
+.t-temple-kolam .tk-parents { margin-top: .2rem; font: 500 1.08rem/1.4 var(--tk-serif); }
+.t-temple-kolam .tk-pair-amp { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; border: 2px dotted var(--tk-turmeric-deep); background: var(--tk-paper); }
+.t-temple-kolam .tk-pair-amp span { font: italic 500 1.7rem/1 var(--tk-serif); color: var(--tk-accent); }
+
+/* ---------------- Countdown: numbers in kolam tiles ---------------- */
+.t-temple-kolam .tk-countdown { padding-block: 1.75rem 2.25rem; }
+.t-temple-kolam .tk-tiles { display: flex; justify-content: center; gap: clamp(.4rem, 2.5vw, 1.4rem); margin-top: 1rem; }
+.t-temple-kolam .tk-tile-cell { display: grid; justify-items: center; gap: .35rem; }
+.t-temple-kolam .tk-tile-face { position: relative; display: grid; place-items: center; width: clamp(70px, 20vw, 96px); aspect-ratio: 1; }
+.t-temple-kolam .tk-tile { position: absolute; inset: 0; width: 100%; height: 100%; }
+.t-temple-kolam .tk-tile-face strong { position: relative; font: 400 clamp(1.45rem, 6vw, 1.95rem)/1 var(--tk-display); color: var(--tk-ink); }
+.t-temple-kolam .tk-tile-label { font: 600 .74rem/1.2 var(--tk-serif); letter-spacing: .16em; text-transform: uppercase; color: var(--tk-muted); }
+
+/* ---------------- Ceremonies on stone steps ---------------- */
+.t-temple-kolam .tk-chip { display: inline-flex; align-items: center; gap: .5rem; margin: -.4rem auto 1.6rem; padding: .5rem 1rem; border-radius: 999px;
+  color: var(--tk-text); text-decoration: none; background: var(--tk-card); box-shadow: inset 0 0 0 1px var(--tk-line); }
+.t-temple-kolam .tk-chip svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: var(--tk-accent); stroke-width: 1.8; }
+.t-temple-kolam .tk-chip strong { color: var(--tk-ink); }
+.t-temple-kolam .tk-days { display: grid; gap: 2.2rem; }
+.t-temple-kolam .tk-tablet { display: inline-grid; gap: .1rem; margin-bottom: 1.1rem; padding: .6rem 1.8rem .7rem;
+  color: var(--tk-chalk); background: var(--tk-ink);
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px); }
+.t-temple-kolam .tk-tablet-n { font: 400 .84rem/1.2 var(--tk-display); letter-spacing: .3em; text-transform: uppercase; color: var(--tk-brass-light); }
+.t-temple-kolam .tk-tablet-date { font: 600 1.06rem/1.3 var(--tk-serif); }
+.t-temple-kolam .tk-steps { --inset: 12px; display: grid; gap: 12px; justify-items: center; }
+.t-temple-kolam .tk-step {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .3rem 1rem;
+  width: calc(100% - (var(--count) - 1 - var(--i)) * 2 * var(--inset)); padding: 1rem 1.15rem; text-align: left;
+  background-color: var(--tk-stone);
+  background-image: var(--tk-granite); background-size: 23px 19px, 31px 37px, 13px 17px; background-position: 0 0, 11px 7px, 5px 9px;
+  border-radius: 4px; box-shadow: inset 0 3px 0 rgb(255 255 255 / .55), inset 0 0 0 1px var(--tk-stone-edge), 0 7px 0 var(--tk-stone-2), 0 7px 0 1px var(--tk-stone-edge), 0 18px 22px -16px var(--tk-shadow);
+}
+.t-temple-kolam .tk-step-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, var(--tk-brass-light), var(--tk-brass) 60%, var(--tk-brass-deep)); box-shadow: 0 3px 6px var(--tk-shadow); }
+.t-temple-kolam .inv-event-icon { width: 38px; height: 38px; color: var(--tk-ink); }
+.t-temple-kolam .inv-ic-a { fill: var(--tk-card); fill-opacity: .8; }
+.t-temple-kolam .inv-ic-b { fill: var(--tk-accent); fill-opacity: .7; }
+.t-temple-kolam .tk-step h3 { font: 400 1.4rem/1.2 var(--tk-display); color: var(--tk-ink); overflow-wrap: anywhere; }
+.t-temple-kolam .tk-step-sub { font-style: italic; color: var(--tk-muted); }
+.t-temple-kolam .tk-step-time { justify-self: end; padding: .32rem .8rem; border-radius: 999px; font: 600 .95rem/1.25 var(--tk-serif); text-align: center;
+  color: var(--tk-on-accent); background: var(--tk-accent); }
+.t-temple-kolam .tk-step-place { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .45rem; margin-top: .25rem; font-size: .98rem; }
+.t-temple-kolam .tk-step-place svg { width: 1rem; height: 1rem; fill: none; stroke: var(--tk-accent); stroke-width: 1.8; }
+.t-temple-kolam .tk-step-place a { color: var(--tk-accent); font-weight: 600; }
+
+/* ---------------- RSVP ---------------- */
+.t-temple-kolam .tk-rsvp-by { margin: -.6rem 0 1.1rem; }
+.t-temple-kolam .tk-rsvp-body { text-align: left; }
+.t-temple-kolam .invite-panel { position: relative; margin: 0; border: 0; border-radius: 14px; background: var(--tk-card); color: var(--tk-text);
+  box-shadow: inset 0 0 0 1px var(--tk-line), inset 0 0 0 6px var(--tk-card), inset 0 0 0 7px var(--tk-line), 0 16px 30px -22px var(--tk-shadow); }
+.t-temple-kolam .invite-panel h2 { font: 400 clamp(1.45rem, 5vw, 1.85rem)/1.2 var(--tk-display); color: var(--tk-ink); }
+.t-temple-kolam .invite-panel button { border-radius: 8px; color: var(--tk-on-accent); font-family: var(--tk-serif); font-weight: 600; }
+.t-temple-kolam .invite-panel .invite-secondary { color: var(--tk-accent); border-color: var(--tk-accent); }
+.t-temple-kolam .invite-panel .invite-secondary[aria-pressed="true"] { color: var(--tk-on-accent); background: var(--tk-accent); }
+.t-temple-kolam .invite-panel a { color: var(--tk-accent); }
+.t-temple-kolam .invite-toolbar :is(select, input) { background: var(--tk-paper); color: var(--tk-text); }
+.t-temple-kolam .invite-feedback { background: var(--tk-card); }
+
+/* ---------------- Family ---------------- */
+.t-temple-kolam .tk-grid { display: grid; gap: 1rem; }
+.t-temple-kolam .tk-family { display: grid; gap: .9rem; }
+.t-temple-kolam .tk-family h3 { font: 400 1.35rem/1.25 var(--tk-display); color: var(--tk-accent); }
+.t-temple-kolam .tk-family-line { display: grid; gap: .15rem; }
+.t-temple-kolam .tk-name { font: 500 1.1rem/1.4 var(--tk-serif); color: var(--tk-ink); }
+
+/* ---------------- Venue: a stone mandapam ---------------- */
+.t-temple-kolam .tk-mandapam { position: relative; padding: 26px 58px 6px; }
+.t-temple-kolam .tk-mandapam::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 16px; border-radius: 2px;
+  background: var(--tk-stone-2); box-shadow: inset 0 0 0 1px var(--tk-stone-edge), inset 0 -5px 0 var(--tk-stone), inset 0 -6px 0 var(--tk-stone-edge); }
+.t-temple-kolam .tk-mandapam-pillar { position: absolute; top: 16px; bottom: 0; width: 46px; display: flex; flex-direction: column; }
+.t-temple-kolam .tk-pillar svg { width: 100%; height: auto; flex: none; }
+.t-temple-kolam .tk-pillar-shaft { flex: 1; width: 54%; margin: 0 auto; background: var(--tk-stone-2);
+  background-image: repeating-linear-gradient(180deg, transparent 0 46px, var(--tk-stone-edge) 46px 47px, var(--tk-stone) 47px 60px, var(--tk-stone-edge) 60px 61px);
+  box-shadow: inset 1.2px 0 0 var(--tk-stone-edge), inset -1.2px 0 0 var(--tk-stone-edge), inset 6px 0 0 rgb(255 255 255 / .35); }
+.t-temple-kolam .tk-mandapam-pillar.is-l { left: 2px; }
+.t-temple-kolam .tk-mandapam-pillar.is-r { right: 2px; }
+.t-temple-kolam .tk-mandapam-body { display: grid; gap: 1rem; padding: 1rem 0 .5rem; }
+.t-temple-kolam .tk-place { display: grid; justify-items: center; gap: .3rem; padding: 1.4rem 1.1rem; border-radius: 12px; background: var(--tk-card); box-shadow: inset 0 0 0 1px var(--tk-line); }
+.t-temple-kolam .tk-place-icon { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: .2rem; border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, var(--tk-brass-light), var(--tk-brass) 60%, var(--tk-brass-deep)); }
+.t-temple-kolam .tk-place-icon svg { width: 22px; height: 22px; fill: none; stroke: var(--tk-ink); stroke-width: 1.8; }
+.t-temple-kolam .tk-place h3 { font: 400 1.45rem/1.2 var(--tk-display); color: var(--tk-ink); }
+.t-temple-kolam .tk-address { color: var(--tk-text); }
+.t-temple-kolam .tk-link { color: var(--tk-accent); font-weight: 600; }
+.t-temple-kolam .tk-mandapam .tk-actions { margin-top: .3rem; }
+
+/* ---------------- Contacts ---------------- */
+.t-temple-kolam .tk-contacts { display: grid; gap: .8rem; }
+.t-temple-kolam .tk-contact { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem 1rem; padding: 1rem 1.15rem; text-align: left;
+  border-radius: 12px; background: var(--tk-card); box-shadow: inset 0 0 0 1px var(--tk-line); border-left: 5px solid var(--tk-turmeric); }
+.t-temple-kolam .tk-contact h3 { font: 400 1.3rem/1.2 var(--tk-display); color: var(--tk-ink); }
+.t-temple-kolam .tk-contact-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* ---------------- Closing: kolam, banana plants, temple wall ---------------- */
+.t-temple-kolam .tk-closing { display: grid; justify-items: center; gap: .85rem; padding-bottom: 0; }
+.t-temple-kolam .tk-closing-kolam { width: min(46vw, 180px); }
+.t-temple-kolam .tk-closing-kolam .tk-kolam { --kolam-ink: var(--tk-accent); }
+.t-temple-kolam .tk-closing-kolam .tk-kolam-dots { fill: var(--tk-turmeric-deep); }
+.t-temple-kolam .tk-closing-kolam.is-in .tk-kolam-lines path { animation: tk-draw .34s ease-out both; animation-delay: calc(.3s + var(--seg)); }
+.t-temple-kolam .tk-closing-line { max-width: 28rem; text-wrap: balance; font: italic 500 clamp(1.35rem, 5.4vw, 1.7rem)/1.35 var(--tk-serif); color: var(--tk-ink); }
+.t-temple-kolam .tk-closing-names { max-width: 100%; white-space: nowrap; font: 400 clamp(2.1rem, 9vw, 3rem)/1.15 var(--tk-display); color: var(--tk-accent); }
+.t-temple-kolam .tk-closing-names em { margin: 0 .25em; font: italic 500 .6em var(--tk-serif); color: var(--tk-turmeric-deep); }
+.t-temple-kolam .tk-hosts { font: 600 1.2rem/1.35 var(--tk-serif); color: var(--tk-ink); }
+.t-temple-kolam .tk-gate { position: relative; width: 100%; height: 150px; margin-top: 1.25rem; }
+.t-temple-kolam .tk-gate-plant { position: absolute; bottom: -2px; width: 110px; height: auto; transform-origin: 50% 100%; }
+.t-temple-kolam .tk-gate-plant.is-l { left: 0; }
+.t-temple-kolam .tk-gate-plant.is-r { right: 0; transform: scaleX(-1); }
+.t-temple-kolam .tk-wall.is-foot { width: calc(100% + 32px); margin-top: -.85rem; margin-bottom: 0; }
+
+/* ---------------- Music ---------------- */
+.t-temple-kolam .tk-music {
+  position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 26;
+  display: inline-flex; align-items: center; gap: .5rem; min-height: 3rem; padding: .55rem 1.15rem;
+  border: 2px solid var(--tk-brass-light); border-radius: 999px; cursor: pointer;
+  font: 700 1.02rem var(--tk-serif); color: var(--tk-ink);
+  background: radial-gradient(circle at 35% 30%, var(--tk-brass-light), var(--tk-brass) 70%); box-shadow: 0 10px 22px -10px rgb(0 0 0 / .45);
+}
+.t-temple-kolam .tk-music.is-pulse { animation: tk-attention 1.6s ease-in-out infinite; }
+@keyframes tk-attention { 50% { transform: scale(1.06); } }
+
+/* ---------------- Larger screens ---------------- */
+@media (min-width: 700px) {
+  .t-temple-kolam .tk-names { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 .3em; }
+  .t-temple-kolam .tk-pair { grid-template-columns: 1fr auto 1fr; align-items: stretch; }
+  .t-temple-kolam .tk-pair-amp { align-self: center; }
+  .t-temple-kolam .tk-pair:has(> :only-child) { grid-template-columns: minmax(0, 24rem); justify-content: center; }
+  .t-temple-kolam .tk-grid { grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+  .t-temple-kolam .tk-steps { --inset: 26px; max-width: 40rem; margin: 0 auto; }
+  .t-temple-kolam .tk-crown-strand { width: 17px; }
+  .t-temple-kolam .tk-mandapam { padding-inline: 92px; }
+  .t-temple-kolam .tk-mandapam-pillar { width: 68px; }
+  .t-temple-kolam .tk-gate { height: 210px; }
+  .t-temple-kolam .tk-gate-plant { width: 160px; }
+}
+@media (min-width: 1100px) {
+  .t-temple-kolam .tk-backdrop::before, .t-temple-kolam .tk-backdrop::after { content: ""; position: absolute; top: 0; bottom: 0; width: 18px;
+    background: repeating-linear-gradient(180deg, var(--tk-stripe-a) 0 20px, var(--tk-stripe-b) 20px 40px); box-shadow: inset 0 0 0 2px var(--tk-brass); }
+  .t-temple-kolam .tk-backdrop::before { left: 0; }
+  .t-temple-kolam .tk-backdrop::after { right: 0; }
+}
+@media (max-width: 380px), (max-height: 700px) {
+  .t-temple-kolam .tk-opening-strand { width: 10px; }
+}
+@media (max-width: 360px) {
+  .t-temple-kolam .tk-date::before, .t-temple-kolam .tk-date::after { display: none; }
+}
+@media (max-width: 559px) {
+  .t-temple-kolam .tk-step { grid-template-columns: auto 1fr; grid-template-areas: "icon text" "icon time"; gap: .45rem .9rem; padding: .9rem 1rem; }
+  .t-temple-kolam .tk-step-icon { grid-area: icon; width: 50px; height: 50px; }
+  .t-temple-kolam .tk-step-text { grid-area: text; }
+  .t-temple-kolam .tk-step-time { grid-area: time; justify-self: start; font-size: .9rem; }
+  .t-temple-kolam .inv-event-icon { width: 34px; height: 34px; }
+  .t-temple-kolam .tk-mandapam { padding-inline: 40px; }
+  .t-temple-kolam .tk-mandapam-pillar { width: 32px; }
+  .t-temple-kolam .tk-contact { flex-direction: column; align-items: flex-start; }
+  .t-temple-kolam .tk-music { min-height: 2.9rem; padding: .5rem 1rem; font-size: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-temple-kolam *, .t-temple-kolam *::before, .t-temple-kolam *::after { animation: none !important; transition: none !important; }
+  .t-temple-kolam [data-reveal] { opacity: 1; transform: none; }
+  .t-temple-kolam .tk-kolam-lines path, .t-temple-kolam .tk-kolam-dots circle { opacity: 1 !important; transform: none !important; }
+  .t-temple-kolam .tk-flame { transform: none; }
+}

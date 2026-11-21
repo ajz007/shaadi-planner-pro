@@ -17,6 +17,7 @@ import { WeddingNavigation } from './WeddingNavigation'
 import { WorkspaceRSVP } from './WorkspaceRSVP'
 import { WorkspaceRunSheet } from './WorkspaceRunSheet'
 
+const InvitationStudio = lazy(() => import('./studio/InvitationStudio').then(module => ({ default: module.InvitationStudio })))
 const FamilyPass = lazy(() => import('./FamilyPass').then(module => ({ default: module.FamilyPass })))
 
 type Session = { accountId?: string; familyPassRequired?: boolean; configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
@@ -130,7 +131,7 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
   }, [organizer, path, request, section])
   const href = (page?: string) => weddingPage(wedding.id, page, workbookView, preview)
   const awaitingCount = guests?.filter(needsReply).length ?? 0
-  const canSee = (page: string) => page === 'Guest RSVP' ? organizer && !preview
+  const canSee = (page: string) => page === 'Guest RSVP' || page === 'Digital Invitation' ? organizer && !preview
     : owner || page === 'Functions & Events' || page === 'Family Responsibilities' ||
     (organizer && ['Guest List', 'Wedding Timeline', 'Schedule Board', 'Settings', 'Transportation', 'Accommodation', 'RSVP Follow-up', 'Places'].includes(page))
   const personName = (id: string | null) => people.find(person => person.id === id)?.name ?? 'Unassigned'
@@ -261,8 +262,10 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
     {section && !canSee(section) ? <p role="status">This page is unavailable for your role. <a href={href()}>Return to overview</a>.</p>
       : section === 'Guest List' ? <WorkspaceGuests key={JSON.stringify([guestSearch, awaitingReply])} wedding={wedding}
         initialSearch={guestSearch} awaitingReply={awaitingReply} workbookView={workbookView} />
+      : section === 'Digital Invitation' ? <Suspense fallback={<p role="status">Opening the invitation studio…</p>}>
+        <InvitationStudio key={wedding.id} wedding={wedding} rsvpHref={href('Guest RSVP')} /></Suspense>
       : section === 'Guest RSVP' ? <WorkspaceRSVP key={rsvpHousehold} wedding={wedding} functions={functions}
-        guestsHref={href('Guest List')} functionsHref={href('Functions & Events')} followUpHref={href('RSVP Follow-up')} initialHousehold={rsvpHousehold} />
+        invitationHref={href('Digital Invitation')} guestsHref={href('Guest List')} functionsHref={href('Functions & Events')} followUpHref={href('RSVP Follow-up')} initialHousehold={rsvpHousehold} />
       : section === 'Transportation' ? <WorkspaceTransport wedding={wedding} people={people} workbookView={workbookView}
         places={planning?.places ?? []} placesHref={href('Places')} />
       : section === 'Accommodation' || section === 'RSVP Follow-up' ? <WorkspaceLogistics key={section} section={section}

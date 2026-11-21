@@ -266,8 +266,11 @@ func loadPublicInvitation(ctx context.Context, tx *sql.Tx, wedding string, funct
 	var template string
 	var version int
 	var invitation publicInvitation
-	err := tx.QueryRowContext(ctx, `SELECT content,template_id,template_version,template_options,music IS NOT NULL
-		FROM wedding_invitations WHERE wedding_id=$1 AND enabled`, wedding).Scan(&raw, &template, &version, &options, &invitation.HasMusic)
+	// Guests always see the published snapshot, never the organizer's draft.
+	err := tx.QueryRowContext(ctx, `SELECT published->'content',published->>'templateId',(published->>'templateVersion')::integer,
+		published->'templateOptions',music IS NOT NULL
+		FROM wedding_invitations WHERE wedding_id=$1 AND enabled AND published IS NOT NULL`, wedding).
+		Scan(&raw, &template, &version, &options, &invitation.HasMusic)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -295,14 +298,23 @@ func loadPublicInvitation(ctx context.Context, tx *sql.Tx, wedding string, funct
 	return &invitation, nil
 }
 
+// The draft columns hold what organizers edit; published holds the same
+// fields as a snapshot. A save changes only the draft.
+const draftSnapshot = `jsonb_build_object('content',content,'templateId',template_id,'templateVersion',template_version,
+	'templateOptions',template_options)`
+
 type invitationSettings struct {
-	Enabled   bool              `json:"enabled"`
-	Template  invitationDesign  `json:"template"`
-	Content   invitationContent `json:"content"`
-	HasMusic  bool              `json:"hasMusic"`
-	MusicName string            `json:"musicName"`
-	Revision  int               `json:"revision"`
-	Events    []invitationEvent `json:"events"`
+	Live               bool              `json:"live"`
+	EverPublished      bool              `json:"everPublished"`
+	PublishedAt        *time.Time        `json:"publishedAt,omitempty"`
+	SavedAt            *time.Time        `json:"savedAt,omitempty"`
+	UnpublishedChanges bool              `json:"unpublishedChanges"`
+	Template           invitationDesign  `json:"template"`
+	Content            invitationContent `json:"content"`
+	HasMusic           bool              `json:"hasMusic"`
+	MusicName          string            `json:"musicName"`
+	Revision           int               `json:"revision"`
+	Events             []invitationEvent `json:"events"`
 }
 
 func (a *workspaceHTTP) invitationSettings(w http.ResponseWriter, r *http.Request, actor string) {
@@ -314,12 +326,22 @@ func (a *workspaceHTTP) invitationSettings(w http.ResponseWriter, r *http.Reques
 	var raw, options []byte
 	var template string
 	var version int
-	err := a.store.db.QueryRowContext(ctx, `SELECT enabled,content,template_id,template_version,template_options,
-		music IS NOT NULL,music_name,revision FROM wedding_invitations WHERE wedding_id=$1`, wedding).
-		Scan(&settings.Enabled, &raw, &template, &version, &options, &settings.HasMusic, &settings.MusicName, &settings.Revision)
+	var publishedAt, savedAt sql.NullTime
+	err := a.store.db.QueryRowContext(ctx, `SELECT enabled AND published IS NOT NULL,published IS NOT NULL,published_at,
+		published IS NOT NULL AND published IS DISTINCT FROM `+draftSnapshot+`,
+		content,template_id,template_version,template_options,music IS NOT NULL,music_name,revision,updated_at
+		FROM wedding_invitations WHERE wedding_id=$1`, wedding).
+		Scan(&settings.Live, &settings.EverPublished, &publishedAt, &settings.UnpublishedChanges,
+			&raw, &template, &version, &options, &settings.HasMusic, &settings.MusicName, &settings.Revision, &savedAt)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		workspaceFailure(w, err)
 		return
+	}
+	if publishedAt.Valid {
+		settings.PublishedAt = &publishedAt.Time
+	}
+	if savedAt.Valid {
+		settings.SavedAt = &savedAt.Time
 	}
 	settings.Content = decodeInvitationContent(raw)
 	settings.Template = storedDesign(template, version, options)
@@ -345,7 +367,6 @@ func (a *workspaceHTTP) saveInvitationSettings(w http.ResponseWriter, r *http.Re
 		return
 	}
 	var input struct {
-		Enabled  bool              `json:"enabled"`
 		Content  invitationContent `json:"content"`
 		Template struct {
 			ID      string         `json:"id"`
@@ -379,16 +400,16 @@ func (a *workspaceHTTP) saveInvitationSettings(w http.ResponseWriter, r *http.Re
 	ctx, wedding := r.Context(), r.PathValue("wedding")
 	var revision int
 	if input.Revision == 0 {
-		err = scanWorkspace(a.store.db.QueryRowContext(ctx, saveInvitation, wedding, actor, input.Enabled, string(content), 0, nil, "",
+		err = scanWorkspace(a.store.db.QueryRowContext(ctx, saveInvitation, wedding, actor, false, string(content), 0, nil, "",
 			template.ID, template.Version, string(optionJSON)), &revision)
 	} else {
-		// Saving from the editor moves the wedding to the template's current
-		// version; until then a live invitation keeps the version it was saved with.
+		// Saving updates only the draft and moves it to the template's current
+		// version. Guests keep seeing the published snapshot until it is published.
 		err = scanWorkspace(a.store.db.QueryRowContext(ctx, `UPDATE wedding_invitations
-			SET enabled=$3,content=$4::jsonb,template_id=$6,template_version=$7,template_options=$8::jsonb,
+			SET content=$3::jsonb,template_id=$5,template_version=$6,template_options=$7::jsonb,
 				revision=revision+1,updated_at=now()
-			WHERE wedding_id=$1 AND revision=$5 AND `+planningOrganizer+` RETURNING revision`,
-			wedding, actor, input.Enabled, string(content), input.Revision, template.ID, template.Version, string(optionJSON)), &revision)
+			WHERE wedding_id=$1 AND revision=$4 AND `+planningOrganizer+` RETURNING revision`,
+			wedding, actor, string(content), input.Revision, template.ID, template.Version, string(optionJSON)), &revision)
 	}
 	if err != nil {
 		workspaceFailure(w, runSheetConflict(err))
@@ -467,7 +488,7 @@ func (a *workspaceHTTP) guestInvitationMusic(w http.ResponseWriter, r *http.Requ
 	}
 	var music []byte
 	err := scanWorkspace(a.store.db.QueryRowContext(r.Context(), `SELECT i.music FROM wedding_invitations i
-		WHERE i.enabled AND i.music IS NOT NULL
+		WHERE i.enabled AND i.published IS NOT NULL AND i.music IS NOT NULL
 		AND NOT EXISTS (SELECT 1 FROM family_wedding_access a WHERE a.wedding_id=i.wedding_id
 			AND (a.revoked_at IS NOT NULL OR a.delete_at <= now())) AND i.wedding_id IN (
 			SELECT wedding_id FROM wedding_rsvp_links WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now()
@@ -499,4 +520,46 @@ func (a *workspaceHTTP) invitationMusic(w http.ResponseWriter, r *http.Request, 
 	w.Header().Set("Content-Type", "audio/mpeg")
 	w.Header().Set("Content-Length", strconv.Itoa(len(music)))
 	_, _ = w.Write(music)
+}
+
+// publishInvitation changes what guests see:
+//   - publish: copy the draft to the published snapshot and show it to guests
+//   - unpublish: stop showing the invitation (guests see the simple page)
+//   - discard: replace the draft with the published snapshot
+func (a *workspaceHTTP) publishInvitation(w http.ResponseWriter, r *http.Request, actor string) {
+	if !a.rsvpOrganizer(w, r, actor) {
+		return
+	}
+	var input struct {
+		Action   string `json:"action"`
+		Revision int    `json:"revision"`
+	}
+	if !httpx.ReadJSON(w, r, &input) {
+		return
+	}
+	changes := map[string]string{
+		"publish":   `published=` + draftSnapshot + `,published_at=now(),enabled=true`,
+		"unpublish": `enabled=false`,
+		"discard": `content=published->'content',template_id=published->>'templateId',
+			template_version=(published->>'templateVersion')::integer,template_options=published->'templateOptions'`,
+	}
+	change, ok := changes[input.Action]
+	if !ok || input.Revision < 1 {
+		workspaceFailure(w, errWorkspaceInput)
+		return
+	}
+	condition := ""
+	if input.Action != "publish" {
+		condition = " AND published IS NOT NULL"
+	}
+	var revision int
+	err := scanWorkspace(a.store.db.QueryRowContext(r.Context(), `UPDATE wedding_invitations SET `+change+`,
+		revision=revision+1,updated_at=now()
+		WHERE wedding_id=$1 AND revision=$3`+condition+` AND `+planningOrganizer+` RETURNING revision`,
+		r.PathValue("wedding"), actor, input.Revision), &revision)
+	if err != nil {
+		workspaceFailure(w, runSheetConflict(err))
+		return
+	}
+	httpx.Reply(w, http.StatusOK, map[string]int{"revision": revision})
 }

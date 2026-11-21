@@ -70,10 +70,13 @@ var workspaceBudgetMigration string
 //go:embed migrations/018_wedding_invitation.sql
 var workspaceInvitationMigration string
 
-//go:embed migrations/019_family_passes.sql
+//go:embed migrations/019_invitation_publishing.sql
+var workspaceInvitationPublishingMigration string
+
+//go:embed migrations/020_family_passes.sql
 var familyPassMigration string
 
-//go:embed migrations/020_family_pass_access.sql
+//go:embed migrations/021_family_pass_access.sql
 var familyPassAccessMigration string
 
 var (
@@ -120,7 +123,7 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 		workspaceTransportMigration, workspaceArrivalRepairMigration, workspaceLogisticsMigration, workspaceFinanceMigration,
 		workspaceReadinessMigration, workspaceGuestStayMigration, workspaceGuestRSVPMigration, workspaceRunSheetMigration,
 		workspaceGuestPageMigration, workspaceReusableScheduleMigration, workspaceFunctionVisibilityMigration,
-		workspaceGuestLabelsMigration, workspaceBudgetMigration, workspaceInvitationMigration, familyPassMigration, familyPassAccessMigration,
+		workspaceGuestLabelsMigration, workspaceBudgetMigration, workspaceInvitationMigration, workspaceInvitationPublishingMigration, familyPassMigration, familyPassAccessMigration,
 	}
 	for i, migration := range migrations {
 		version := i + 1

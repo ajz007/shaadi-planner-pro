@@ -4,7 +4,6 @@ import type { Plan } from './Workspace'
 import { useWorkspaceData } from './WorkspaceData'
 import { WeddingInvitationHeader, weddingDay } from './GuestWeddingPage'
 import type { GuestPage } from './GuestWeddingPage'
-import { WorkspaceInvitation } from './WorkspaceInvitation'
 
 type PageSettings = GuestPage & { revision: number }
 type ScheduleLink = { id: string; date: string; functionId: string; familyFunctionIds: string[]; expiresAt: string; url: string }
@@ -37,8 +36,36 @@ async function prepareCover(file: File): Promise<string> {
   throw new Error('Could not reduce this photo enough. Try a smaller image.')
 }
 
-export function WorkspaceGuestPage({ path, wedding, functions, onSavedDesign }: {
-  path: string; wedding: Plan['wedding']; functions: Plan['functions']; onSavedDesign: (page: GuestPage) => void
+type InvitationStatus = { revision: number; live: boolean; everPublished: boolean; unpublishedChanges: boolean; savedAt?: string }
+const savedTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+
+// Shows where the digital invitation stands, so a saved draft is easy to find.
+function InvitationCallout({ path, href }: { path: string; href: string }) {
+  const { request } = useWorkspaceData()
+  const [status, setStatus] = useState<InvitationStatus>()
+  useEffect(() => {
+    const controller = new AbortController()
+    request<InvitationStatus>(path + '/invitation', undefined, controller.signal)
+      .then(result => { if (!controller.signal.aborted) setStatus(result) })
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [path, request])
+  const started = !!status && status.revision > 0
+  const state = !started ? 'Choose an animated design, personalise it with a live preview, and publish it to every guest link.'
+    : !status.everPublished ? 'You have a saved draft. Guests can’t see it until you publish.'
+      : !status.live ? 'Your invitation is hidden from guests. Their links show the simple page below.'
+        : status.unpublishedChanges ? 'Live for guests. Your draft has changes guests haven’t seen yet.' : 'Live for guests on every RSVP and schedule link.'
+  return <section className="focus-card studio-callout">
+    <div>
+      <h2>Digital invitation</h2>
+      <p>{state}{started && status.savedAt && <> Last saved {savedTime.format(new Date(status.savedAt))}.</>}</p>
+    </div>
+    <a className="package-button" href={href}>{!started ? 'Open the invitation studio' : !status.everPublished ? 'Continue your draft' : 'Edit the invitation'}</a>
+  </section>
+}
+
+export function WorkspaceGuestPage({ path, wedding, functions, onSavedDesign, invitationHref }: {
+  path: string; wedding: Plan['wedding']; functions: Plan['functions']; onSavedDesign: (page: GuestPage) => void; invitationHref: string
 }) {
   const { request } = useWorkspaceData()
   const [page, setPage] = useState<PageSettings>()
@@ -91,7 +118,7 @@ export function WorkspaceGuestPage({ path, wedding, functions, onSavedDesign }: 
     finally { setPageBusy(false) }
   }
   return <>
-    <WorkspaceInvitation path={path} page={page} />
+    <InvitationCallout path={path} href={invitationHref} />
     <details className="focus-card guest-page-editor">
       <summary>Customize the wedding page</summary>
       <p>Your cover, welcome message, and style appear on RSVP and shared schedule links.</p>
