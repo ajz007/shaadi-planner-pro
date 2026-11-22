@@ -40,12 +40,14 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 	}
 
 	for _, fixture := range []struct {
-		suffix            string
-		activated, bundle bool
+		suffix    string
+		activated bool
+		bundle    string
 	}{
-		{"Unused", false, true},
-		{"Activated", true, true},
-		{"Legacy", false, false},
+		{"Unused", false, completeID},
+		{"Activated", true, completeID},
+		{"Essentials", false, essentialsID},
+		{"Legacy", false, ""},
 	} {
 		t.Run(fixture.suffix, func(t *testing.T) {
 			activated := fixture.activated
@@ -99,15 +101,24 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 			}))
 			defer gatewayServer.Close()
 
-			const zipBytes = "fixture Essentials ZIP"
+			zipBytes := "fixture ZIP " + fixture.bundle
 			shop := &Shop{db: db, mode: "test", origin: "https://example.test", acceptFamilyPass: true, linkSecret: rand.Text(), webhookSecret: rand.Text(),
 				gateway: gateway{url: gatewayServer.URL, client: gatewayServer.Client()}, packages: make(map[string][]byte)}
 			shop.mailer = receiptMailer{from: "receipts@example.test", client: sesv2.NewFromConfig(aws.Config{
 				Region: "ap-south-1", Credentials: aws.AnonymousCredentials{}, HTTPClient: gatewayServer.Client(),
 			}, func(o *sesv2.Options) { o.BaseEndpoint = aws.String(gatewayServer.URL) })}
-			if fixture.bundle {
-				shop.packages[essentialsID] = []byte(zipBytes)
+			expectedOrders := int32(1)
+			if fixture.bundle != completeID {
+				expectedOrders = 0
+				if _, err := db.ExecContext(ctx, `INSERT INTO excel_orders
+					(razorpay_order_id, mode, buyer_email, product, amount_paise, currency, workspace_account_id, includes_essentials)
+					VALUES ($1, 'test', 'checkout@example.test', $2, $3, $4, $5, $6)`,
+					order, familyPassID, amount, currency, account, fixture.bundle == essentialsID); err != nil {
+					t.Fatal(err)
+				}
 			}
+			shop.packages[completeID] = []byte("fixture ZIP " + completeID)
+			shop.packages[essentialsID] = []byte("fixture ZIP " + essentialsID)
 			checkout := func() string {
 				t.Helper()
 				req := httptest.NewRequest(http.MethodPost, "/api/workspace/family-pass", strings.NewReader(`{"email":"checkout@example.test"}`)).WithContext(ctx)
@@ -115,15 +126,13 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 				w := httptest.NewRecorder()
 				shop.CreateFamilyPassOrder(w, req, account)
 				var result familyPassStatus
-				if w.Code != http.StatusCreated || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.OrderCode == "" || result.IncludesEssentials != fixture.bundle {
+				if w.Code != http.StatusCreated || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.OrderCode == "" || result.BundleProduct != fixture.bundle {
 					t.Fatalf("create order returned %d: %s", w.Code, w.Body)
 				}
 				return result.OrderCode
 			}
 			code := checkout()
-			// Loading the package later does not change an existing order.
-			shop.packages[essentialsID] = []byte(zipBytes)
-			if checkout() != code || orders.Load() != 1 {
+			if checkout() != code || orders.Load() != expectedOrders {
 				t.Fatal("retry must reuse the same pending Razorpay order")
 			}
 			status := func(want string) {
@@ -133,8 +142,12 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 				w := httptest.NewRecorder()
 				shop.status(w, req)
 				var result purchaseStatus
+				bundle := fixture.bundle
+				if want == "refunded" {
+					bundle = ""
+				}
 				if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.State != want ||
-					result.IncludesEssentials != (fixture.bundle && want != "refunded") {
+					result.BundleProduct != bundle {
 					t.Fatalf("want status %s, got %d: %s", want, w.Code, w.Body)
 				}
 			}
@@ -162,9 +175,9 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 					t.Fatalf("download returned %d, want %d: %s", w.Code, want, w.Body)
 				}
 				if want == http.StatusOK && (w.Body.String() != zipBytes ||
-					w.Header().Get("Content-Disposition") != releases[essentialsID].disposition() ||
+					w.Header().Get("Content-Disposition") != releases[fixture.bundle].disposition() ||
 					w.Header().Get("Cache-Control") != "private, no-store") {
-					t.Fatal("download did not return the private Essentials ZIP")
+					t.Fatal("download did not return the private bundle ZIP")
 				}
 			}
 			status("pending")
@@ -179,7 +192,7 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 				status("paid") // Returning buyer recovers a capture without the browser callback or webhook.
 			}
 			webhook("payment.captured", captured)
-			if fixture.bundle {
+			if fixture.bundle != "" {
 				download(code, http.StatusOK)
 			} else {
 				download(code, http.StatusForbidden)
@@ -190,7 +203,7 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 			message := receipt.Load()
 			link := shop.origin + "/shop/purchase#" + code
 			if message == nil || !strings.Contains(*message, "/#workspace/setup") ||
-				strings.Contains(*message, link) != fixture.bundle {
+				strings.Contains(*message, link) != (fixture.bundle != "") {
 				t.Fatal("receipt did not match the order's bundle entitlement")
 			}
 			var grants int
@@ -210,7 +223,7 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 			current.Store(&partial)
 			webhook("refund.processed", partial)
 			status("paid")
-			if fixture.bundle {
+			if fixture.bundle != "" {
 				download(code, http.StatusOK)
 			}
 			refunded := captured

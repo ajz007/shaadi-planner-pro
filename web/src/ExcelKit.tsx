@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { productByID, rupees } from './Shop'
+import { productByID, rupees, weddingPass } from './Shop'
 import { SiteNav } from './SiteNav'
 import type { ShopProduct } from './Shop'
 import { ProductDescription, productDescription } from './ProductDescription'
@@ -8,8 +8,8 @@ import { ProductImage } from './ProductImage'
 import './excel-kit.css'
 
 type Checkout = { key: string; order: string; email: string; amount: number; currency: string }
-type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; includesEssentials?: boolean; checkout?: Checkout; payment?: string; product: string }
-type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean }
+type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; bundleProduct?: string; checkout?: Checkout; payment?: string; product: string }
+type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassCompleteAvailable?: boolean; familyPassOnSale?: boolean }
 type Confirmation = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
 type Razorpay = new (options: {
   key: string; order_id: string; amount: number; currency: string
@@ -19,6 +19,7 @@ type Razorpay = new (options: {
 
 const purchasePath = '/shop/purchase'
 const lastPurchase = 'shaadi-excel-purchase'
+const upgradeProducts = new Set(['excel-english-v1.3.1', 'essentials-en-v1', 'planner-gu-v1.3.1', 'complete-en-v1', 'all-in-one-en-v1'])
 
 function rememberedPurchase() {
   try { return localStorage.getItem(lastPurchase) || '' } catch { return '' }
@@ -122,6 +123,9 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
         </form>
         {error && <p role="alert" className="error">{error}</p>}
         {shop && !available && <p role="status">Checkout is currently unavailable.</p>}
+        {shop?.familyPassOnSale && hasWorkbook && <p>Want to plan online too? <a href="/shop/wedding-pass">
+          See the {rupees(weddingPass.amount)} Family Pass with English Complete included
+        </a>.</p>}
         {previous && <p><a href={purchasePath + '#' + previous}>Return to your last purchase</a></p>}
       </section>
       <div className="product-full-description">
@@ -171,13 +175,15 @@ export function ShopPurchase({ code }: { code: string }) {
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [canRecover, setCanRecover] = useState(false)
+  const [shop, setShop] = useState<{ recovery: boolean; familyPassCompleteAvailable?: boolean }>()
   const item = productByID(purchase?.product)
+  const bundle = productByID(purchase?.bundleProduct)
+  const canUpgrade = shop?.familyPassCompleteAvailable && purchase?.state === 'paid' && upgradeProducts.has(purchase.product)
   useEffect(() => {
     document.title = 'Your purchase | ShaadiPlannerPro'
     let active = true
-    request<{ recovery: boolean }>('shop').then(shop => {
-      if (active) setCanRecover(shop.recovery)
+    request<{ recovery: boolean; familyPassCompleteAvailable?: boolean }>('shop').then(shop => {
+      if (active) setShop(shop)
     }).catch(() => {})
     if (code) {
       setBusy('Checking payment…')
@@ -285,9 +291,11 @@ export function ShopPurchase({ code }: { code: string }) {
           <p>Your Family Pass is ready. Open wedding setup with the Google account used to purchase it.</p>
           <div className="excel-status-actions">
             <a className="shop-primary" href="/#workspace/setup">Continue wedding setup</a>
-            {purchase.includesEssentials && <button className="secondary" disabled={Boolean(busy)} onClick={download}>Download Excel Essentials</button>}
+            {bundle && <button className="secondary" disabled={Boolean(busy)} onClick={download}>
+              {bundle.slug === 'complete' ? 'Download Complete bundle' : 'Download Excel Essentials'}
+            </button>}
           </div>
-          {purchase.includesEssentials && <p>Excel Essentials is included with your pass. Your receipt links back to this download.</p>}
+          {bundle && <p>{bundle.name} is included with your pass. Your receipt links back to this download.</p>}
         </> : <>
           <p>Your download is ready. Keep your emailed receipt to download it again.</p>
           <button disabled={Boolean(busy)} onClick={download}>Download your purchase</button>
@@ -295,7 +303,7 @@ export function ShopPurchase({ code }: { code: string }) {
         <p className="excel-reference">Razorpay reference {purchase.payment}</p>
       </> : <>
         {purchase && <h2>{purchase.checkout ? 'Ready to pay' : 'Payment awaiting confirmation'}</h2>}
-        {purchase?.includesEssentials && <p>Includes English Excel Essentials at no extra cost.</p>}
+        {bundle && <p>Includes {bundle.name} at no extra cost.</p>}
         {purchase?.checkout && <button disabled={Boolean(busy)} onClick={pay}>Pay {rupees(purchase.checkout.amount)} with Razorpay</button>}
         {purchase && !purchase.checkout && <p>Access unlocks after Razorpay confirms the payment. If you just paid, check again in a moment.</p>}
         <div className="excel-status-actions">
@@ -306,7 +314,12 @@ export function ShopPurchase({ code }: { code: string }) {
       {error && <p role="alert" className="error">{error}</p>}
     </section>}
     {!code && rememberedPurchase() && <p><a href={purchasePath + '#' + rememberedPurchase()}>Return to the last purchase on this device</a></p>}
-    {canRecover && <Recovery />}
-    {!canRecover && !code && <p>Open the private link from your receipt or <a href="/contact">contact support</a> for help.</p>}
+    {canUpgrade && <section className="excel-card">
+      <h2>Upgrade to the Online Planner</h2>
+      <p>Plan together online, share invitations, and track RSVPs, rooms and pickups. The Family Pass includes the English Complete bundle at no extra cost.</p>
+      <a className="shop-primary" href="/#workspace/setup">Get the Family Pass · {rupees(weddingPass.amount)} per wedding</a>
+    </section>}
+    {shop?.recovery && <Recovery />}
+    {!shop?.recovery && !code && <p>Open the private link from your receipt or <a href="/contact">contact support</a> for help.</p>}
   </main>
 }

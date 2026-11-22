@@ -10,32 +10,39 @@ import (
 )
 
 type familyPassStatus struct {
-	Available          bool   `json:"available"`
-	OnSale             bool   `json:"onSale"`
-	TestCode           bool   `json:"testCodeRequired"`
-	OrderCode          string `json:"orderCode,omitempty"`
-	IncludesEssentials bool   `json:"includesEssentials"`
+	Available     bool   `json:"available"`
+	OnSale        bool   `json:"onSale"`
+	TestCode      bool   `json:"testCodeRequired"`
+	OrderCode     string `json:"orderCode,omitempty"`
+	BundleProduct string `json:"bundleProduct,omitempty"`
 }
 
 type passReader interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
+func (s *Shop) canSellFamilyPass() bool {
+	return s != nil && s.acceptFamilyPass && s.packages[completeID] != nil
+}
+
 func (s *Shop) familyPassStatus(ctx context.Context, db passReader, account string) (familyPassStatus, error) {
-	status := familyPassStatus{OnSale: s.acceptFamilyPass, TestCode: s.mode == "test" && s.testAccess != ""}
-	var order string
+	status := familyPassStatus{OnSale: s.canSellFamilyPass(), TestCode: s.mode == "test" && s.testAccess != ""}
+	var order, newBundle string
+	if status.OnSale {
+		newBundle = completeID
+	}
 	err := db.QueryRowContext(ctx, `
 		WITH pending AS (
-			SELECT razorpay_order_id, includes_essentials FROM excel_orders
+			SELECT razorpay_order_id, `+familyBundleSQL+` AS bundle FROM excel_orders
 			WHERE workspace_account_id=$1 AND mode=$2 AND product=$3 AND paid_at IS NULL AND refunded_at IS NULL
 			ORDER BY created_at DESC LIMIT 1
 		)
 		SELECT EXISTS (
 			SELECT 1 FROM family_passes WHERE account_id=$1 AND mode=$2
 			  AND consumed_at IS NULL AND revoked_at IS NULL
-		), COALESCE(p.razorpay_order_id, ''), COALESCE(p.includes_essentials, $4)
+		), COALESCE(p.razorpay_order_id, ''), COALESCE(p.bundle, $4)
 		FROM (SELECT 1) AS anchor LEFT JOIN pending p ON true`,
-		account, s.mode, familyPassID, s.packages[essentialsID] != nil).Scan(&status.Available, &order, &status.IncludesEssentials)
+		account, s.mode, familyPassID, newBundle).Scan(&status.Available, &order, &status.BundleProduct)
 	if order != "" {
 		status.OrderCode = s.accessCode(order)
 	}
@@ -95,6 +102,10 @@ func (s *Shop) CreateFamilyPassOrder(w http.ResponseWriter, r *http.Request, acc
 		return
 	}
 	if status.OrderCode == "" {
+		if !status.OnSale {
+			httpx.Fail(w, http.StatusServiceUnavailable, "New Family Pass orders are paused.")
+			return
+		}
 		item, ok := catalog[familyPassID]
 		if !ok {
 			s.fail(w)

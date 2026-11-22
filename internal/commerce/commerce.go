@@ -138,13 +138,13 @@ func (s *Shop) Register(mux *http.ServeMux) {
 			}
 		}
 		httpx.Reply(w, 200, map[string]any{
-			"available":                    false, // The retired Excel Kit cannot be ordered by older clients.
-			"products":                     products,
-			"test":                         s != nil && s.mode == "test",
-			"recovery":                     s != nil,
-			"testAccessRequired":           s != nil && s.mode == "test" && s.testAccess != "",
-			"familyPassOnSale":             s != nil && s.mode == "live" && s.acceptFamilyPass,
-			"familyPassIncludesEssentials": s != nil && s.mode == "live" && s.acceptFamilyPass && s.packages[essentialsID] != nil,
+			"available":                   false, // The retired Excel Kit cannot be ordered by older clients.
+			"products":                    products,
+			"test":                        s != nil && s.mode == "test",
+			"recovery":                    s != nil,
+			"testAccessRequired":          s != nil && s.mode == "test" && s.testAccess != "",
+			"familyPassOnSale":            s.canSellFamilyPass() && s.mode == "live",
+			"familyPassCompleteAvailable": s.canSellFamilyPass(),
 		})
 	})
 	if s == nil {
@@ -239,10 +239,14 @@ func (s *Shop) openOrder(ctx context.Context, db orderWriter, item listing, emai
 	if err != nil || !orderID.MatchString(order.ID) || order.Amount != item.Amount || order.Currency != currency || order.Receipt != receipt {
 		return "", errors.New("could not create Razorpay order")
 	}
-	includesEssentials := item.ID == familyPassID && s.packages[essentialsID] != nil
+	var bundle *string
+	if item.ID == familyPassID {
+		id := completeID
+		bundle = &id
+	}
 	_, err = db.ExecContext(ctx, `INSERT INTO excel_orders
-		(razorpay_order_id, mode, buyer_email, product, amount_paise, currency, workspace_account_id, includes_essentials)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, order.ID, s.mode, email, item.ID, item.Amount, currency, account, includesEssentials)
+		(razorpay_order_id, mode, buyer_email, product, amount_paise, currency, workspace_account_id, bundle_product)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, order.ID, s.mode, email, item.ID, item.Amount, currency, account, bundle)
 	return order.ID, err
 }
 
@@ -250,14 +254,17 @@ type purchase struct {
 	Email, Payment, Product, Currency string
 	Amount                            int
 	PaidAt, RefundedAt                sql.NullTime
-	IncludesEssentials                bool
+	BundleProduct                     string
 }
+
+// Orders created before the Complete bundle retain their original Essentials entitlement.
+const familyBundleSQL = `COALESCE(bundle_product, CASE WHEN includes_essentials THEN '` + essentialsID + `' ELSE '' END)`
 
 func (s *Shop) purchase(ctx context.Context, id string) (purchase, error) {
 	var p purchase
 	err := s.db.QueryRowContext(ctx, `SELECT buyer_email, COALESCE(razorpay_payment_id, ''), product,
-		amount_paise, currency, paid_at, refunded_at, includes_essentials FROM excel_orders WHERE razorpay_order_id=$1 AND mode=$2`, id, s.mode).
-		Scan(&p.Email, &p.Payment, &p.Product, &p.Amount, &p.Currency, &p.PaidAt, &p.RefundedAt, &p.IncludesEssentials)
+		amount_paise, currency, paid_at, refunded_at, `+familyBundleSQL+` FROM excel_orders WHERE razorpay_order_id=$1 AND mode=$2`, id, s.mode).
+		Scan(&p.Email, &p.Payment, &p.Product, &p.Amount, &p.Currency, &p.PaidAt, &p.RefundedAt, &p.BundleProduct)
 	return p, err
 }
 
@@ -317,11 +324,11 @@ func (s *Shop) download(w http.ResponseWriter, r *http.Request) {
 	}
 	downloadID := p.Product
 	if p.Product == familyPassID {
-		if p.RefundedAt.Valid || !p.IncludesEssentials {
-			httpx.Fail(w, 403, "The Essentials download is unavailable for this Family Pass order.")
+		if p.RefundedAt.Valid || p.BundleProduct == "" {
+			httpx.Fail(w, 403, "The bundled download is unavailable for this Family Pass order.")
 			return
 		}
-		downloadID = essentialsID
+		downloadID = p.BundleProduct
 	}
 	file, ok := releases[downloadID]
 	data := s.packages[downloadID]
