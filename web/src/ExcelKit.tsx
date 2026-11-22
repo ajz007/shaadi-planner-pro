@@ -9,7 +9,7 @@ import './excel-kit.css'
 
 type Checkout = { key: string; order: string; email: string; amount: number; currency: string }
 type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; bundleProduct?: string; checkout?: Checkout; payment?: string; product: string }
-type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassCompleteAvailable?: boolean }
+type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassBundleProduct?: string }
 type Confirmation = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
 type Razorpay = new (options: {
   key: string; order_id: string; amount: number; currency: string
@@ -70,6 +70,7 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
   const available = shop?.products[item.id]
   const isPDF = item.slug === 'message-pack'
   const hasWorkbook = item.group === 'Planning'
+  const plannerBundle = productByID(shop?.familyPassBundleProduct)
   const hasWord = item.format.includes('Word')
   const description = productDescription(item.slug)
   useEffect(() => {
@@ -111,7 +112,7 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
         {hasWorkbook && <aside className="excel-planner-offer" aria-label="Online Wedding Planner">
           <h3>Plan together online</h3>
           <p>Share invitations and manage RSVPs, room assignments, and pickups with your family.</p>
-          {shop?.familyPassCompleteAvailable && <p><strong>{rupees(weddingPass.amount)} per wedding.</strong> Includes the English Complete bundle at no extra cost.</p>}
+          {plannerBundle && <p><strong>{rupees(weddingPass.amount)} per wedding.</strong> Includes {plannerBundle.name} at no extra cost.</p>}
           <a href="/shop/wedding-pass">Explore the Online Planner</a>
         </aside>}
         <p>Download the {isPDF ? 'PDF' : 'ZIP'} as soon as Razorpay confirms your payment. Your emailed receipt includes a private link to download it again on another device.</p>
@@ -178,14 +179,15 @@ export function ShopPurchase({ code }: { code: string }) {
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [shop, setShop] = useState<{ recovery: boolean; familyPassCompleteAvailable?: boolean }>()
+  const [shop, setShop] = useState<{ recovery: boolean; familyPassBundleProduct?: string }>()
   const item = productByID(purchase?.product)
   const bundle = productByID(purchase?.bundleProduct)
-  const canUpgrade = shop?.familyPassCompleteAvailable && purchase?.state === 'paid' && upgradeProducts.has(purchase.product)
+  const plannerBundle = productByID(shop?.familyPassBundleProduct)
+  const canUpgrade = plannerBundle && purchase?.state === 'paid' && upgradeProducts.has(purchase.product)
   useEffect(() => {
     document.title = 'Your purchase | ShaadiPlannerPro'
     let active = true
-    request<{ recovery: boolean; familyPassCompleteAvailable?: boolean }>('shop').then(shop => {
+    request<{ recovery: boolean; familyPassBundleProduct?: string }>('shop').then(shop => {
       if (active) setShop(shop)
     }).catch(() => {})
     if (code) {
@@ -295,7 +297,7 @@ export function ShopPurchase({ code }: { code: string }) {
           <div className="excel-status-actions">
             <a className="shop-primary" href="/#workspace/setup">Continue wedding setup</a>
             {bundle && <button className="secondary" disabled={Boolean(busy)} onClick={download}>
-              {bundle.slug === 'complete' ? 'Download Complete bundle' : 'Download Excel Essentials'}
+              Download {bundle.name}
             </button>}
           </div>
           {bundle && <p>{bundle.name} is included with your pass. Your receipt links back to this download.</p>}
@@ -319,7 +321,7 @@ export function ShopPurchase({ code }: { code: string }) {
     {!code && rememberedPurchase() && <p><a href={purchasePath + '#' + rememberedPurchase()}>Return to the last purchase on this device</a></p>}
     {canUpgrade && <section className="excel-card">
       <h2>Upgrade to the Online Planner</h2>
-      <p>Plan together online, share invitations, and track RSVPs, rooms and pickups. The Family Pass includes the English Complete bundle at no extra cost.</p>
+      <p>Plan together online, share invitations, and track RSVPs, rooms and pickups. The Family Pass includes {plannerBundle.name} at no extra cost.</p>
       <a className="shop-primary" href="/shop/wedding-pass">Explore the Online Planner</a>
     </section>}
     {shop?.recovery && <Recovery />}

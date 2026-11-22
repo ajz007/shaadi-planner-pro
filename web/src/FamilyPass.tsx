@@ -124,7 +124,8 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
       <p>Purchase a Family Pass to set up your online wedding planner.</p>
       <p>Share invitations, collect RSVPs, and coordinate your guest list, rooms, pickups and budget with your family.</p>
       {bundle && <p><strong>{bundle.name} included at no extra cost.</strong>{bundle.slug === 'complete' &&
-        ' Get the Excel planner, vendor negotiation toolkit, and WhatsApp and RSVP message templates.'}</p>}
+        ' Get the Excel planner, vendor negotiation toolkit, and WhatsApp and RSVP message templates.'}{bundle.slug === 'all-in-one' &&
+        ' Get the Excel planner, vendor negotiation toolkit, WhatsApp and RSVP message templates, and Sangeet Host Kit PRO.'}</p>}
       {!status && !error && <p role="status">Checking your Family Pass.</p>}
       {status?.orderCode ? <a className="package-button" href={checkoutURL(status.orderCode)}>Return to checkout or check payment</a> :
         status?.onSale ? <form className="workspace-fields" onSubmit={event => void purchase(event)}>

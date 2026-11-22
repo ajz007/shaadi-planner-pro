@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { rupees, weddingPass } from './Shop'
+import { productByID, rupees, weddingPass } from './Shop'
 import { SiteNav } from './SiteNav'
 import { Mandala, EventArt } from './invitation/art'
 import workbook from './workbook-demo.json'
@@ -88,13 +88,14 @@ const features = [
 ]
 
 export function OnlinePlanner() {
-  const [checkoutAvailable, setCheckoutAvailable] = useState<boolean>()
+  const [bundleID, setBundleID] = useState<string>()
+  const bundle = productByID(bundleID)
   useEffect(() => {
     document.title = 'Online Wedding Planner | ShaadiPlannerPro'
     const controller = new AbortController()
     fetch('/api/excel/shop', { signal: controller.signal })
       .then(response => response.json())
-      .then(shop => setCheckoutAvailable(shop.familyPassCompleteAvailable === true)).catch(() => {})
+      .then(shop => setBundleID(typeof shop.familyPassBundleProduct === 'string' ? shop.familyPassBundleProduct : '')).catch(() => {})
     return () => controller.abort()
   }, [])
   return <main className="public-shell online-planner">
@@ -144,10 +145,10 @@ export function OnlinePlanner() {
     <section className="online-pass" id="family-pass" aria-labelledby="online-pass-title">
       <div><p className="online-eyebrow">FAMILY PASS</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>
         <p>Share invitations and manage RSVPs, rooms, pickups and budgets with your family from one wedding workspace.</p>
-        {checkoutAvailable && <p>Includes the English Complete bundle at no extra cost, with the Excel planner, vendor negotiation toolkit, and WhatsApp and RSVP message templates.</p>}</div>
+        {bundle && <p>Includes {bundle.name} at no extra cost, with the Excel planner, vendor negotiation toolkit, WhatsApp and RSVP message templates, and Sangeet Host Kit PRO.</p>}</div>
       <div className="online-pass-price"><strong>{rupees(weddingPass.amount)}</strong><span>one-time price per wedding</span>
-        {checkoutAvailable && <a className="online-primary" href="/#workspace/setup">Continue to Family Pass setup <span aria-hidden="true">↗</span></a>}
-        {checkoutAvailable === false && <span>Family Pass checkout is currently paused.</span>}</div>
+        {bundle && <a className="online-primary" href="/#workspace/setup">Continue to Family Pass setup <span aria-hidden="true">↗</span></a>}
+        {bundleID === '' && <span>Family Pass checkout is currently paused.</span>}</div>
     </section>
     <div className="online-faq">
       <details><summary>Can guests reply without an account?</summary><p>Yes. Guests open their private household invitation on their phone and reply to the functions they’re invited to.</p></details>
