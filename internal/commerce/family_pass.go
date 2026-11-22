@@ -22,15 +22,19 @@ type passReader interface {
 }
 
 func (s *Shop) canSellFamilyPass() bool {
-	return s != nil && s.acceptFamilyPass && s.packages[completeID] != nil
+	return s != nil && s.acceptFamilyPass && s.packages[allInOneID] != nil
+}
+
+func (s *Shop) availableFamilyPassBundle() string {
+	if s.canSellFamilyPass() {
+		return allInOneID
+	}
+	return ""
 }
 
 func (s *Shop) familyPassStatus(ctx context.Context, db passReader, account string) (familyPassStatus, error) {
 	status := familyPassStatus{OnSale: s.canSellFamilyPass(), TestCode: s.mode == "test" && s.testAccess != ""}
-	var order, newBundle string
-	if status.OnSale {
-		newBundle = completeID
-	}
+	var order string
 	err := db.QueryRowContext(ctx, `
 		WITH pending AS (
 			SELECT razorpay_order_id, `+familyBundleSQL+` AS bundle FROM excel_orders
@@ -42,7 +46,7 @@ func (s *Shop) familyPassStatus(ctx context.Context, db passReader, account stri
 			  AND consumed_at IS NULL AND revoked_at IS NULL
 		), COALESCE(p.razorpay_order_id, ''), COALESCE(p.bundle, $4)
 		FROM (SELECT 1) AS anchor LEFT JOIN pending p ON true`,
-		account, s.mode, familyPassID, newBundle).Scan(&status.Available, &order, &status.BundleProduct)
+		account, s.mode, familyPassID, s.availableFamilyPassBundle()).Scan(&status.Available, &order, &status.BundleProduct)
 	if order != "" {
 		status.OrderCode = s.accessCode(order)
 	}

@@ -44,8 +44,9 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 		activated bool
 		bundle    string
 	}{
-		{"Unused", false, completeID},
-		{"Activated", true, completeID},
+		{"Unused", false, allInOneID},
+		{"Activated", true, allInOneID},
+		{"Complete", false, completeID},
 		{"Essentials", false, essentialsID},
 		{"Legacy", false, ""},
 	} {
@@ -108,15 +109,20 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 				Region: "ap-south-1", Credentials: aws.AnonymousCredentials{}, HTTPClient: gatewayServer.Client(),
 			}, func(o *sesv2.Options) { o.BaseEndpoint = aws.String(gatewayServer.URL) })}
 			expectedOrders := int32(1)
-			if fixture.bundle != completeID {
+			if fixture.bundle != allInOneID {
 				expectedOrders = 0
+				var bundle *string
+				if fixture.bundle == completeID {
+					bundle = &fixture.bundle
+				}
 				if _, err := db.ExecContext(ctx, `INSERT INTO excel_orders
-					(razorpay_order_id, mode, buyer_email, product, amount_paise, currency, workspace_account_id, includes_essentials)
-					VALUES ($1, 'test', 'checkout@example.test', $2, $3, $4, $5, $6)`,
-					order, familyPassID, amount, currency, account, fixture.bundle == essentialsID); err != nil {
+					(razorpay_order_id, mode, buyer_email, product, amount_paise, currency, workspace_account_id, includes_essentials, bundle_product)
+					VALUES ($1, 'test', 'checkout@example.test', $2, $3, $4, $5, $6, $7)`,
+					order, familyPassID, amount, currency, account, fixture.bundle == essentialsID, bundle); err != nil {
 					t.Fatal(err)
 				}
 			}
+			shop.packages[allInOneID] = []byte("fixture ZIP " + allInOneID)
 			shop.packages[completeID] = []byte("fixture ZIP " + completeID)
 			shop.packages[essentialsID] = []byte("fixture ZIP " + essentialsID)
 			checkout := func() string {

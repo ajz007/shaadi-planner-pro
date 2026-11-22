@@ -21,6 +21,7 @@ type listing struct {
 const (
 	essentialsID = "essentials-en-v1"
 	completeID   = "complete-en-v1"
+	allInOneID   = "all-in-one-en-v1"
 )
 
 type packageRelease struct {
@@ -34,7 +35,7 @@ var releases = map[string]packageRelease{
 	essentialsID:         {"Shaadi_Planner_Pro_Essentials_English_v1.0.zip", "027effade209864c7bd0cb21dc2c5a71b6259b3ae1fc9bf7c62447facd435c23"},
 	"planner-gu-v1.3.1":  {"Shaadi_Planner_Pro_V1_3_1_Gujarati_Launch_Package.zip", "6f4becb62bd91142c75b35a83de9dce3ed43b2f5b377c436eed8a9816cacf091"},
 	completeID:           {"Shaadi_Planner_Pro_Complete_English_v1.0.zip", "91330ca1149e2a1daae841f1d9e16f4210504fad21ceb6f0db6ec4c0e3fa94bc"},
-	"all-in-one-en-v1":   {"Shaadi_Planner_Pro_All_in_One_English_v1.0.zip", "1c34c5210b4b47ba3b1a194efcc1ee08d6d1e90ce1bd0f064ea6b6cbabf553eb"},
+	allInOneID:           {"Shaadi_Planner_Pro_All_in_One_English_v1.0.zip", "1c34c5210b4b47ba3b1a194efcc1ee08d6d1e90ce1bd0f064ea6b6cbabf553eb"},
 	"message-pack-en-v1": {"Shaadi_WhatsApp_Vendor_Message_Pack.pdf", "a993709a6889640ec42d98bf941280e488f76e09d9b88c83e4eee3f8c5213968"},
 	"sangeet-core-v1":    {"Shaadi-Planner-Core-Sangeet-Host-Kit-FINAL.zip", "c02e25cfa7dac4e1c27be24116639074c48b05c8489f6582d58c6ff87677944b"},
 	"sangeet-pro-v1":     {"Shaadi-Planner-Pro-Sangeet-Host-Kit-PRO-FINAL.zip", "7a763f3c422a534948552557152d19200a1584973cc65de31866a9e9c242ffc9"},

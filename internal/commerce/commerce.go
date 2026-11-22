@@ -138,13 +138,13 @@ func (s *Shop) Register(mux *http.ServeMux) {
 			}
 		}
 		httpx.Reply(w, 200, map[string]any{
-			"available":                   false, // The retired Excel Kit cannot be ordered by older clients.
-			"products":                    products,
-			"test":                        s != nil && s.mode == "test",
-			"recovery":                    s != nil,
-			"testAccessRequired":          s != nil && s.mode == "test" && s.testAccess != "",
-			"familyPassOnSale":            s.canSellFamilyPass() && s.mode == "live",
-			"familyPassCompleteAvailable": s.canSellFamilyPass(),
+			"available":               false, // The retired Excel Kit cannot be ordered by older clients.
+			"products":                products,
+			"test":                    s != nil && s.mode == "test",
+			"recovery":                s != nil,
+			"testAccessRequired":      s != nil && s.mode == "test" && s.testAccess != "",
+			"familyPassOnSale":        s.canSellFamilyPass() && s.mode == "live",
+			"familyPassBundleProduct": s.availableFamilyPassBundle(),
 		})
 	})
 	if s == nil {
@@ -241,7 +241,7 @@ func (s *Shop) openOrder(ctx context.Context, db orderWriter, item listing, emai
 	}
 	var bundle *string
 	if item.ID == familyPassID {
-		id := completeID
+		id := allInOneID
 		bundle = &id
 	}
 	_, err = db.ExecContext(ctx, `INSERT INTO excel_orders
@@ -257,7 +257,7 @@ type purchase struct {
 	BundleProduct                     string
 }
 
-// Orders created before the Complete bundle retain their original Essentials entitlement.
+// The original Essentials orders used a boolean before we started recording the bundle product.
 const familyBundleSQL = `COALESCE(bundle_product, CASE WHEN includes_essentials THEN '` + essentialsID + `' ELSE '' END)`
 
 func (s *Shop) purchase(ctx context.Context, id string) (purchase, error) {
