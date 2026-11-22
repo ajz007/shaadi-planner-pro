@@ -1,0 +1,546 @@
+/* Haveli Jharokha. Every rule is scoped to .t-haveli-jharokha; colours are
+   tokens per palette; motion uses only opacity and transform and switches
+   off for reduced motion. */
+
+.t-haveli-jharokha {
+  --hj-paper: #f7efe3;
+  --hj-paper-2: #efe2cf;
+  --hj-card: #fffaf3;
+  --hj-ink: #1d2756;
+  --hj-text: #2c2a3c;
+  --hj-muted: #5b5468;
+  --hj-accent: #a8461f;
+  --hj-accent-2: #86361a;
+  --hj-on-accent: #fff8ef;
+  --hj-kicker: #a8461f;
+  --hj-stone: #c66b3d;
+  --hj-stone-2: #a4512a;
+  --hj-stone-3: #e09366;
+  --hj-stone-4: #f0b48a;
+  --hj-joint: rgb(90 32 10 / .28);
+  --hj-wood: #6a3519;
+  --hj-wood-2: #8f5232;
+  --hj-wood-dark: #3d1d0c;
+  --hj-panel: #7c4224;
+  --hj-gold: #c99532;
+  --hj-gold-light: #f0cf86;
+  --hj-gold-deep: #8a6114;
+  --hj-glow: #fff3c9;
+  --hj-glow-2: #ffc766;
+  --hj-glow-3: #e8893a;
+  --hj-blue: #233a8f;
+  --hj-turq: #3c9bb4;
+  --hj-tile: #fbf8f1;
+  --hj-line: #e6d2b5;
+  --hj-frame: #c66b3d;
+  --hj-jali-shadow: rgb(120 55 20);
+  --hj-shadow: rgb(70 30 10 / .22);
+  --hj-sky-1: #fff3df;
+  --hj-sky-2: #fcd7ae;
+  --hj-sky-3: #f2a877;
+  --hj-city-far: #e9ae86;
+  --hj-city-near: #c7714a;
+  --hj-pigeon: #8d96a8;
+  --hj-pigeon-2: #b3bac7;
+  --hj-pigeon-dark: #4a5163;
+  --hj-display: 'Yeseva One', 'Playfair Display', Georgia, serif;
+  --hj-serif: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  --hj-deva: 'Martel', 'Noto Serif Devanagari', 'Tiro Devanagari Hindi', 'Nirmala UI', serif;
+
+  /* The shared RSVP panel reads these. */
+  --invite-ink: var(--hj-text);
+  --invite-accent: var(--hj-accent);
+  --invite-line: var(--hj-line);
+  --invite-paper: var(--hj-card);
+  --invite-gold: var(--hj-gold-deep);
+
+  position: relative;
+  min-height: 100vh;
+  overflow-x: clip;
+  color: var(--hj-text);
+  background: var(--hj-paper);
+  font-family: var(--hj-serif);
+  font-size: 1.12rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+.t-haveli-jharokha[data-palette="pink-city"] {
+  --hj-paper: #fbf1ec;
+  --hj-paper-2: #f5e1d9;
+  --hj-card: #fffaf8;
+  --hj-ink: #0f3f3c;
+  --hj-text: #33282b;
+  --hj-muted: #66565a;
+  --hj-accent: #17706b;
+  --hj-accent-2: #0f5652;
+  --hj-on-accent: #f4fffd;
+  --hj-kicker: #a4483a;
+  --hj-stone: #df9a8c;
+  --hj-stone-2: #c47767;
+  --hj-stone-3: #f0b9ab;
+  --hj-stone-4: #f8d4c9;
+  --hj-joint: rgb(130 50 40 / .26);
+  --hj-wood: #1f6a65;
+  --hj-wood-2: #2f8a82;
+  --hj-wood-dark: #10413e;
+  --hj-panel: #23756f;
+  --hj-gold: #c99a3a;
+  --hj-gold-light: #f0d38e;
+  --hj-gold-deep: #85621a;
+  --hj-blue: #1d5f8f;
+  --hj-turq: #44a9a2;
+  --hj-tile: #fdfaf6;
+  --hj-line: #efd3c9;
+  --hj-frame: #d48a7b;
+  --hj-jali-shadow: rgb(140 60 55);
+  --hj-shadow: rgb(110 40 40 / .2);
+  --hj-sky-1: #fff4ee;
+  --hj-sky-2: #fbd9cc;
+  --hj-sky-3: #f2ad9c;
+  --hj-city-far: #f0bcae;
+  --hj-city-near: #cf8676;
+}
+
+html.t-haveli-jharokha-locked, html.t-haveli-jharokha-locked body { overflow: hidden; }
+.t-haveli-jharokha *, .t-haveli-jharokha *::before, .t-haveli-jharokha *::after { box-sizing: border-box; }
+.t-haveli-jharokha :where(h1, h2, h3, p, figure, ol, ul) { margin: 0; padding: 0; }
+.t-haveli-jharokha :where(ol, ul) { list-style: none; }
+.t-haveli-jharokha svg { display: block; }
+.t-haveli-jharokha .hj-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.t-haveli-jharokha :focus-visible { outline: 3px solid var(--hj-gold); outline-offset: 3px; }
+
+/* ---------------- Shared art colours ---------------- */
+.t-haveli-jharokha .hj-brass { fill: var(--hj-gold); }
+.t-haveli-jharokha .hj-brass-ring { stroke: var(--hj-gold-light); }
+.t-haveli-jharokha .hj-gold-line { fill: none; stroke: var(--hj-gold-deep); }
+.t-haveli-jharokha .hj-wall-stone { fill: var(--hj-stone); }
+.t-haveli-jharokha .hj-wall-light { fill: var(--hj-stone-3); opacity: .26; }
+.t-haveli-jharokha .hj-wall-dark { fill: var(--hj-stone-2); opacity: .24; }
+.t-haveli-jharokha .hj-wall-joint { fill: none; stroke: var(--hj-joint); stroke-width: 1.5; }
+
+/* Pigeons */
+.t-haveli-jharokha .hj-pigeon { overflow: visible; }
+.t-haveli-jharokha .hj-pigeon-body { fill: var(--hj-pigeon); }
+.t-haveli-jharokha .hj-pigeon-wing { fill: var(--hj-pigeon-2); transform-box: fill-box; transform-origin: 30% 50%; }
+.t-haveli-jharokha .hj-pigeon-tail { fill: var(--hj-pigeon-dark); }
+.t-haveli-jharokha .hj-pigeon-bar { fill: none; stroke: var(--hj-pigeon-dark); stroke-width: 1.6; stroke-linecap: round; }
+.t-haveli-jharokha .hj-pigeon-neck { fill: #5f8d86; }
+.t-haveli-jharokha .hj-pigeon-face { fill: #7d8698; }
+.t-haveli-jharokha .hj-pigeon-eye { fill: #e0742c; stroke: #2a2a2a; stroke-width: .6; }
+.t-haveli-jharokha .hj-pigeon-beak { fill: #3e3a38; }
+.t-haveli-jharokha .hj-pigeon-feet { fill: none; stroke: #c76b5b; stroke-width: 1.8; stroke-linecap: round; }
+.t-haveli-jharokha .hj-pigeon-head { transform-box: fill-box; transform-origin: 20% 90%; animation: hj-bob 5s ease-in-out infinite; }
+@keyframes hj-bob { 0%, 70%, 100% { transform: none; } 76% { transform: rotate(14deg) translate(1px, 1px); } 82% { transform: rotate(-4deg); } 88% { transform: none; } }
+
+/* ---------------- The jharokha ---------------- */
+.t-haveli-jharokha .hj-jharokha { position: relative; display: block; width: 100%; }
+.t-haveli-jharokha .hj-roof, .t-haveli-jharokha .hj-ledge { display: block; width: 106.667%; margin: 0 -3.333%; height: auto; overflow: visible; }
+.t-haveli-jharokha .hj-roof { margin-bottom: -2px; position: relative; z-index: 2; }
+.t-haveli-jharokha .hj-ledge { margin-top: -3px; position: relative; z-index: 2; }
+.t-haveli-jharokha .hj-roof-rib { fill: none; stroke: var(--hj-stone-2); stroke-width: 1.2; opacity: .6; }
+.t-haveli-jharokha .hj-roof-petal { fill: var(--hj-stone-3); stroke: var(--hj-stone-2); stroke-width: .8; }
+.t-haveli-jharokha .hj-roof-edge { fill: none; stroke: var(--hj-stone-4); stroke-width: 2; }
+.t-haveli-jharokha .hj-roof-edge.is-soft { stroke: var(--hj-stone-2); stroke-width: 1.5; }
+.t-haveli-jharokha .hj-roof-bead { fill: var(--hj-stone-2); }
+.t-haveli-jharokha .hj-roof-post { stroke: var(--hj-stone-2); }
+
+.t-haveli-jharokha .hj-window-box { position: relative; display: block; aspect-ratio: 300 / 332; z-index: 1; }
+.t-haveli-jharokha .hj-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
+.t-haveli-jharokha .hj-ledge-slab { fill: var(--hj-stone-3); }
+.t-haveli-jharokha .hj-ledge-under { fill: var(--hj-stone-2); }
+.t-haveli-jharokha .hj-ledge-dentil { fill: var(--hj-stone); stroke: var(--hj-stone-2); stroke-width: 1; }
+.t-haveli-jharokha .hj-ledge-bracket { fill: var(--hj-stone); stroke: var(--hj-stone-2); stroke-width: 1.2; }
+.t-haveli-jharokha .hj-ledge-carve { fill: none; stroke: var(--hj-stone-4); stroke-width: 1.4; opacity: .8; }
+.t-haveli-jharokha .hj-ledge-edge { fill: none; stroke: var(--hj-stone-4); stroke-width: 2; }
+.t-haveli-jharokha .hj-frame-edge { stroke: var(--hj-stone-4); stroke-width: 2.5; }
+.t-haveli-jharokha .hj-frame-sill { stroke: var(--hj-stone-2); }
+.t-haveli-jharokha .hj-pillar rect { fill: var(--hj-stone-3); stroke: var(--hj-stone-2); stroke-width: 1; }
+.t-haveli-jharokha .hj-pillar-flute { stroke: var(--hj-stone-2); stroke-width: 1.4; stroke-dasharray: 3 4; }
+.t-haveli-jharokha .hj-pillar-cap { fill: var(--hj-stone-2); }
+.t-haveli-jharokha .hj-pillar-bud { fill: var(--hj-stone-4); stroke: var(--hj-stone-2); stroke-width: 1; }
+.t-haveli-jharokha .hj-spandrel circle:first-child { fill: var(--hj-stone-3); stroke: var(--hj-stone-2); stroke-width: 1.2; }
+
+.t-haveli-jharokha .hj-view { position: absolute; display: block; overflow: hidden; z-index: 0;
+  mask-size: 100% 100%; -webkit-mask-size: 100% 100%; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; }
+.t-haveli-jharokha .hj-frame { z-index: 1; }
+.t-haveli-jharokha .hj-shutters { position: absolute; display: block; z-index: 2; perspective: 900px; }
+.t-haveli-jharokha .hj-shutter { position: absolute; top: 0; bottom: 0; display: block; width: 50%; backface-visibility: visible;
+  transition: transform 1.5s cubic-bezier(.55, .05, .25, 1); }
+.t-haveli-jharokha .hj-shutter svg { width: 100%; height: 100%; }
+.t-haveli-jharokha .hj-shutter.is-l { left: 0; transform-origin: 0 50%; }
+.t-haveli-jharokha .hj-shutter.is-r { right: 0; transform-origin: 100% 50%; }
+.t-haveli-jharokha .hj-shutter.is-r svg { transform: scaleX(-1); }
+.t-haveli-jharokha .hj-shutter-glow { animation: hj-glow 3.2s ease-in-out infinite; }
+@keyframes hj-glow { 50% { opacity: .72; } }
+.t-haveli-jharokha .hj-shutter-bead { stroke: var(--hj-gold); opacity: .55; }
+.t-haveli-jharokha .hj-shutter-rail { fill: var(--hj-wood-dark); }
+.t-haveli-jharokha .hj-shutter-panel { fill: var(--hj-panel); stroke: var(--hj-wood-dark); stroke-width: 1.4; }
+.t-haveli-jharokha .hj-shutter-panel-in { fill: none; stroke: var(--hj-gold); stroke-width: 1; opacity: .6; }
+.t-haveli-jharokha .hj-shutter-rose ellipse { fill: var(--hj-wood-2); stroke: var(--hj-wood-dark); stroke-width: .8; }
+
+/* The view through the window */
+.t-haveli-jharokha .hj-view-inner { position: absolute; inset: 0; display: block; background: linear-gradient(180deg, var(--hj-sky-1) 10%, var(--hj-sky-2) 62%, var(--hj-sky-3)); }
+.t-haveli-jharokha .hj-view-sun { position: absolute; left: 50%; top: 66%; width: 86%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgb(255 250 230 / .95) 0 18%, rgb(255 236 190 / .5) 34%, transparent 66%); }
+.t-haveli-jharokha .hj-view-city { position: absolute; left: 0; bottom: 0; width: 100%; height: 30%; }
+.t-haveli-jharokha .hj-sky-far { fill: var(--hj-city-far); }
+.t-haveli-jharokha .hj-sky-near { fill: var(--hj-city-near); }
+.t-haveli-jharokha .hj-view-words { position: absolute; left: 7%; right: 7%; top: 27%; display: flex; flex-direction: column; align-items: center; text-align: center; z-index: 1; }
+.t-haveli-jharokha .hj-view-names { display: flex; flex-direction: column; align-items: center; max-width: 100%; color: var(--hj-ink);
+  font: 400 calc(var(--jw, 300px) * .132)/1.04 var(--hj-display); }
+.t-haveli-jharokha .hj-view-names > span { display: block; max-width: 100%; white-space: nowrap; }
+.t-haveli-jharokha .hj-view-names em { font: italic 500 .62em/1.1 var(--hj-serif); color: var(--hj-accent); }
+.t-haveli-jharokha .hj-view-date { margin-top: .55em; padding-top: .45em; border-top: 1px solid var(--hj-gold); font: 600 calc(var(--jw, 300px) * .046)/1.2 var(--hj-serif);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--hj-ink); }
+.t-haveli-jharokha .hj-view-flood { position: absolute; inset: 0; display: block; opacity: 0; background: radial-gradient(circle at 50% 60%, #fffbe9 0 30%, rgb(255 240 200 / .6) 60%, transparent 90%); }
+
+/* ---------------- Opening ---------------- */
+.t-haveli-jharokha .hj-opening {
+  --jw: min(70vw, 318px, calc((100vh - 250px) / 1.86));
+  position: fixed; inset: 0; z-index: 30; overflow: hidden;
+  display: grid; grid-template-rows: 1fr auto 1fr; justify-items: center; align-items: center;
+  padding: 18px 16px max(16px, env(safe-area-inset-bottom)); text-align: center;
+}
+@supports (height: 100dvh) { .t-haveli-jharokha .hj-opening { --jw: min(70vw, 318px, calc((100dvh - 250px) / 1.86)); } }
+.t-haveli-jharokha .hj-op-wall { position: absolute; inset: 0; transition: opacity .9s ease; }
+.t-haveli-jharokha .hj-op-wall::after { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(70% 55% at 50% 46%, rgb(255 228 180 / .38), transparent 70%), radial-gradient(140% 90% at 50% 40%, transparent 55%, rgb(40 10 0 / .38)); }
+.t-haveli-jharokha .hj-op-top, .t-haveli-jharokha .hj-op-foot { position: relative; z-index: 2; transition: opacity .5s ease; }
+.t-haveli-jharokha .hj-op-top { align-self: end; padding-bottom: 10px; }
+.t-haveli-jharokha .hj-op-foot { align-self: start; display: grid; justify-items: center; gap: 12px; padding-top: 14px; }
+.t-haveli-jharokha .hj-op-dear { display: inline-block; padding: .35rem 1.1rem .4rem; border-radius: 6px; background: var(--hj-card); color: var(--hj-ink);
+  font: italic 500 1.12rem/1.3 var(--hj-serif); box-shadow: 0 0 0 1px var(--hj-stone-2), 0 0 0 4px var(--hj-card), 0 0 0 5px var(--hj-gold), 0 10px 22px -12px rgb(0 0 0 / .5); }
+.t-haveli-jharokha .hj-op-house { position: relative; width: var(--jw); z-index: 1; transform-origin: 50% 53%;
+  transition: transform 1s cubic-bezier(.6, 0, .3, 1), opacity .7s ease .3s; }
+.t-haveli-jharokha .hj-op-window { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; color: inherit;
+  filter: drop-shadow(0 22px 22px rgb(40 10 0 / .35)); }
+.t-haveli-jharokha .hj-op-window:focus-visible { outline-offset: 8px; }
+.t-haveli-jharokha .hj-op-rays { position: absolute; left: 50%; top: 83%; width: 150%; height: 46%; transform: translateX(-50%); transform-origin: 50% 0;
+  clip-path: polygon(28% 0, 72% 0, 100% 100%, 0 100%); opacity: .55;
+  background: radial-gradient(circle, rgb(255 236 180 / .7) 0 2px, transparent 2.8px) 0 0 / 11px 11px, linear-gradient(180deg, rgb(255 222 150 / .55), rgb(255 222 150 / 0));
+  -webkit-mask-image: linear-gradient(180deg, #000 20%, transparent); mask-image: linear-gradient(180deg, #000 20%, transparent);
+  animation: hj-rays 3.2s ease-in-out infinite; transition: opacity 1s ease; }
+@keyframes hj-rays { 50% { opacity: .38; } }
+.t-haveli-jharokha .hj-op-pigeon { position: absolute; width: calc(var(--jw) * .17); height: auto; z-index: 3; pointer-events: none;
+  transition: transform 1.8s cubic-bezier(.4, 0, .7, .4), opacity 1.6s ease .2s; }
+.t-haveli-jharokha .hj-op-pigeon.is-a { left: 1%; top: calc(var(--jw) * .195); }
+.t-haveli-jharokha .hj-op-pigeon.is-b { left: 70%; top: calc(var(--jw) * 1.41); transform: scaleX(-1); }
+.t-haveli-jharokha .hj-op-plaque { display: grid; gap: .1rem; padding: .55rem 1.6rem .6rem; border-radius: 4px; color: var(--hj-on-accent);
+  background: var(--hj-wood-dark); box-shadow: inset 0 0 0 1px var(--hj-gold), inset 0 0 0 4px var(--hj-wood-dark), inset 0 0 0 5px var(--hj-gold), 0 12px 20px -12px rgb(0 0 0 / .6); }
+.t-haveli-jharokha .hj-op-plaque span:first-child { font: 400 1.3rem/1.2 var(--hj-display); color: var(--hj-gold-light); }
+.t-haveli-jharokha .hj-op-plaque-date { font: 600 .82rem/1.3 var(--hj-serif); letter-spacing: .16em; text-transform: uppercase; }
+.t-haveli-jharokha .hj-op-hint { max-width: 22rem; padding: .4rem 1rem; border-radius: 999px; background: rgb(255 250 240 / .9); color: var(--hj-ink);
+  font: italic 500 1.05rem/1.35 var(--hj-serif); text-wrap: balance; }
+
+/* Opening stages */
+.t-haveli-jharokha .hj-view-words { opacity: 0; transform: translateY(14px) scale(.96); transition: opacity 1s ease .55s, transform 1.2s cubic-bezier(.2, .7, .2, 1) .55s; }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-view-words { opacity: 1; transform: none; }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-shutter.is-l { transform: rotateY(-118deg); }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-shutter.is-r { transform: rotateY(118deg); }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-view-flood { animation: hj-flood 1.8s ease-out both; }
+@keyframes hj-flood { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-op-rays { opacity: 1; animation: none; }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-op-pigeon.is-a { transform: translate(-70vw, -60vh) rotate(-18deg); opacity: 0; }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-op-pigeon.is-b { transform: translate(70vw, -80vh) scaleX(-1) rotate(-18deg); opacity: 0; }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-op-pigeon .hj-pigeon-wing { animation: hj-flap .18s ease-in-out infinite alternate; }
+@keyframes hj-flap { from { transform: scaleY(1); } to { transform: scaleY(-1.4) translateY(-2px); } }
+.t-haveli-jharokha .hj-opening:not([data-stage="closed"]) .hj-shutter-glow { animation: none; }
+.t-haveli-jharokha .hj-opening[data-stage="open"] .hj-op-hint { animation: hj-hint 1.8s ease-in-out infinite; }
+@keyframes hj-hint { 50% { transform: translateY(-3px); } }
+.t-haveli-jharokha .hj-opening[data-stage="leaving"] { pointer-events: none; }
+.t-haveli-jharokha .hj-opening[data-stage="leaving"] .hj-op-house { transform: scale(3.4); opacity: 0; }
+.t-haveli-jharokha .hj-opening[data-stage="leaving"] .hj-op-wall { opacity: 0; }
+.t-haveli-jharokha .hj-opening[data-stage="leaving"] .hj-op-top,
+.t-haveli-jharokha .hj-opening[data-stage="leaving"] .hj-op-foot { opacity: 0; }
+
+/* ---------------- Page frame ---------------- */
+.t-haveli-jharokha .hj-backdrop { position: fixed; inset: 0; z-index: 0; display: none; }
+.t-haveli-jharokha .hj-backdrop::after { content: ""; position: absolute; inset: 0; background: radial-gradient(60% 80% at 50% 40%, transparent 40%, rgb(40 10 0 / .25)); }
+.t-haveli-jharokha .hj-preview { position: sticky; top: 0; z-index: 20; padding: .55rem 1rem; text-align: center; color: var(--hj-on-accent); background: var(--hj-ink);
+  font: 600 .88rem/1.3 var(--hj-serif); letter-spacing: .02em; }
+.t-haveli-jharokha .hj-main { position: relative; z-index: 1; display: block; max-width: 780px; margin: 0 auto; padding: 0 16px 5rem; background: var(--hj-paper); }
+.t-haveli-jharokha [data-reveal] { opacity: 0; transform: translateY(20px); transition: opacity .9s ease, transform .9s cubic-bezier(.2, .7, .2, 1); }
+.t-haveli-jharokha [data-reveal].is-in { opacity: 1; transform: none; }
+
+.t-haveli-jharokha .hj-section { position: relative; padding-top: 3.6rem; text-align: center; }
+.t-haveli-jharokha .hj-section > .hj-tiles:first-child { margin-bottom: 3.2rem; }
+
+/* Blue-pottery tiles */
+.t-haveli-jharokha .hj-tiles { display: block; height: 40px; margin-inline: -16px; border-block: 3px solid var(--hj-blue); box-shadow: 0 3px 0 var(--hj-tile), 0 5px 0 var(--hj-gold), 0 -3px 0 var(--hj-tile), 0 -5px 0 var(--hj-gold); }
+.t-haveli-jharokha .hj-tiles svg { width: 100%; height: 100%; }
+.t-haveli-jharokha .hj-tile-ground { fill: var(--hj-tile); }
+.t-haveli-jharokha .hj-tile-blue { fill: var(--hj-blue); }
+.t-haveli-jharokha .hj-tile-turq { fill: var(--hj-turq); }
+.t-haveli-jharokha .hj-tile-core { fill: var(--hj-gold); }
+.t-haveli-jharokha .hj-tile-grout { fill: none; stroke: var(--hj-blue); stroke-width: 1; opacity: .25; }
+
+/* Section heads */
+.t-haveli-jharokha .hj-head { display: grid; justify-items: center; gap: .3rem; margin-bottom: 1.6rem; }
+.t-haveli-jharokha .hj-kicker { font: 600 .84rem/1.3 var(--hj-serif); letter-spacing: .2em; text-transform: uppercase; color: var(--hj-kicker); }
+.t-haveli-jharokha .hj-head h2 { max-width: 30rem; font: 400 clamp(1.85rem, 7vw, 2.6rem)/1.15 var(--hj-display); color: var(--hj-ink); text-wrap: balance; overflow-wrap: anywhere; }
+.t-haveli-jharokha .hj-rule { position: relative; display: block; width: 150px; height: 12px; margin-top: .35rem; }
+.t-haveli-jharokha .hj-rule::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: linear-gradient(90deg, transparent, var(--hj-gold) 25%, var(--hj-gold) 75%, transparent); }
+.t-haveli-jharokha .hj-rule i { position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; transform: rotate(45deg);
+  background: var(--hj-blue); box-shadow: 0 0 0 2px var(--hj-paper), 0 0 0 3px var(--hj-gold), -20px 20px 0 -2px var(--hj-turq), 20px -20px 0 -2px var(--hj-turq); }
+
+/* ---------------- Arched windows ---------------- */
+.t-haveli-jharokha .hj-window { position: relative; display: block; margin-top: calc(var(--crown-h) - 10px); padding: 1.6rem 1.3rem 1.6rem;
+  background: var(--hj-card); border: 1.5px solid var(--hj-frame); border-radius: 0 0 4px 4px; box-shadow: 0 22px 34px -28px var(--hj-shadow); }
+.t-haveli-jharokha .hj-window::before { content: ""; position: absolute; inset: 5.5px; border: 1px solid var(--hj-line); border-radius: 0 0 2px 2px; pointer-events: none; }
+.t-haveli-jharokha .hj-crown { position: absolute; left: 50%; top: calc(8.5px - var(--crown-h)); transform: translateX(-50%); overflow: visible; pointer-events: none; }
+.t-haveli-jharokha .hj-crown-fill { fill: var(--hj-card); }
+.t-haveli-jharokha .hj-crown-outer { fill: none; stroke: var(--hj-frame); stroke-width: 1.5; }
+.t-haveli-jharokha .hj-crown-inner { fill: none; stroke: var(--hj-line); stroke-width: 1; }
+.t-haveli-jharokha .hj-crown-rosette path { fill: var(--hj-stone-4); stroke: var(--hj-stone-2); stroke-width: .8; }
+.t-haveli-jharokha .hj-crown-eye { fill: var(--hj-blue); }
+.t-haveli-jharokha .hj-slot { position: absolute; left: 50%; top: calc(var(--slot-y) - 1.5px); z-index: 2; transform: translate(-50%, -50%); }
+.t-haveli-jharokha .hj-window-body { position: relative; z-index: 1; display: grid; justify-items: center; gap: .55rem; }
+
+/* Lattice light drifting across a window */
+.t-haveli-jharokha .hj-shade { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: .085;
+  -webkit-mask-image: radial-gradient(90% 70% at 72% 28%, #000 25%, transparent 78%); mask-image: radial-gradient(90% 70% at 72% 28%, #000 25%, transparent 78%); }
+.t-haveli-jharokha .hj-shade svg { position: absolute; left: -40%; top: -40%; width: 180%; height: 180%; filter: blur(1.4px); animation: hj-drift 46s ease-in-out infinite alternate; }
+.t-haveli-jharokha .hj-window:nth-of-type(even) .hj-shade svg { animation-delay: -17s; }
+@keyframes hj-drift { from { transform: translate(-7%, -5%) rotate(-2deg); } to { transform: translate(7%, 6%) rotate(2deg); } }
+.t-haveli-jharokha[data-jali="off"] .hj-shade { display: none; }
+
+/* ---------------- Buttons ---------------- */
+.t-haveli-jharokha .hj-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; margin-top: .6rem; }
+.t-haveli-jharokha .hj-button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 2.9rem; padding: .55rem 1.3rem;
+  border: 1.5px solid var(--hj-accent); border-radius: 1.5rem 1.5rem 6px 6px; background: var(--hj-accent); color: var(--hj-on-accent);
+  font: 600 1.05rem/1.2 var(--hj-serif); letter-spacing: .02em; text-decoration: none; cursor: pointer; box-shadow: 0 10px 18px -12px var(--hj-accent-2); }
+.t-haveli-jharokha .hj-button:hover { background: var(--hj-accent-2); border-color: var(--hj-accent-2); }
+.t-haveli-jharokha .hj-button.is-quiet { background: transparent; color: var(--hj-accent); box-shadow: none; }
+.t-haveli-jharokha .hj-button.is-quiet:hover { background: var(--hj-paper-2); }
+.t-haveli-jharokha .hj-button.is-small { min-height: 2.6rem; padding: .4rem 1rem; font-size: 1rem; }
+.t-haveli-jharokha .hj-button svg, .t-haveli-jharokha .hj-chip svg, .t-haveli-jharokha .hj-link svg, .t-haveli-jharokha .hj-event-place svg {
+  width: 1.1rem; height: 1.1rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------------- Hero: rooftop, sandstone facade, the great window ---------------- */
+.t-haveli-jharokha .hj-hero { margin-inline: -16px; padding-top: 0; }
+.t-haveli-jharokha .hj-roofline { position: relative; padding: 22px 16px 0; background: linear-gradient(180deg, var(--hj-sky-1), var(--hj-sky-2)); }
+.t-haveli-jharokha .hj-rooftop { position: relative; margin: 0 -16px; }
+.t-haveli-jharokha .hj-chhatris { position: relative; width: min(100% - 32px, 520px); height: auto; margin: 0 auto -24px; }
+.t-haveli-jharokha .hj-parapet-strip { position: relative; display: block; }
+.t-haveli-jharokha .hj-chhatri-dome { fill: var(--hj-stone-3); }
+.t-haveli-jharokha .hj-chhatri-eave { fill: var(--hj-stone-2); }
+.t-haveli-jharokha .hj-chhatri-post { stroke: var(--hj-stone); }
+.t-haveli-jharokha .hj-chhatri-arch { fill: none; stroke: var(--hj-stone-2); stroke-width: 2; }
+.t-haveli-jharokha .hj-merlon { fill: var(--hj-stone-3); stroke: var(--hj-stone-2); stroke-width: 1; }
+.t-haveli-jharokha .hj-parapet { fill: var(--hj-stone); }
+.t-haveli-jharokha .hj-parapet-line { fill: none; stroke: var(--hj-stone-2); stroke-width: 1.5; }
+.t-haveli-jharokha .hj-roof-pigeon { position: absolute; bottom: 34px; width: 42px; height: auto; z-index: 1; }
+.t-haveli-jharokha .hj-roof-pigeon.is-a { left: calc(50% - min(100vw - 32px, 520px) * .175 - 21px); }
+.t-haveli-jharokha .hj-roof-pigeon.is-b { left: calc(50% + min(100vw - 32px, 520px) * .175 - 21px); transform: scaleX(-1); }
+.t-haveli-jharokha .hj-roof-pigeon.is-c { display: none; left: calc(50% + min(100vw - 32px, 520px) * .5 + 40px); }
+.t-haveli-jharokha .hj-roof-pigeon.is-b .hj-pigeon-head { animation-delay: -2.3s; }
+.t-haveli-jharokha .hj-roof-pigeon.is-c .hj-pigeon-head { animation-delay: -3.6s; }
+.t-haveli-jharokha .hj-facade { position: relative; padding: 1.2rem 16px 2.6rem; background: var(--hj-stone); overflow: hidden; }
+.t-haveli-jharokha .hj-facade-wall { position: absolute; inset: 0; }
+.t-haveli-jharokha .hj-hero-window { --hj-frame: var(--hj-wood-dark); max-width: 34rem; margin-inline: auto; padding: 1.4rem 1.2rem 1.9rem; box-shadow: none; filter: drop-shadow(0 18px 22px rgb(40 10 0 / .4)); }
+.t-haveli-jharokha .hj-greeting { font: italic 500 1.2rem/1.3 var(--hj-serif); color: var(--hj-muted); }
+.t-haveli-jharokha .hj-hero-title { font: 600 .9rem/1.3 var(--hj-serif); letter-spacing: .26em; text-transform: uppercase; color: var(--hj-kicker); }
+.t-haveli-jharokha .hj-names { display: flex; flex-direction: column; align-items: center; max-width: 100%; margin: .2rem 0; color: var(--hj-ink);
+  font: 400 clamp(2.7rem, 12.5vw, 4.4rem)/1.05 var(--hj-display); }
+.t-haveli-jharokha .hj-names > span { display: block; max-width: 100%; white-space: nowrap; }
+.t-haveli-jharokha .hj-amp { font: italic 500 .55em/1.2 var(--hj-serif); color: var(--hj-accent); }
+.t-haveli-jharokha .hj-date { display: flex; align-items: center; gap: .7rem; font: 600 1rem/1.3 var(--hj-serif); letter-spacing: .18em; text-transform: uppercase; color: var(--hj-ink); }
+.t-haveli-jharokha .hj-date::before, .t-haveli-jharokha .hj-date::after { content: ""; width: 26px; height: 6px; background: radial-gradient(circle, var(--hj-gold) 0 2.2px, transparent 2.8px) 0 50% / 9px 6px repeat-x; }
+.t-haveli-jharokha .hj-tiles.is-hero { margin-inline: 0; }
+
+/* ---------------- Blessing ---------------- */
+.t-haveli-jharokha .hj-blessing-window .hj-window-body { gap: .9rem; }
+.t-haveli-jharokha .hj-plates { display: flex; justify-content: center; align-items: center; gap: .8rem; }
+.t-haveli-jharokha .hj-plate { width: 62px; height: 62px; filter: drop-shadow(0 6px 8px rgb(30 30 80 / .18)); }
+.t-haveli-jharokha .hj-plate.is-large { width: 84px; height: 84px; }
+.t-haveli-jharokha .hj-plate-rim { fill: var(--hj-blue); }
+.t-haveli-jharokha .hj-plate-leaf { fill: var(--hj-tile); opacity: .9; }
+.t-haveli-jharokha .hj-plate-dot { fill: var(--hj-turq); }
+.t-haveli-jharokha .hj-plate-face { fill: var(--hj-tile); }
+.t-haveli-jharokha .hj-plate-ring { fill: none; stroke: var(--hj-turq); stroke-width: 1.4; }
+.t-haveli-jharokha .hj-glyph { font: 600 34px var(--hj-deva); fill: var(--hj-accent); }
+.t-haveli-jharokha .hj-glyph.is-shri { font-size: 26px; }
+.t-haveli-jharokha .hj-glyph-line { stroke: var(--hj-accent); }
+.t-haveli-jharokha .hj-glyph-fill { fill: var(--hj-accent); }
+.t-haveli-jharokha .hj-glyph-soft { fill: var(--hj-accent); fill-opacity: .2; }
+.t-haveli-jharokha .hj-invocation { font: 600 1.2rem/1.6 var(--hj-deva); color: var(--hj-accent); }
+.t-haveli-jharokha .hj-shloka { display: grid; gap: .15rem; font: 400 1.02rem/1.75 var(--hj-deva); color: var(--hj-ink); }
+.t-haveli-jharokha .hj-blessed { display: grid; gap: .1rem; }
+.t-haveli-jharokha .hj-soft { font: italic 400 1.1rem/1.4 var(--hj-serif); color: var(--hj-muted); }
+.t-haveli-jharokha .hj-deity { font: 400 1.5rem/1.25 var(--hj-display); color: var(--hj-ink); }
+.t-haveli-jharokha .hj-elders { font: 600 1.25rem/1.35 var(--hj-serif); color: var(--hj-ink); text-wrap: balance; }
+.t-haveli-jharokha .hj-note { font: italic 400 1rem/1.4 var(--hj-serif); color: var(--hj-muted); }
+.t-haveli-jharokha .hj-intro { max-width: 26rem; padding-top: .9rem; border-top: 1px solid var(--hj-line); font: 500 1.2rem/1.45 var(--hj-serif); color: var(--hj-text); text-wrap: balance; }
+.t-haveli-jharokha .hj-photo { width: min(100%, 300px); margin-top: .3rem; padding: 6px; background: var(--hj-card); border: 1.5px solid var(--hj-frame); border-radius: 999px 999px 6px 6px; }
+.t-haveli-jharokha .hj-photo img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 999px 999px 3px 3px; }
+
+/* ---------------- Countdown: a carved stone plaque ---------------- */
+.t-haveli-jharokha .hj-plaque { position: relative; max-width: 30rem; margin: 0 auto; padding: 1.2rem 1rem 1.3rem; background: var(--hj-paper-2);
+  border: 2px solid var(--hj-stone); box-shadow: inset 0 0 0 4px var(--hj-paper-2), inset 0 0 0 5px var(--hj-stone-3), 0 16px 26px -22px var(--hj-shadow); }
+.t-haveli-jharokha .hj-plaque::before, .t-haveli-jharokha .hj-plaque::after { content: ""; position: absolute; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+  transform: rotate(45deg); background: var(--hj-blue); box-shadow: 0 0 0 3px var(--hj-paper), 0 0 0 4px var(--hj-gold); }
+.t-haveli-jharokha .hj-plaque::before { left: -8px; }
+.t-haveli-jharokha .hj-plaque::after { right: -8px; }
+.t-haveli-jharokha .hj-count { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: .7rem; }
+.t-haveli-jharokha .hj-count-cell { display: grid; gap: .1rem; padding: 0 .2rem; }
+.t-haveli-jharokha .hj-count-cell ~ .hj-count-cell { border-left: 1px solid var(--hj-stone-3); }
+.t-haveli-jharokha .hj-count strong { font: 400 clamp(1.9rem, 8vw, 2.6rem)/1.1 var(--hj-display); color: var(--hj-ink); font-variant-numeric: tabular-nums; }
+.t-haveli-jharokha .hj-count span { font: 600 .78rem/1.2 var(--hj-serif); letter-spacing: .14em; text-transform: uppercase; color: var(--hj-muted); }
+
+/* ---------------- Couple ---------------- */
+.t-haveli-jharokha .hj-pair { display: grid; gap: .4rem; }
+.t-haveli-jharokha .hj-pair-cell { position: relative; display: flex; flex-direction: column; }
+.t-haveli-jharokha .hj-pair-cell .hj-window { flex: 1; }
+.t-haveli-jharokha .hj-pair-amp { display: grid; place-items: center; }
+.t-haveli-jharokha .hj-pair-amp span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: var(--hj-blue); color: var(--hj-tile);
+  font: italic 500 1.7rem/1 var(--hj-serif); box-shadow: 0 0 0 3px var(--hj-paper), 0 0 0 4px var(--hj-gold); }
+.t-haveli-jharokha .hj-person .hj-window-body { gap: .35rem; }
+.t-haveli-jharokha .hj-tag { padding: .2rem .8rem; border-radius: 999px; background: var(--hj-paper-2); font: 600 .8rem/1.3 var(--hj-serif); letter-spacing: .18em; text-transform: uppercase; color: var(--hj-kicker); }
+.t-haveli-jharokha .hj-honorific { font: italic 500 1.05rem/1.2 var(--hj-serif); color: var(--hj-muted); }
+.t-haveli-jharokha .hj-person h3 { max-width: 100%; font: 400 clamp(1.75rem, 7vw, 2.15rem)/1.15 var(--hj-display); color: var(--hj-ink); overflow-wrap: anywhere; }
+.t-haveli-jharokha .hj-dot-rule { width: 60px; height: 6px; margin: .35rem 0 .2rem; background: radial-gradient(circle, var(--hj-gold) 0 2px, transparent 2.6px) 0 50% / 10px 6px repeat-x; }
+.t-haveli-jharokha .hj-label { font: 600 .8rem/1.3 var(--hj-serif); letter-spacing: .16em; text-transform: uppercase; color: var(--hj-muted); }
+.t-haveli-jharokha .hj-parents { font: 500 1.15rem/1.4 var(--hj-serif); color: var(--hj-text); text-wrap: balance; }
+.t-haveli-jharokha .hj-perch { position: absolute; right: 5%; top: 44px; width: 44px; height: auto; z-index: 3; }
+
+/* ---------------- Celebrations: storeys of windows ---------------- */
+.t-haveli-jharokha .hj-chip { display: inline-flex; align-items: center; gap: .5rem; max-width: 100%; margin-bottom: 1.4rem; padding: .5rem 1.1rem; border-radius: 999px;
+  background: var(--hj-card); color: var(--hj-text); text-decoration: none; box-shadow: inset 0 0 0 1.5px var(--hj-line); font: 500 1.02rem/1.3 var(--hj-serif); text-align: left; }
+.t-haveli-jharokha .hj-chip svg { color: var(--hj-accent); }
+.t-haveli-jharokha .hj-chip strong { color: var(--hj-ink); }
+.t-haveli-jharokha .hj-storeys { display: grid; gap: 2.4rem; }
+.t-haveli-jharokha .hj-ledge-label { position: relative; display: grid; justify-items: center; gap: .1rem; padding-bottom: 22px; }
+.t-haveli-jharokha .hj-ledge-label::after { content: ""; position: absolute; left: -16px; right: -16px; bottom: 0; height: 14px;
+  background: linear-gradient(180deg, var(--hj-stone-3) 0 5px, var(--hj-stone) 5px 9px, var(--hj-stone-2) 9px); clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 14px 100%); }
+.t-haveli-jharokha .hj-ledge-day { font: 600 .84rem/1.3 var(--hj-serif); letter-spacing: .2em; text-transform: uppercase; color: var(--hj-kicker); }
+.t-haveli-jharokha .hj-ledge-date { font: 400 1.35rem/1.25 var(--hj-display); color: var(--hj-ink); }
+.t-haveli-jharokha .hj-bays { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem .75rem; }
+.t-haveli-jharokha .hj-bay { display: flex; flex: 0 1 calc(50% - .375rem); min-width: 0; }
+.t-haveli-jharokha .hj-bays.is-single .hj-bay { flex-basis: min(100%, 300px); }
+.t-haveli-jharokha .hj-event { flex: 1; min-width: 0; padding: 1.75rem .7rem 1.2rem; }
+.t-haveli-jharokha .hj-event .hj-window-body { gap: .3rem; }
+.t-haveli-jharokha .hj-disc { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; background: var(--hj-tile);
+  box-shadow: 0 0 0 2px var(--hj-blue), 0 0 0 4px var(--hj-tile), 0 0 0 5px var(--hj-gold); }
+.t-haveli-jharokha .hj-disc .inv-event-icon { width: 34px; height: 34px; color: var(--hj-blue); }
+.t-haveli-jharokha .inv-ic-a { fill: var(--hj-turq); fill-opacity: .35; }
+.t-haveli-jharokha .inv-ic-b { fill: var(--hj-stone-3); fill-opacity: .85; }
+.t-haveli-jharokha .hj-event h3 { max-width: 100%; font: 400 clamp(1.2rem, 5vw, 1.45rem)/1.2 var(--hj-display); color: var(--hj-ink); overflow-wrap: anywhere; }
+.t-haveli-jharokha .hj-event-sub { font: italic 400 1.02rem/1.3 var(--hj-serif); color: var(--hj-muted); }
+.t-haveli-jharokha .hj-time { margin-top: .25rem; padding: .25rem .75rem; border-radius: 999px; background: var(--hj-paper-2); color: var(--hj-ink); font: 600 .92rem/1.3 var(--hj-serif); text-wrap: balance; }
+.t-haveli-jharokha .hj-event-place { display: grid; justify-items: center; gap: .15rem; margin-top: .2rem; font: 500 .98rem/1.3 var(--hj-serif); color: var(--hj-text); }
+.t-haveli-jharokha .hj-event-place a { display: inline-flex; align-items: center; gap: .3rem; color: var(--hj-accent); font-weight: 600; }
+
+/* ---------------- RSVP ---------------- */
+.t-haveli-jharokha .hj-rsvp-by { margin: -.8rem 0 .4rem; }
+.t-haveli-jharokha .hj-rsvp-window { max-width: 40rem; margin-inline: auto; padding: 1rem .6rem .8rem; }
+.t-haveli-jharokha .hj-rsvp-window .hj-window-body { display: block; }
+.t-haveli-jharokha .hj-rsvp-body { text-align: left; }
+.t-haveli-jharokha .guest-wedding-page { width: auto; margin: 0; }
+.t-haveli-jharokha .invite-panel { position: relative; margin: 0; border: 0; border-radius: 0; background: transparent; color: var(--hj-text); padding: .4rem .6rem; }
+.t-haveli-jharokha .invite-panel h2 { font: 400 clamp(1.45rem, 5.5vw, 1.9rem)/1.2 var(--hj-display); color: var(--hj-ink); text-align: center; }
+.t-haveli-jharokha .invite-panel button { border-radius: 1.3rem 1.3rem 5px 5px; color: var(--hj-on-accent); font-family: var(--hj-serif); font-weight: 600; font-size: 1rem; }
+.t-haveli-jharokha .invite-panel .invite-secondary { color: var(--hj-accent); border-color: var(--hj-accent); }
+.t-haveli-jharokha .invite-panel .invite-secondary[aria-pressed="true"] { color: var(--hj-on-accent); background: var(--hj-accent); }
+.t-haveli-jharokha .invite-panel a { color: var(--hj-accent); }
+.t-haveli-jharokha .invite-toolbar :is(select, input) { background: var(--hj-paper); color: var(--hj-text); }
+.t-haveli-jharokha .invite-feedback { background: var(--hj-card); }
+
+/* ---------------- Family ---------------- */
+.t-haveli-jharokha .hj-grid { display: grid; gap: .4rem 1rem; }
+.t-haveli-jharokha .hj-family .hj-window-body { gap: .9rem; }
+.t-haveli-jharokha .hj-family h3 { font: italic 500 1.4rem/1.25 var(--hj-serif); color: var(--hj-accent); }
+.t-haveli-jharokha .hj-family-line { display: grid; gap: .15rem; }
+.t-haveli-jharokha .hj-family-line ~ .hj-family-line { padding-top: .8rem; border-top: 1px dashed var(--hj-line); }
+.t-haveli-jharokha .hj-name { font: 500 1.15rem/1.4 var(--hj-serif); color: var(--hj-ink); text-wrap: balance; }
+
+/* ---------------- Venue ---------------- */
+.t-haveli-jharokha .hj-venue-window { max-width: 34rem; margin-inline: auto; padding-top: 2.2rem; }
+.t-haveli-jharokha .hj-gate { width: 74px; height: auto; }
+.t-haveli-jharokha .hj-gate-stone { fill: var(--hj-stone-3); stroke: var(--hj-stone-2); stroke-width: 1.5; }
+.t-haveli-jharokha .hj-gate-door { fill: var(--hj-wood); }
+.t-haveli-jharokha .hj-gate-split { stroke: var(--hj-wood-dark); stroke-width: 1.5; }
+.t-haveli-jharokha .hj-gate-step { stroke: var(--hj-stone-2); }
+.t-haveli-jharokha .hj-place { display: grid; justify-items: center; gap: .25rem; }
+.t-haveli-jharokha .hj-place ~ .hj-place { padding-top: .8rem; border-top: 1px dashed var(--hj-line); }
+.t-haveli-jharokha .hj-place h3 { font: 400 1.4rem/1.25 var(--hj-display); color: var(--hj-ink); }
+.t-haveli-jharokha .hj-address { font: 500 1.12rem/1.45 var(--hj-serif); color: var(--hj-text); text-wrap: balance; }
+.t-haveli-jharokha .hj-link { display: inline-flex; align-items: center; gap: .35rem; color: var(--hj-accent); font-weight: 600; }
+.t-haveli-jharokha .hj-attire { display: grid; gap: .2rem; max-width: 24rem; padding: .8rem 1rem; border-radius: 6px; background: var(--hj-paper-2); }
+
+/* ---------------- Contacts ---------------- */
+.t-haveli-jharokha .hj-contacts { display: grid; gap: .9rem; }
+.t-haveli-jharokha .hj-contact { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem 1rem; padding: 1rem 1.15rem 1rem 1.6rem; text-align: left;
+  position: relative; border-radius: 4px; background: var(--hj-card); box-shadow: inset 0 0 0 1px var(--hj-line), 0 14px 22px -20px var(--hj-shadow); overflow: hidden; }
+.t-haveli-jharokha .hj-contact::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 9px;
+  background: radial-gradient(circle at 50% 50%, var(--hj-turq) 0 2px, var(--hj-blue) 2.5px 4px, transparent 4.5px) 50% 0 / 9px 14px repeat-y, var(--hj-tile); box-shadow: inset -1px 0 0 var(--hj-blue); }
+.t-haveli-jharokha .hj-contact h3 { font: 400 1.35rem/1.2 var(--hj-display); color: var(--hj-ink); }
+.t-haveli-jharokha .hj-contact-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* ---------------- Closing: a lamp in a small window ---------------- */
+.t-haveli-jharokha .hj-closing { display: grid; justify-items: center; gap: .8rem; }
+.t-haveli-jharokha .hj-closing > .hj-tiles:first-child { justify-self: stretch; margin-bottom: 2.4rem; }
+.t-haveli-jharokha .hj-closing-house { --jw: 200px; position: relative; width: var(--jw); margin-bottom: .4rem; filter: drop-shadow(0 18px 18px rgb(40 10 0 / .25)); }
+.t-haveli-jharokha .hj-closing-jharokha .hj-shutter.is-l { transform: rotateY(-122deg); }
+.t-haveli-jharokha .hj-closing-jharokha .hj-shutter.is-r { transform: rotateY(122deg); }
+.t-haveli-jharokha .hj-closing-jharokha .hj-shutter-glow { animation: none; }
+.t-haveli-jharokha .hj-view-inner.is-dusk { background: linear-gradient(180deg, var(--hj-sky-2), var(--hj-sky-3)); }
+.t-haveli-jharokha .hj-view-diya { position: absolute; left: 50%; bottom: 4%; width: 46%; transform: translateX(-50%); }
+.t-haveli-jharokha .hj-diya-flame { fill: var(--hj-glow-2); transform-box: fill-box; transform-origin: 50% 100%; animation: hj-flicker 1.6s ease-in-out infinite alternate; }
+.t-haveli-jharokha .hj-diya-core { fill: var(--hj-glow); }
+@keyframes hj-flicker { from { transform: scale(1, 1) rotate(-2deg); } to { transform: scale(.92, 1.08) rotate(2deg); } }
+.t-haveli-jharokha .hj-closing-pigeon { position: absolute; z-index: 3; left: 60%; top: calc(var(--jw) * 1.533 - 25px); width: 36px; height: auto; transform: scaleX(-1); }
+.t-haveli-jharokha .hj-lamp-line { max-width: 22rem; text-wrap: balance; }
+.t-haveli-jharokha .hj-closing-line { max-width: 28rem; text-wrap: balance; font: italic 500 clamp(1.45rem, 5.6vw, 1.85rem)/1.3 var(--hj-serif); color: var(--hj-ink); }
+.t-haveli-jharokha .hj-closing-names { max-width: 100%; white-space: nowrap; font: 400 clamp(2.2rem, 9.5vw, 3.2rem)/1.15 var(--hj-display); color: var(--hj-accent); }
+.t-haveli-jharokha .hj-closing-names em { margin: 0 .22em; font: italic 500 .6em var(--hj-serif); color: var(--hj-gold-deep); }
+.t-haveli-jharokha .hj-hosts { font: 600 1.25rem/1.35 var(--hj-serif); color: var(--hj-ink); text-wrap: balance; }
+
+/* ---------------- Music ---------------- */
+.t-haveli-jharokha .hj-music {
+  position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 26;
+  display: inline-flex; align-items: center; gap: .5rem; min-height: 3rem; padding: .55rem 1.15rem;
+  border: 2px solid var(--hj-gold-light); border-radius: 999px 999px 10px 10px; cursor: pointer;
+  font: 700 1.05rem var(--hj-serif); color: var(--hj-tile); background: var(--hj-blue); box-shadow: 0 10px 22px -10px rgb(0 0 0 / .5);
+}
+.t-haveli-jharokha .hj-music svg { width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-haveli-jharokha .hj-music.is-pulse { animation: hj-attention 1.6s ease-in-out infinite; }
+@keyframes hj-attention { 50% { transform: scale(1.06); } }
+
+/* ---------------- Larger screens ---------------- */
+@media (min-width: 700px) {
+  .t-haveli-jharokha .hj-names { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 .3em; }
+  .t-haveli-jharokha .hj-pair { grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 1rem; }
+  .t-haveli-jharokha .hj-pair-amp { align-self: center; padding-top: 60px; }
+  .t-haveli-jharokha .hj-pair.is-single { grid-template-columns: minmax(0, 24rem); justify-content: center; }
+  .t-haveli-jharokha .hj-grid { grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+  .t-haveli-jharokha .hj-bay { flex-basis: calc(33.333% - .5rem); }
+  .t-haveli-jharokha .hj-bays { gap: .4rem .75rem; }
+  .t-haveli-jharokha .hj-closing-house { --jw: 240px; }
+  .t-haveli-jharokha .hj-roof-pigeon.is-c { display: block; }
+}
+@media (min-width: 840px) {
+  .t-haveli-jharokha .hj-backdrop { display: block; }
+  .t-haveli-jharokha .hj-main { box-shadow: 0 0 0 10px var(--hj-stone-2), 0 0 0 12px var(--hj-stone-4), 0 0 60px 12px rgb(40 10 0 / .35); }
+  .t-haveli-jharokha .hj-opening { --jw: min(70vw, 340px, calc((100vh - 250px) / 1.86)); }
+}
+@media (max-width: 380px) {
+  .t-haveli-jharokha .hj-bays { gap: .3rem .5rem; }
+  .t-haveli-jharokha .hj-bay { flex-basis: calc(50% - .25rem); }
+  .t-haveli-jharokha .hj-event { padding-inline: .45rem; margin-top: calc((var(--crown-h) - 10px) * .84); }
+  .t-haveli-jharokha .hj-event .hj-crown { transform: translateX(-50%) scale(.84); transform-origin: 50% calc(100% - 10px); }
+  .t-haveli-jharokha .hj-event .hj-slot { top: calc(var(--slot-y) * .84 - 1.5px); }
+  .t-haveli-jharokha .hj-event .hj-disc { transform: scale(.88); }
+  .t-haveli-jharokha .hj-date::before, .t-haveli-jharokha .hj-date::after { display: none; }
+}
+@media (max-width: 559px) {
+  .t-haveli-jharokha .hj-contact { flex-direction: column; align-items: flex-start; }
+  .t-haveli-jharokha .hj-music { min-height: 2.9rem; padding: .5rem 1rem; font-size: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-haveli-jharokha *, .t-haveli-jharokha *::before, .t-haveli-jharokha *::after { animation: none !important; transition: none !important; }
+  .t-haveli-jharokha [data-reveal] { opacity: 1; transform: none; }
+  .t-haveli-jharokha .hj-view-words { opacity: 1; transform: none; }
+  .t-haveli-jharokha .hj-shade svg { transform: none; }
+}
