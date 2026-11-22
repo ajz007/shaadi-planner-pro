@@ -1,0 +1,11 @@
+.family-pass-entry {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: .85rem;
+  width: min(100%, 42rem);
+  margin-inline: auto;
+}
+
+.family-pass-checkout .workspace-fields > button { justify-self: start; }
+.family-pass-preview > button { max-width: 100%; white-space: normal; text-align: left; }
+.family-pass-preview .studio-preview { margin-top: 1.5rem; }

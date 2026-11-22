@@ -21,19 +21,20 @@ type checkoutInfo struct {
 }
 
 type purchaseStatus struct {
-	State              string        `json:"state"`
-	Test               bool          `json:"test"`
-	Payment            string        `json:"payment,omitempty"`
-	Product            string        `json:"product"`
-	Checkout           *checkoutInfo `json:"checkout,omitempty"`
-	IncludesEssentials bool          `json:"includesEssentials,omitempty"`
+	State         string        `json:"state"`
+	Test          bool          `json:"test"`
+	Payment       string        `json:"payment,omitempty"`
+	Product       string        `json:"product"`
+	Checkout      *checkoutInfo `json:"checkout,omitempty"`
+	BundleProduct string        `json:"bundleProduct,omitempty"`
 }
 
 func (s *Shop) purchaseState(p purchase, state, payment string) purchaseStatus {
-	return purchaseStatus{
-		State: state, Test: s.mode == "test", Payment: payment, Product: p.Product,
-		IncludesEssentials: p.Product == familyPassID && p.IncludesEssentials && state != "refunded",
+	out := purchaseStatus{State: state, Test: s.mode == "test", Payment: payment, Product: p.Product}
+	if p.Product == familyPassID && state != "refunded" {
+		out.BundleProduct = p.BundleProduct
 	}
+	return out
 }
 
 func (s *Shop) readPurchase(w http.ResponseWriter, r *http.Request, code string) (string, purchase) {
@@ -100,7 +101,7 @@ func (s *Shop) status(w http.ResponseWriter, r *http.Request) {
 	}
 	out := s.purchaseState(p, "pending", "")
 	if !waiting && ((s.acceptOrders && p.Product != product && s.packages[p.Product] != nil) ||
-		(p.Product == familyPassID && s.acceptFamilyPass && (!p.IncludesEssentials || s.packages[essentialsID] != nil))) {
+		(p.Product == familyPassID && s.acceptFamilyPass && (p.BundleProduct == "" || s.packages[p.BundleProduct] != nil))) {
 		out.Checkout = &checkoutInfo{Key: s.gateway.key, Order: id, Email: p.Email, Amount: p.Amount, Currency: p.Currency}
 	}
 	httpx.Reply(w, 200, out)

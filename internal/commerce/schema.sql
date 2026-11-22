@@ -18,6 +18,7 @@ CREATE INDEX IF NOT EXISTS excel_orders_buyer ON excel_orders (mode, buyer_email
 ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS workspace_account_id uuid;
 ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS refunded_at timestamptz;
 ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS includes_essentials boolean NOT NULL DEFAULT false;
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS bundle_product text;
 CREATE INDEX IF NOT EXISTS family_pass_orders ON excel_orders (workspace_account_id, mode, created_at DESC)
     WHERE workspace_account_id IS NOT NULL;
 

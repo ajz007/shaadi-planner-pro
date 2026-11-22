@@ -88,13 +88,13 @@ const features = [
 ]
 
 export function OnlinePlanner() {
-  const [offer, setOffer] = useState({ onSale: false, includesEssentials: false })
+  const [offer, setOffer] = useState({ onSale: false, includesComplete: false })
   useEffect(() => {
     document.title = 'Online Wedding Planner | ShaadiPlannerPro'
     const controller = new AbortController()
     fetch('/api/excel/shop', { signal: controller.signal })
       .then(response => response.json()).then(shop => setOffer({
-        onSale: shop.familyPassOnSale === true, includesEssentials: shop.familyPassIncludesEssentials === true,
+        onSale: shop.familyPassOnSale === true, includesComplete: shop.familyPassOnSale === true && shop.familyPassCompleteAvailable === true,
       })).catch(() => {})
     return () => controller.abort()
   }, [])
@@ -106,10 +106,10 @@ export function OnlinePlanner() {
         <h1 id="online-title">An invitation they’ll love.<br /><em>A plan your family can share.</em></h1>
         <p className="online-lede">From the first “we’ll be there” to the last airport pickup. Bring your invitations, guests and wedding-day details together.</p>
         <div className="online-actions">
-          <a className="online-primary" href="/#workspace/setup">Preview your invitation <span aria-hidden="true">↗</span></a>
+          <a className="online-primary" href="/#workspace/setup">Get a Family Pass <span aria-hidden="true">↗</span></a>
           <a className="online-secondary" href="#invitation-demo">Open a sample invitation <span aria-hidden="true">↓</span></a>
         </div>
-        <p className="online-small">Free private preview. {rupees(weddingPass.amount)} once to activate one wedding.</p>
+        <p className="online-small">{rupees(weddingPass.amount)} once per wedding. Invitation preview available before you buy.</p>
         <div className="online-hero-footnote"><span>One wedding.</span><span>Every function.</span><span>Your whole family.</span></div>
       </div>
       <InvitationDemo />
@@ -146,9 +146,9 @@ export function OnlinePlanner() {
     <section className="online-pass" aria-labelledby="online-pass-title">
       <div><p className="online-eyebrow">{offer.onSale ? "FAMILY PASS" : "FAMILY PASS PREVIEW"}</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>
         <p>Share invitations and manage RSVPs, rooms, pickups and budgets with your family from one wedding workspace.</p>
-        {offer.includesEssentials && <p>Includes English Excel Essentials at no extra cost.</p>}</div>
+        {offer.includesComplete && <p>Includes the English Complete bundle at no extra cost, with the Excel planner, vendor negotiation toolkit, and WhatsApp and RSVP message templates.</p>}</div>
       <div className="online-pass-price"><strong>{rupees(weddingPass.amount)}</strong><span>one-time price per wedding</span>
-        <a className="online-primary" href="/#workspace/setup">Preview your invitation <span aria-hidden="true">↗</span></a></div>
+        <a className="online-primary" href="/#workspace/setup">Get a Family Pass <span aria-hidden="true">↗</span></a></div>
     </section>
     <div className="online-faq">
       <details><summary>Can guests reply without an account?</summary><p>Yes. Guests open their private household invitation on their phone and reply to the functions they’re invited to.</p></details>

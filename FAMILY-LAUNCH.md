@@ -6,7 +6,7 @@ Sell one Family Pass at ₹2,999 for one wedding, including its functions, digit
 
 Razorpay checkout is tied to the signed-in workspace account. The receipt email is a contact address. A verified capture records payment and grants one Family Pass in the same transaction. One pass is consumed in the same transaction as blank creation or import confirmation. An existing pending order can be resumed from wedding setup, and a captured but unused pass appears there after sign-in. Family members can still join a wedding for free, and guests can RSVP without a login.
 
-New Family Pass orders include the English Excel Essentials ZIP when `essentials-en-v1` is loaded by the shop. Keep that package in `SHAADI_SHOP_PRODUCTS` (the default) and its approved S3 object available for repeat downloads. The purchase page and receipt use the same private link for the included download. Paid orders retain their recorded bundle eligibility, and full refunds close download access.
+New Family Pass orders include the English Complete ZIP. Include `complete-en-v1` in `SHAADI_SHOP_PRODUCTS` and use the approved S3 object at `shop/complete-en-v1/Shaadi_Planner_Pro_Complete_English_v1.0.zip`. New pass orders are paused when the package is unavailable. Keep `essentials-en-v1` loaded alongside it for earlier orders with the Essentials bundle. The purchase page and receipt use the same private download link. A full refund closes download access.
 
 ## Before enabling live Family Pass orders
 
