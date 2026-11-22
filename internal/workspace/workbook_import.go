@@ -290,12 +290,12 @@ func excelClock(value string) (string, bool) {
 	return fmt.Sprintf("%02d:%02d", minutes/60, minutes%60), true
 }
 
-func parseEnglishWorkbook(content []byte, zone string) (importedWorkbook, []importIssue, error) {
-	result := importedWorkbook{TimeZone: zone}
-	book, err := newXLSX(content)
-	if err != nil {
-		return result, nil, err
-	}
+type xlsxSheet struct {
+	name string
+	file string
+}
+
+func (b *xlsxReader) sheets() ([]xlsxSheet, bool, error) {
 	var index struct {
 		Properties struct {
 			Date1904 string `xml:"date1904,attr"`
@@ -312,14 +312,11 @@ func parseEnglishWorkbook(content []byte, zone string) (importedWorkbook, []impo
 			Mode   string `xml:"TargetMode,attr"`
 		} `xml:"Relationship"`
 	}
-	if err := book.read("xl/workbook.xml", &index); err != nil {
-		return result, nil, err
+	if err := b.read("xl/workbook.xml", &index); err != nil {
+		return nil, false, err
 	}
-	if index.Properties.Date1904 == "1" || strings.EqualFold(index.Properties.Date1904, "true") {
-		return result, nil, errors.New("the English launch template uses the Excel 1900 date system")
-	}
-	if err := book.read("xl/_rels/workbook.xml.rels", &relations); err != nil {
-		return result, nil, err
+	if err := b.read("xl/_rels/workbook.xml.rels", &relations); err != nil {
+		return nil, false, err
 	}
 	paths := make(map[string]string)
 	for _, item := range relations.Items {
@@ -334,12 +331,36 @@ func parseEnglishWorkbook(content []byte, zone string) (importedWorkbook, []impo
 			paths[item.ID] = target
 		}
 	}
-	sheets := make(map[string]string)
+	sheets := make([]xlsxSheet, 0, len(index.Sheets))
+	seen := make(map[string]bool)
 	for _, sheet := range index.Sheets {
-		if _, exists := sheets[sheet.Name]; exists {
-			return result, nil, errors.New("the workbook contains duplicate sheet names")
+		if seen[sheet.Name] {
+			return nil, false, errors.New("the workbook contains duplicate sheet names")
 		}
-		sheets[sheet.Name] = paths[sheet.Relation]
+		seen[sheet.Name] = true
+		if file := paths[sheet.Relation]; file != "" {
+			sheets = append(sheets, xlsxSheet{sheet.Name, file})
+		}
+	}
+	return sheets, index.Properties.Date1904 == "1" || strings.EqualFold(index.Properties.Date1904, "true"), nil
+}
+
+func parseEnglishWorkbook(content []byte, zone string) (importedWorkbook, []importIssue, error) {
+	result := importedWorkbook{TimeZone: zone}
+	book, err := newXLSX(content)
+	if err != nil {
+		return result, nil, err
+	}
+	worksheets, date1904, err := book.sheets()
+	if err != nil {
+		return result, nil, err
+	}
+	if date1904 {
+		return result, nil, errors.New("the English launch template uses the Excel 1900 date system")
+	}
+	sheets := make(map[string]string, len(worksheets))
+	for _, sheet := range worksheets {
+		sheets[sheet.name] = sheet.file
 	}
 	// Load only the field definitions, then discard the embedded sample rows.
 	var headerContract struct {

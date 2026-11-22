@@ -178,22 +178,35 @@ func (a *workspaceHTTP) saveGuest(w http.ResponseWriter, r *http.Request, actor 
 		return
 	}
 	ctx := r.Context()
+	tx, err := a.store.db.BeginTx(ctx, nil)
+	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	defer tx.Rollback()
+	if err := lockGuestIdentity(ctx, tx, wedding, actor); err != nil {
+		workspaceFailure(w, err)
+		return
+	}
 	args := []any{wedding, actor, guest.Name, guest.Household, guest.Side, guest.RSVP, guest.ArrivalDate,
 		guest.ArrivalTime, guest.ArrivalMode, guest.TransportRequired, input.StayRequired}
 	if id == "" {
-		err := scanWorkspace(a.store.db.QueryRowContext(ctx, `
+		err = scanWorkspace(tx.QueryRowContext(ctx, `
 			INSERT INTO wedding_guests (wedding_id, workbook_id, name, household, side, wedding_rsvp,
 				arrival_date, arrival_time, arrival_mode, transport_required, stay_required)
 			SELECT wedding_id, 'G-' || gen_random_uuid()::text, $3, $4, $5, $6,
 				NULLIF($7, '')::date, NULLIF($8, '')::time, $9, $10, COALESCE($11, '')
 			FROM wedding_memberships WHERE wedding_id = $1 AND account_id = $2 AND role IN ('owner', 'co-organizer')
 			RETURNING id`, args...), &id)
+		if err == nil {
+			err = tx.Commit()
+		}
 		workspaceCreated(w, id, err)
 		return
 	}
 	args = append(args, id, guest.Revision)
 	var revision int
-	err := scanWorkspace(a.store.db.QueryRowContext(ctx, `
+	err = scanWorkspace(tx.QueryRowContext(ctx, `
 		UPDATE wedding_guests g SET name = $3, household = $4, side = $5, wedding_rsvp = $6,
 			arrival_date = NULLIF($7, '')::date, arrival_time = NULLIF($8, '')::time,
 			arrival_mode = $9, transport_required = $10, stay_required = COALESCE($11, g.stay_required), revision = g.revision + 1
@@ -202,7 +215,7 @@ func (a *workspaceHTTP) saveGuest(w http.ResponseWriter, r *http.Request, actor 
 		AND m.wedding_id = g.wedding_id AND m.account_id = $2 AND m.role IN ('owner', 'co-organizer')
 		RETURNING g.revision`, args...), &revision)
 	if err == errWorkspaceNotFound {
-		err = scanWorkspace(a.store.db.QueryRowContext(ctx, `
+		err = scanWorkspace(tx.QueryRowContext(ctx, `
 			SELECT g.revision FROM wedding_guests g JOIN wedding_memberships m ON m.wedding_id = g.wedding_id
 			WHERE g.wedding_id = $1 AND m.account_id = $2 AND g.id = $3 AND m.role IN ('owner', 'co-organizer')`, wedding, actor, id), &revision)
 		if err == nil {
@@ -210,6 +223,10 @@ func (a *workspaceHTTP) saveGuest(w http.ResponseWriter, r *http.Request, actor 
 		}
 	}
 	if err != nil {
+		workspaceFailure(w, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
 		workspaceFailure(w, err)
 		return
 	}
