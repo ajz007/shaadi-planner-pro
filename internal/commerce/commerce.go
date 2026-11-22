@@ -219,7 +219,7 @@ func (s *Shop) createOrder(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, 400, "Enter a valid email for your receipt.")
 		return
 	}
-	id, err := s.openOrder(r.Context(), s.db, item, email, nil, s.orderAttribution(input.Meta))
+	id, err := s.openOrder(r.Context(), s.db, item, email, nil, s.orderAttribution(input.Meta, r.UserAgent()))
 	if err != nil {
 		s.fail(w)
 		return

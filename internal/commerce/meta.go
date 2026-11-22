@@ -21,6 +21,7 @@ type metaEvents struct {
 	client    *http.Client
 }
 type metaAttribution struct {
+	UserAgent string `json:"client_user_agent,omitempty"`
 	FBP      string `json:"fbp,omitempty"`
 	FBC      string `json:"fbc,omitempty"`
 	Campaign string `json:"utm_campaign,omitempty"`
@@ -48,9 +49,13 @@ func browserMetaID() string {
 	}
 	return id
 }
-func (s *Shop) orderAttribution(a *metaAttribution) *string {
+func (s *Shop) orderAttribution(a *metaAttribution, userAgent string) *string {
 	if a == nil || s.meta == nil {
 		return nil
+	}
+	a.UserAgent = strings.ToValidUTF8(strings.TrimSpace(userAgent), "")
+	if len(a.UserAgent) > 1024 {
+		a.UserAgent = strings.ToValidUTF8(a.UserAgent[:1024], "")
 	}
 	for _, field := range []*string{&a.FBP, &a.FBC} {
 		if !metaCookie.MatchString(*field) {
@@ -118,6 +123,9 @@ func (s *Shop) sendMetaPurchase(ctx context.Context) (bool, error) {
 	}
 	hash := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
 	user := map[string]any{"em": []string{hex.EncodeToString(hash[:])}}
+	if a.UserAgent != "" {
+		user["client_user_agent"] = a.UserAgent
+	}
 	if a.FBP != "" {
 		user["fbp"] = a.FBP
 	}
