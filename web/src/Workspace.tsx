@@ -453,10 +453,25 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
     }
   }
 
+  async function signOut() {
+    setBusy(true)
+    setError('')
+    try {
+      await workspaceRequest('/logout', {})
+      clearInvite()
+      // Moving between hashes keeps the account navigation cache alive.
+      window.history.replaceState(null, '', '/')
+      window.location.reload()
+    } catch (failure) {
+      setError(errorText(failure))
+      setBusy(false)
+    }
+  }
+
   const accountBar = session?.name && <div className="focus-heading workspace-topline">
     {(weddingID || setup) && <a href="#workspace">← My weddings</a>}
-    <span><span className="wedding-account-name">Signed in as {session.name} · </span><button className="focus-secondary" disabled={busy}
-      onClick={() => void workspaceRequest('/logout', {}).then(() => window.location.assign('/')).catch(error => setError(errorText(error)))}>Sign out</button></span>
+    <span><span className="wedding-account-name">Signed in as {session.name} · </span><button type="button" className="focus-secondary" disabled={busy}
+      onClick={() => void signOut()}>{busy ? 'Signing out…' : 'Sign out'}</button></span>
   </div>
   if (session?.name && weddingID && plan?.wedding.id === weddingID) {
     return <WeddingWorkspace key={weddingID} plan={plan} section={section} layout={layout}

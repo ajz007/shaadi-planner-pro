@@ -93,6 +93,7 @@ func TestFamilyPassUpgradeAndRetention(t *testing.T) {
 		t.Fatalf("invalid wedding creation response: %v", err)
 	}
 	paidWedding := created.ID
+	t.Run("sign out and switch accounts", func(t *testing.T) { verifyWorkspaceAccountSwitch(t, ctx, store, paidWedding) })
 	if _, err := store.createWedding(ctx, owner, "Second wedding", date, "Asia/Kolkata"); !errors.Is(err, errFamilyPassRequired) {
 		t.Fatalf("reuse of the consumed pass: %v", err)
 	}
@@ -125,5 +126,79 @@ func TestFamilyPassUpgradeAndRetention(t *testing.T) {
 	if err != nil || !invitationPreserved || !paidRemoved || !passStillConsumed {
 		t.Fatalf("after cleanup: legacy invitation preserved=%t, paid wedding removed=%t, pass still consumed=%t: %v",
 			invitationPreserved, paidRemoved, passStillConsumed, err)
+	}
+}
+
+func verifyWorkspaceAccountSwitch(t *testing.T, ctx context.Context, store *workspaceStore, wedding string) {
+	const origin = "https://planner.example.test"
+	app := &workspaceHTTP{store: store, origin: origin, login: testWorkspaceLogin{prefix: "upgrade-test:auth:"}}
+	mux := http.NewServeMux()
+	app.Register(mux)
+	request := func(method, path, source string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, origin+path, nil).WithContext(ctx)
+		if source != "" {
+			req.Header.Set("Origin", source)
+		}
+		for _, cookie := range cookies {
+			req.AddCookie(cookie)
+		}
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, req)
+		return response
+	}
+	signIn := func(code string) *http.Cookie {
+		t.Helper()
+		start := request(http.MethodGet, "/auth/google/start", "")
+		cookies := start.Result().Cookies()
+		if start.Code != http.StatusSeeOther || len(cookies) != 1 {
+			t.Fatalf("sign-in start: %d, cookies=%d", start.Code, len(cookies))
+		}
+		state, _, _ := strings.Cut(cookies[0].Value, ".")
+		callback := request(http.MethodGet, "/auth/google/callback?state="+state+"&code="+code, "", cookies[0])
+		if callback.Code != http.StatusSeeOther {
+			t.Fatalf("sign-in callback: %d", callback.Code)
+		}
+		for _, cookie := range callback.Result().Cookies() {
+			if cookie.Name == workspaceSessionCookie && cookie.MaxAge > 0 {
+				return cookie
+			}
+		}
+		t.Fatal("sign-in did not issue a session cookie")
+		return nil
+	}
+
+	first := signIn("first")
+	if response := request(http.MethodPost, "/api/workspace/logout", "https://other.example.test", first); response.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin sign-out returned %d", response.Code)
+	}
+	if response := request(http.MethodGet, "/api/workspace/weddings", "", first); response.Code != http.StatusOK {
+		t.Fatalf("valid session returned %d", response.Code)
+	}
+	for range 2 {
+		response := request(http.MethodPost, "/api/workspace/logout", origin, first)
+		if response.Code != http.StatusNoContent {
+			t.Fatalf("sign-out returned %d", response.Code)
+		}
+		cleared := false
+		for _, cookie := range response.Result().Cookies() {
+			if cookie.Name == workspaceSessionCookie && cookie.MaxAge < 0 && cookie.Path == "/" {
+				cleared = true
+			}
+		}
+		if !cleared {
+			t.Fatal("sign-out did not expire the workspace cookie")
+		}
+	}
+	if response := request(http.MethodGet, "/api/workspace/weddings", "", first); response.Code != http.StatusUnauthorized {
+		t.Fatalf("signed-out session returned %d", response.Code)
+	}
+	second := signIn("second")
+	response := request(http.MethodGet, "/api/workspace/session", "", second)
+	var session struct{ Name string }
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &session) != nil || session.Name != "second" {
+		t.Fatal("second sign-in did not use the second account")
+	}
+	if response := request(http.MethodGet, "/api/workspace/weddings/"+wedding, "", second); response.Code != http.StatusNotFound {
+		t.Fatalf("second account's request for another family's wedding returned %d", response.Code)
 	}
 }

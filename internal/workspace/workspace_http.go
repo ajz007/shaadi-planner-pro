@@ -155,7 +155,7 @@ func (a *workspaceHTTP) Register(mux *http.ServeMux) {
 		})
 		mux.HandleFunc("GET /auth/google/callback", a.finishLogin)
 	}
-	mux.HandleFunc("POST /api/workspace/logout", a.protected(func(w http.ResponseWriter, r *http.Request, _ string) { a.logout(w, r) }))
+	mux.HandleFunc("POST /api/workspace/logout", a.logout)
 	mux.HandleFunc("GET /api/workspace/weddings", a.protected(a.weddings))
 	mux.HandleFunc("POST /api/workspace/weddings", a.protected(a.create))
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}", a.protected(a.view))
