@@ -88,12 +88,14 @@ const features = [
 ]
 
 export function OnlinePlanner() {
-  const [onSale, setOnSale] = useState(false)
+  const [offer, setOffer] = useState({ onSale: false, includesEssentials: false })
   useEffect(() => {
     document.title = 'Online Wedding Planner | ShaadiPlannerPro'
     const controller = new AbortController()
     fetch('/api/excel/shop', { signal: controller.signal })
-      .then(response => response.json()).then(shop => setOnSale(shop.familyPassOnSale === true)).catch(() => {})
+      .then(response => response.json()).then(shop => setOffer({
+        onSale: shop.familyPassOnSale === true, includesEssentials: shop.familyPassIncludesEssentials === true,
+      })).catch(() => {})
     return () => controller.abort()
   }, [])
   return <main className="public-shell online-planner">
@@ -142,8 +144,9 @@ export function OnlinePlanner() {
       <a href="/#workspace/setup">Start your wedding <span aria-hidden="true">↗</span></a>
     </section>
     <section className="online-pass" aria-labelledby="online-pass-title">
-      <div><p className="online-eyebrow">{onSale ? "FAMILY PASS" : "FAMILY PASS PREVIEW"}</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>
-        <p>Share invitations and manage RSVPs, rooms, pickups and budgets with your family from one wedding workspace.</p></div>
+      <div><p className="online-eyebrow">{offer.onSale ? "FAMILY PASS" : "FAMILY PASS PREVIEW"}</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>
+        <p>Share invitations and manage RSVPs, rooms, pickups and budgets with your family from one wedding workspace.</p>
+        {offer.includesEssentials && <p>Includes English Excel Essentials at no extra cost.</p>}</div>
       <div className="online-pass-price"><strong>{rupees(weddingPass.amount)}</strong><span>one-time price per wedding</span>
         <a className="online-primary" href="/#workspace/setup">Preview your invitation <span aria-hidden="true">↗</span></a></div>
     </section>

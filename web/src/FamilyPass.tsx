@@ -7,7 +7,7 @@ import { workspaceRequest } from './WorkspaceData'
 import { WorkspaceImport } from './WorkspaceImport'
 
 type Draft = { bride: string; groom: string; date: string; function: string; functionTime: string }
-type Status = { available: boolean; onSale: boolean; testCodeRequired: boolean; orderCode?: string }
+type Status = { available: boolean; onSale: boolean; testCodeRequired: boolean; includesEssentials?: boolean; orderCode?: string }
 const emptyDraft: Draft = { bride: '', groom: '', date: '', function: 'Wedding', functionTime: '' }
 const template = templateFor(defaultTemplateId)
 const checkoutURL = (code: string) => '/shop/purchase#' + code
@@ -117,6 +117,7 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
     {!passReady && <section className="focus-card">
       <h2>Family Pass · {rupees(weddingPass.amount)} once per wedding</h2>
       <p>Includes all functions in one wedding, family collaboration, household invitations, RSVPs, rooms, pickups, budget and Excel export.</p>
+      {status?.onSale && status.includesEssentials && <p>Includes English Excel Essentials at no extra cost.</p>}
       {!status && !error && <p role="status">Checking your Family Pass.</p>}
       {status?.orderCode ? <a className="package-button" href={checkoutURL(status.orderCode)}>Return to checkout or check payment</a> :
         status?.onSale ? <form className="workspace-fields" onSubmit={event => void purchase(event)}>

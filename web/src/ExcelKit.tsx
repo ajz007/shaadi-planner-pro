@@ -8,7 +8,7 @@ import { ProductImage } from './ProductImage'
 import './excel-kit.css'
 
 type Checkout = { key: string; order: string; email: string; amount: number; currency: string }
-type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; checkout?: Checkout; payment?: string; product: string }
+type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; includesEssentials?: boolean; checkout?: Checkout; payment?: string; product: string }
 type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean }
 type Confirmation = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
 type Razorpay = new (options: {
@@ -283,7 +283,11 @@ export function ShopPurchase({ code }: { code: string }) {
         <h2>Payment confirmed</h2>
         {purchase.product === 'wedding-pass' ? <>
           <p>Your Family Pass is ready. Open wedding setup with the Google account used to purchase it.</p>
-          <a className="shop-primary" href="/#workspace/setup">Continue wedding setup</a>
+          <div className="excel-status-actions">
+            <a className="shop-primary" href="/#workspace/setup">Continue wedding setup</a>
+            {purchase.includesEssentials && <button className="secondary" disabled={Boolean(busy)} onClick={download}>Download Excel Essentials</button>}
+          </div>
+          {purchase.includesEssentials && <p>Excel Essentials is included with your pass. Your receipt links back to this download.</p>}
         </> : <>
           <p>Your download is ready. Keep your emailed receipt to download it again.</p>
           <button disabled={Boolean(busy)} onClick={download}>Download your purchase</button>
@@ -291,6 +295,7 @@ export function ShopPurchase({ code }: { code: string }) {
         <p className="excel-reference">Razorpay reference {purchase.payment}</p>
       </> : <>
         {purchase && <h2>{purchase.checkout ? 'Ready to pay' : 'Payment awaiting confirmation'}</h2>}
+        {purchase?.includesEssentials && <p>Includes English Excel Essentials at no extra cost.</p>}
         {purchase?.checkout && <button disabled={Boolean(busy)} onClick={pay}>Pay {rupees(purchase.checkout.amount)} with Razorpay</button>}
         {purchase && !purchase.checkout && <p>Access unlocks after Razorpay confirms the payment. If you just paid, check again in a moment.</p>}
         <div className="excel-status-actions">

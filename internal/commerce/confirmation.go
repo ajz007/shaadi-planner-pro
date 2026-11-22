@@ -21,11 +21,19 @@ type checkoutInfo struct {
 }
 
 type purchaseStatus struct {
-	State    string        `json:"state"`
-	Test     bool          `json:"test"`
-	Payment  string        `json:"payment,omitempty"`
-	Product  string        `json:"product"`
-	Checkout *checkoutInfo `json:"checkout,omitempty"`
+	State              string        `json:"state"`
+	Test               bool          `json:"test"`
+	Payment            string        `json:"payment,omitempty"`
+	Product            string        `json:"product"`
+	Checkout           *checkoutInfo `json:"checkout,omitempty"`
+	IncludesEssentials bool          `json:"includesEssentials,omitempty"`
+}
+
+func (s *Shop) purchaseState(p purchase, state, payment string) purchaseStatus {
+	return purchaseStatus{
+		State: state, Test: s.mode == "test", Payment: payment, Product: p.Product,
+		IncludesEssentials: p.Product == familyPassID && p.IncludesEssentials && state != "refunded",
+	}
 }
 
 func (s *Shop) readPurchase(w http.ResponseWriter, r *http.Request, code string) (string, purchase) {
@@ -55,11 +63,11 @@ func (s *Shop) status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if p.RefundedAt.Valid {
-		httpx.Reply(w, 200, purchaseStatus{State: "refunded", Test: s.mode == "test", Payment: p.Payment, Product: p.Product})
+		httpx.Reply(w, 200, s.purchaseState(p, "refunded", p.Payment))
 		return
 	}
 	if p.PaidAt.Valid {
-		httpx.Reply(w, 200, purchaseStatus{State: "paid", Test: s.mode == "test", Payment: p.Payment, Product: p.Product})
+		httpx.Reply(w, 200, s.purchaseState(p, "paid", p.Payment))
 		return
 	}
 
@@ -86,13 +94,13 @@ func (s *Shop) status(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if paid {
-			httpx.Reply(w, 200, purchaseStatus{State: "paid", Test: s.mode == "test", Payment: pay.ID, Product: p.Product})
+			httpx.Reply(w, 200, s.purchaseState(p, "paid", pay.ID))
 			return
 		}
 	}
-	out := purchaseStatus{State: "pending", Test: s.mode == "test", Product: p.Product}
+	out := s.purchaseState(p, "pending", "")
 	if !waiting && ((s.acceptOrders && p.Product != product && s.packages[p.Product] != nil) ||
-		(p.Product == familyPassID && s.acceptFamilyPass)) {
+		(p.Product == familyPassID && s.acceptFamilyPass && (!p.IncludesEssentials || s.packages[essentialsID] != nil))) {
 		out.Checkout = &checkoutInfo{Key: s.gateway.key, Order: id, Email: p.Email, Amount: p.Amount, Currency: p.Currency}
 	}
 	httpx.Reply(w, 200, out)
@@ -114,11 +122,11 @@ func (s *Shop) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if p.RefundedAt.Valid {
-		httpx.Reply(w, 200, purchaseStatus{State: "refunded", Test: s.mode == "test", Payment: p.Payment, Product: p.Product})
+		httpx.Reply(w, 200, s.purchaseState(p, "refunded", p.Payment))
 		return
 	}
 	if p.PaidAt.Valid {
-		httpx.Reply(w, 200, purchaseStatus{State: "paid", Test: s.mode == "test", Payment: p.Payment, Product: p.Product})
+		httpx.Reply(w, 200, s.purchaseState(p, "paid", p.Payment))
 		return
 	}
 	var pay payment
@@ -135,7 +143,7 @@ func (s *Shop) finishConfirmation(w http.ResponseWriter, r *http.Request, id str
 		s.fail(w)
 		return
 	}
-	out := purchaseStatus{State: "pending", Test: s.mode == "test", Product: p.Product}
+	out := s.purchaseState(p, "pending", "")
 	if paid {
 		out.State, out.Payment = "paid", pay.ID
 	}

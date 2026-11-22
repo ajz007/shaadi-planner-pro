@@ -68,11 +68,12 @@ func (s *Shop) sendReceipt(ctx context.Context) (bool, error) {
 	var id, email, payID, productID, currency string
 	var version, amount int
 	var paid time.Time
+	var bundleDownload bool
 	err = tx.QueryRowContext(ctx, `SELECT razorpay_order_id, buyer_email, razorpay_payment_id, paid_at, receipt_version,
-		product, amount_paise, currency
+		product, amount_paise, currency, includes_essentials AND refunded_at IS NULL
 		FROM excel_orders WHERE mode=$1 AND receipt_due_at<=now()
 		ORDER BY receipt_due_at LIMIT 1 FOR UPDATE SKIP LOCKED`, s.mode).
-		Scan(&id, &email, &payID, &paid, &version, &productID, &amount, &currency)
+		Scan(&id, &email, &payID, &paid, &version, &productID, &amount, &currency, &bundleDownload)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -86,6 +87,9 @@ func (s *Shop) sendReceipt(ctx context.Context) (bool, error) {
 	if productID == familyPassID {
 		text = fmt.Sprintf("Shaadi Planner Pro Family Pass\nOne-time payment: %s %d.%02d\nDate: %s\nRazorpay payment: %s\n\nSign in with the Google account you used to buy the pass:\n%s/#workspace/setup\n",
 			currency, amount/100, amount%100, paid.In(india).Format("2 Jan 2006, 15:04 MST"), payID, s.origin)
+		if bundleDownload {
+			text += fmt.Sprintf("\nYour pass includes Excel Essentials at no extra cost. Download it from your private purchase page:\n%s/shop/purchase#%s\n\nKeep this link private. You can request your receipt again from Find a purchase in the shop.\n", s.origin, s.accessCode(id))
+		}
 	}
 	if s.mode == "test" {
 		text = "Test purchase. No money was charged.\n\n" + text
