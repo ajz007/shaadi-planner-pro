@@ -21,6 +21,10 @@ import (
 
 func main() {
 	if len(os.Args) > 1 {
+		if os.Args[1] == "grant-family-pass" {
+			grantFamilyPass()
+			return
+		}
 		if len(os.Args) != 2 || os.Args[1] != "migrate-workspace" {
 			log.Fatal("Usage: go run ./cmd/shaadi-planner [migrate-workspace]")
 		}

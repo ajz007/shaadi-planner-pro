@@ -66,9 +66,16 @@ func TestFamilyPassUpgradeAndRetention(t *testing.T) {
 	if _, err := store.createWedding(ctx, owner, "Without a pass", date, "Asia/Kolkata"); !errors.Is(err, errFamilyPassRequired) {
 		t.Fatalf("creation without a pass: %v", err)
 	}
-	if _, err := store.db.ExecContext(ctx, `INSERT INTO family_passes (account_id, source, mode)
-		VALUES ($1, 'upgrade-test:pass', 'test')`, owner); err != nil {
-		t.Fatal(err)
+	id, granted, err := GrantFamilyPass(ctx, connection, "test", owner, "upgrade-test-pass")
+	if err != nil || !granted || id == "" {
+		t.Fatalf("grant pilot pass: id=%q granted=%t, %v", id, granted, err)
+	}
+	retryID, granted, err := GrantFamilyPass(ctx, connection, "test", owner, "upgrade-test-pass")
+	if err != nil || granted || retryID != id {
+		t.Fatalf("grant retry: id=%q granted=%t, %v", retryID, granted, err)
+	}
+	if _, _, err := GrantFamilyPass(ctx, connection, "live", owner, "upgrade-test-pass"); err == nil {
+		t.Fatal("the same case must not grant a pass in a different mode")
 	}
 	// A browser kept open during the deploy may still send the date twice.
 	body := fmt.Sprintf(`{"name":"Paid wedding","date":%q,"timeZone":"Asia/Kolkata",
@@ -113,7 +120,7 @@ func TestFamilyPassUpgradeAndRetention(t *testing.T) {
 	err = store.db.QueryRowContext(ctx, `SELECT
 		EXISTS (SELECT 1 FROM wedding_invitations WHERE wedding_id=$1 AND published->>'templateId'='blush-envelope'),
 		NOT EXISTS (SELECT 1 FROM weddings WHERE id=$2),
-		EXISTS (SELECT 1 FROM family_passes WHERE source='upgrade-test:pass' AND wedding_id IS NULL AND consumed_at IS NOT NULL)`,
+		EXISTS (SELECT 1 FROM family_passes WHERE source='support:upgrade-test-pass' AND wedding_id IS NULL AND consumed_at IS NOT NULL)`,
 		legacyWedding, paidWedding).Scan(&invitationPreserved, &paidRemoved, &passStillConsumed)
 	if err != nil || !invitationPreserved || !paidRemoved || !passStillConsumed {
 		t.Fatalf("after cleanup: legacy invitation preserved=%t, paid wedding removed=%t, pass still consumed=%t: %v",
