@@ -41,6 +41,7 @@ var (
 )
 
 type Shop struct {
+	meta                                    *metaEvents
 	db                                      *sql.DB
 	gateway                                 gateway
 	mode, origin, linkSecret, webhookSecret string
@@ -101,7 +102,7 @@ func Configure(ctx context.Context, origin string) (*Shop, error) {
 	}
 	client := &http.Client{Timeout: 5 * time.Second}
 	return &Shop{
-		db: db, mode: mode, origin: origin, linkSecret: linkSecret, webhookSecret: webhookSecret,
+		meta: configuredMeta(mode), db: db, mode: mode, origin: origin, linkSecret: linkSecret, webhookSecret: webhookSecret,
 		gateway:    gateway{"https://api.razorpay.com/v1", key, secret, client},
 		mailer:     receiptMailer{client: sesv2.NewFromConfig(cfg), from: emailFrom, replyTo: replyTo},
 		testAccess: testAccess,
@@ -138,6 +139,7 @@ func (s *Shop) Register(mux *http.ServeMux) {
 			}
 		}
 		httpx.Reply(w, 200, map[string]any{
+			"metaPixelID":             s.metaID(),
 			"available":               false, // The retired Excel Kit cannot be ordered by older clients.
 			"products":                products,
 			"test":                    s != nil && s.mode == "test",
@@ -196,7 +198,10 @@ func (s *Shop) createOrder(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, 503, "New orders are paused.")
 		return
 	}
-	var input struct{ Email, TestAccess, Product string }
+	var input struct {
+		Email, TestAccess, Product string
+		Meta *metaAttribution
+	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
@@ -214,7 +219,7 @@ func (s *Shop) createOrder(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, 400, "Enter a valid email for your receipt.")
 		return
 	}
-	id, err := s.openOrder(r.Context(), s.db, item, email, nil)
+	id, err := s.openOrder(r.Context(), s.db, item, email, nil, s.orderAttribution(input.Meta))
 	if err != nil {
 		s.fail(w)
 		return
@@ -226,7 +231,7 @@ type orderWriter interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
-func (s *Shop) openOrder(ctx context.Context, db orderWriter, item listing, email string, account *string) (string, error) {
+func (s *Shop) openOrder(ctx context.Context, db orderWriter, item listing, email string, account *string, attribution *string) (string, error) {
 	receipt := "excel_" + rand.Text()
 	var order struct {
 		ID, Currency, Receipt string
@@ -245,8 +250,8 @@ func (s *Shop) openOrder(ctx context.Context, db orderWriter, item listing, emai
 		bundle = &id
 	}
 	_, err = db.ExecContext(ctx, `INSERT INTO excel_orders
-		(razorpay_order_id, mode, buyer_email, product, amount_paise, currency, workspace_account_id, bundle_product)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, order.ID, s.mode, email, item.ID, item.Amount, currency, account, bundle)
+		(razorpay_order_id, mode, buyer_email, product, amount_paise, currency, workspace_account_id, bundle_product, meta_attribution)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, order.ID, s.mode, email, item.ID, item.Amount, currency, account, bundle, attribution)
 	return order.ID, err
 }
 

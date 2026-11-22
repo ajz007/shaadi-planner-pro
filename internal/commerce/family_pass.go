@@ -115,7 +115,7 @@ func (s *Shop) CreateFamilyPassOrder(w http.ResponseWriter, r *http.Request, acc
 			s.fail(w)
 			return
 		}
-		order, err := s.openOrder(ctx, tx, item, email, &account)
+		order, err := s.openOrder(ctx, tx, item, email, &account, nil)
 		if err != nil {
 			s.fail(w)
 			return
