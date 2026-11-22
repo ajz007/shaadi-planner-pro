@@ -1,0 +1,23 @@
+.shop-measurement {
+  position: fixed;
+  inset: auto 1rem 1rem;
+  margin-inline: auto;
+  z-index: 30;
+  max-width: 44rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: 1rem;
+  border: 1px solid #c8b79f;
+  border-radius: .75rem;
+  background: #fffaf2;
+  color: #20372e;
+  box-shadow: 0 4px 20px #20372e22;
+}
+.shop-measurement p { margin: .25rem 0 0; font-size: .875rem; }
+.shop-measurement-actions { display: flex; gap: .5rem; }
+.shop-measurement-actions button { background: #fffaf2; border: 1px solid #20372e; color: #20372e; }
+.shop-measurement-settings { text-align: center; padding: .5rem 1rem 1rem; }
+.shop-measurement-settings button { background: transparent; color: inherit; text-decoration: underline; }

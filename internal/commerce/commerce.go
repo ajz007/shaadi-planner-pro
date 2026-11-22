@@ -139,7 +139,7 @@ func (s *Shop) Register(mux *http.ServeMux) {
 			}
 		}
 		httpx.Reply(w, 200, map[string]any{
-			"metaPixelID":             s.metaID(),
+			"metaPixelID":             browserMetaID(),
 			"available":               false, // The retired Excel Kit cannot be ordered by older clients.
 			"products":                products,
 			"test":                    s != nil && s.mode == "test",

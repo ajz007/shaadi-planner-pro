@@ -5,6 +5,7 @@ import { Planner } from './Planner'
 import { PublicFooter, PublicHome, PublicInfoPage, publicPages } from './PublicPages'
 import { DownloadProduct, ShopPurchase } from './ExcelKit'
 import { Shop, shopProduct, weddingPass } from './Shop'
+import { ShopMeasurement } from './ShopMeasurement'
 import { LiveGuestRSVP, LiveWeddingSchedule } from './GuestWeddingPage'
 import { lazy, Suspense } from 'react'
 const InvitationPreview = lazy(() => import('./invitation/InvitationPreview').then(module => ({ default: module.InvitationPreview })))
@@ -289,7 +290,14 @@ function App() {
   } else {
     page = hash ? <Planner rsvpDemo={<Organizer />} /> : <PublicHome />
   }
-  return <>{page}{path !== '/invitation-preview' && <PublicFooter />}</>
+  const content = <>{page}{path !== '/invitation-preview' && <PublicFooter />}</>
+  const section = hash.split('?')[0]
+  const demo = path === '/' && /^#demo(?:\/[a-z-]+)?$/.test(section)
+  const sample = path === '/' && section === '#dashboard'
+  const publicPage = (hash === '' && (path === '/' || path === '/shop' || !!item)) || demo || sample
+  return <ShopMeasurement pageKey={publicPage ? path + section : undefined} item={item} demo={demo || sample}>
+    {content}
+  </ShopMeasurement>
 }
 
 createRoot(document.getElementById('root')!).render(<App />)

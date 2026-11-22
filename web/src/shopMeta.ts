@@ -9,16 +9,30 @@ declare global { interface Window { fbq?: Pixel; _fbq?: Pixel } }
 
 const choiceKey = 'spp-meta-measurement'
 export function marketingChoice() {
-  try { return localStorage.getItem(choiceKey) === 'yes' } catch { return false }
+  try { return localStorage.getItem(choiceKey) } catch { return null }
 }
 export function rememberMarketing(enabled: boolean) {
   try { localStorage.setItem(choiceKey, enabled ? 'yes' : 'no') } catch { /* Current-page choice still applies. */ }
-  window.fbq?.('consent', enabled ? 'grant' : 'revoke')
+  if (!enabled) {
+    try { sessionStorage.removeItem(choiceKey) } catch { /* Storage may be unavailable. */ }
+  }
 }
 
 let initialized = ''
-let viewed = ''
+export function setPixelConsent(enabled: boolean) {
+  window.fbq?.('consent', enabled ? 'grant' : 'revoke')
+}
+
+export function trackPage(id: string, demo: boolean) {
+  track(id, 'PageView')
+  if (demo) track(id, 'PlannerDemoView', {}, true)
+}
+
 export function trackProduct(id: string, item: { id: string; amount: number }, event: 'ViewContent' | 'InitiateCheckout') {
+  track(id, event, { content_ids: [item.id], content_type: 'product', value: item.amount / 100, currency: 'INR' })
+}
+
+function track(id: string, event: string, data: object = {}, custom = false) {
   try {
     if (!/^\d+$/.test(id)) return
     if (!window.fbq) {
@@ -41,33 +55,36 @@ export function trackProduct(id: string, item: { id: string; amount: number }, e
       window.fbq('init', id)
       initialized = id
     }
-    if (event === 'ViewContent') {
-      if (viewed === item.id) return
-      viewed = item.id
-      window.fbq('trackSingle', id, 'PageView')
-    }
-    window.fbq('trackSingle', id, event, {
-      content_ids: [item.id], content_type: 'product', value: item.amount / 100, currency: 'INR',
-    })
+    window.fbq(custom ? 'trackSingleCustom' : 'trackSingle', id, event, data)
   } catch { /* Analytics must never interrupt checkout. */ }
 }
 
-export function attribution() {
+export function rememberAttribution() {
   const query = new URLSearchParams(location.search)
   const data: Record<string, string> = {}
   for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
     const value = query.get(key)
     if (value && /^[\w.-]{1,120}$/.test(value)) data[key] = value
   }
+  const click = query.get('fbclid')
+  if (click && /^[\w.-]{1,500}$/.test(click)) {
+    data.fbc = 'fb.1.' + Date.now() + '.' + click
+  }
+  if (Object.keys(data).length) {
+    try { sessionStorage.setItem(choiceKey, JSON.stringify(data)) } catch { /* Storage may be unavailable. */ }
+  }
+  return data
+}
+
+export function attribution() {
+  const current = rememberAttribution()
+  let data: Record<string, string> = current
+  try { data = JSON.parse(sessionStorage.getItem(choiceKey) || 'null') ?? current } catch { /* Storage may be unavailable. */ }
   try {
     for (const cookie of document.cookie.split('; ')) {
       const [name, value] = cookie.split('=')
-      if ((name === '_fbp' || name === '_fbc') && value) data[name.slice(1)] = value
+      if ((name === '_fbp' || name === '_fbc') && value && !data[name.slice(1)]) data[name.slice(1)] = value
     }
   } catch { /* Cookies may be disabled. */ }
-  const click = query.get('fbclid')
-  if (click && /^[\w.-]{1,500}$/.test(click) && !data.fbc?.endsWith('.' + click)) {
-    data.fbc = 'fb.1.' + Date.now() + '.' + click
-  }
   return data
 }
