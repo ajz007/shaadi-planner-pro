@@ -9,7 +9,7 @@ import './excel-kit.css'
 
 type Checkout = { key: string; order: string; email: string; amount: number; currency: string }
 type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; bundleProduct?: string; checkout?: Checkout; payment?: string; product: string }
-type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassCompleteAvailable?: boolean; familyPassOnSale?: boolean }
+type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassCompleteAvailable?: boolean }
 type Confirmation = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
 type Razorpay = new (options: {
   key: string; order_id: string; amount: number; currency: string
@@ -108,6 +108,14 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
       </div>
       <section id="purchase" className="excel-card product-purchase" aria-labelledby="excel-price">
         <h2 id="excel-price">{rupees(item.amount)} <span>one-time payment</span></h2>
+        {hasWorkbook && <aside className="excel-planner-offer" aria-label="Online Wedding Planner">
+          <h3>Plan together online</h3>
+          <p>Share invitations and manage RSVPs, room assignments, and pickups with your family.</p>
+          {shop?.familyPassCompleteAvailable ? <>
+            <p><strong>{rupees(weddingPass.amount)} per wedding.</strong> Includes the English Complete bundle at no extra cost.</p>
+            <a href="/#workspace/setup">Get the Online Planner</a>
+          </> : <a href="/shop/wedding-pass">Explore the Online Planner</a>}
+        </aside>}
         <p>Download the {isPDF ? 'PDF' : 'ZIP'} as soon as Razorpay confirms your payment. Your emailed receipt includes a private link to download it again on another device.</p>
         <p>No planner account is needed for this download.</p>
         <p className="product-requirements">{!isPDF && 'Unzip the download. '}{hasWorkbook && 'Open the .xlsx files in Microsoft Excel with automatic calculation enabled. '}{hasWord && 'Use Word or a compatible editor for editable scripts. '}Use a PDF reader for {isPDF ? 'the templates' : 'the guides'}.</p>
@@ -123,9 +131,6 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
         </form>
         {error && <p role="alert" className="error">{error}</p>}
         {shop && !available && <p role="status">Checkout is currently unavailable.</p>}
-        {shop?.familyPassOnSale && hasWorkbook && <p>Want to plan online too? <a href="/shop/wedding-pass">
-          See the {rupees(weddingPass.amount)} Family Pass with English Complete included
-        </a>.</p>}
         {previous && <p><a href={purchasePath + '#' + previous}>Return to your last purchase</a></p>}
       </section>
       <div className="product-full-description">
