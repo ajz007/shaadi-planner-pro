@@ -1,3 +1,4 @@
+import { plannerShowcaseURL, sourceWorkbook } from './Shop'
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { ImportedPlanningRecords, useImportedPlanningRecords, WorkspaceImport } from './WorkspaceImport'
@@ -255,7 +256,10 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
             <a href={root + path + '/snapshot.xlsx'} download>Download Excel snapshot</a>
           </div>
         </details>}
-        {preview && <a className="package-button" href="#workspace">Start planning</a>}
+        {preview && <>
+          <a className="focus-secondary" href={plannerShowcaseURL(sourceWorkbook()?.slug)}>Back to Online Planner</a>
+          <a className="package-button" href="/#workspace/setup">Get the Family Pass</a>
+        </>}
       </div>
     </header>
     {preview && <p className="wedding-preview-note"><strong>Fictional wedding data.</strong> To save changes, invite family or export a plan, start planning your own wedding.
