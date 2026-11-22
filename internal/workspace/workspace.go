@@ -347,6 +347,18 @@ func (s *workspaceStore) acceptInvite(ctx context.Context, actor, token string) 
 		)
 		INSERT INTO wedding_memberships (wedding_id, account_id, person_id, role)
 		SELECT wedding_id, $1, person_id, role FROM accepted RETURNING wedding_id`, actor, inviteHash(token)), &wedding)
+	if errors.Is(err, errWorkspaceNotFound) {
+		// A browser retry can follow successful acceptance of this single-use
+		// link. Only the account assigned to the invited person can reopen it.
+		err = scanWorkspace(s.db.QueryRowContext(ctx, `
+			SELECT i.wedding_id FROM wedding_invites i JOIN wedding_memberships m
+			  ON m.wedding_id=i.wedding_id AND m.person_id=i.person_id
+			WHERE i.token_hash=$2 AND i.consumed_at IS NOT NULL AND i.revoked_at IS NULL
+			  AND i.expires_at > now() AND m.account_id=$1
+			  AND NOT EXISTS (SELECT 1 FROM family_wedding_access a
+			    WHERE a.wedding_id=i.wedding_id AND (a.revoked_at IS NOT NULL OR a.delete_at <= now()))`,
+			actor, inviteHash(token)), &wedding)
+	}
 	return wedding, err
 }
 

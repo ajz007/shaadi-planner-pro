@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { ImportedPlanningRecords, useImportedPlanningRecords, WorkspaceImport } from './WorkspaceImport'
 import { needsReply, shownDate, WorkspaceGuests } from './WorkspaceGuests'
@@ -28,6 +28,8 @@ type Task = { id: string; title: string; assignee: string | null; function: stri
 export type Plan = { wedding: Wedding; people: Person[]; functions: WeddingFunction[]; tasks: Task[] }
 const root = '/api/workspace'
 const pendingInviteKey = 'shaadi-pending-invite'
+const inviteTokenPattern = /^[A-Za-z0-9_-]{43}$/
+const inviteRoute = (token: string) => '#workspace/join?invite=' + encodeURIComponent(token)
 
 const weddingPage = (id: string, section?: string, workbook = false, preview = false) => (preview ? '#demo' : '#workspace/' + id) +
   (section ? '/' + (section === 'Import history' ? 'import-history' : focusLink(section).slice(7)) : '') + (workbook ? '?layout=workbook' : '')
@@ -105,7 +107,7 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
   layoutQuery.set('layout', nextLayout)
   const layoutTarget = route + '?' + layoutQuery.toString()
   const owner = wedding.role === 'owner'
-  const inviteURL = invite ? window.location.origin + '/#workspace/setup?invite=' + encodeURIComponent(invite) : ''
+  const inviteURL = invite ? window.location.origin + '/' + inviteRoute(invite) : ''
   const imported = useImportedPlanningRecords(wedding.id, owner)
   const [guests, setGuests] = useState<Guest[]>()
   const [planning, setPlanning] = useState<Planning>()
@@ -402,8 +404,33 @@ export function WeddingWorkspace({ plan, refresh, section, layout, guestSearch, 
   </div>
 }
 
-export function Workspace({ loginFailed, weddingID, section, layout, guestSearch, awaitingReply, rsvpHousehold, setup, inviteCode }: {
-  loginFailed: boolean; weddingID?: string; section?: string; layout?: WeddingLayout; guestSearch: string; awaitingReply: boolean; rsvpHousehold: string; setup: boolean; inviteCode: string
+function inviteToken(input: string): string {
+  if (inviteTokenPattern.test(input)) return input
+  try {
+    const url = new URL(input, window.location.origin + '/')
+    const [route, query] = url.hash.split('?')
+    if (url.origin === window.location.origin && url.pathname === '/' &&
+        (route === '#workspace/join' || route === '#workspace/setup')) {
+      const token = new URLSearchParams(query).get('invite') ?? ''
+      if (inviteTokenPattern.test(token)) return token
+    }
+  } catch { /* The form reports invalid links below. */ }
+  throw new Error('Enter the full wedding invite link or invite code sent by the organizer.')
+}
+
+function JoinWeddingForm() {
+  return <WorkspaceForm title="Use your invitation" label="Continue" onSave={async data => {
+    window.location.hash = inviteRoute(inviteToken(field(data, 'code')))
+  }}>
+    <p>Paste the link or code from the wedding organizer. Joining is free.</p>
+    <label className="focus-field">Invite link or code
+      <input name="code" required autoComplete="off" autoCapitalize="none" spellCheck={false} />
+    </label>
+  </WorkspaceForm>
+}
+
+export function Workspace({ loginFailed, weddingID, section, layout, guestSearch, awaitingReply, rsvpHousehold, setup, join, inviteCode }: {
+  loginFailed: boolean; weddingID?: string; section?: string; layout?: WeddingLayout; guestSearch: string; awaitingReply: boolean; rsvpHousehold: string; setup: boolean; join: boolean; inviteCode: string
 }) {
   const [session, setSession] = useState<Session>()
   const [weddings, setWeddings] = useState<Wedding[]>()
@@ -414,11 +441,18 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
   const [savedInvite, setSavedInvite] = useState(() => {
     try { return sessionStorage.getItem(pendingInviteKey) ?? '' } catch { return '' }
   })
-  const pendingInvite = inviteCode || savedInvite
+  const pendingInvite = weddingID || setup ? '' : inviteCode || savedInvite
+  const joining = join || Boolean(pendingInvite)
+  const [joinError, setJoinError] = useState('')
+  const [joinRetry, setJoinRetry] = useState(0)
 
-  function clearInvite() {
+  const clearInvite = useCallback(() => {
     setSavedInvite('')
     try { sessionStorage.removeItem(pendingInviteKey) } catch { /* Storage may be disabled. */ }
+  }, [])
+
+  function rememberInvite() {
+    if (pendingInvite) try { sessionStorage.setItem(pendingInviteKey, pendingInvite) } catch { /* Reopen the invite if storage is disabled. */ }
   }
 
   useEffect(() => {
@@ -444,14 +478,33 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
     setPlan(current => current?.wedding.id === id ? refreshed : current)
   }
 
-  async function refreshList(id: string) {
-    window.location.hash = weddingPage(id)
+  const refreshList = useCallback(async (id: string) => {
+    window.location.replace(weddingPage(id))
     try {
       setWeddings(await workspaceRequest<Wedding[]>('/weddings'))
     } catch {
       setError('The wedding was saved. Refresh to update My weddings.')
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    setJoinError('')
+    if (!signedIn || !pendingInvite) return
+    if (!inviteTokenPattern.test(pendingInvite)) {
+      setJoinError('This invite link is incomplete. Paste the full link or ask the organizer for a new one.')
+      return
+    }
+    const currentRoute = window.location.hash
+    let active = true
+    workspaceRequest<{ id: string }>('/join', { token: pendingInvite }).then(result => {
+      if (!active || window.location.hash !== currentRoute) return
+      clearInvite()
+      void refreshList(result.id)
+    }).catch(failure => {
+      if (active && window.location.hash === currentRoute) setJoinError(errorText(failure))
+    })
+    return () => { active = false }
+  }, [signedIn, pendingInvite, joinRetry, clearInvite, refreshList])
 
   async function signOut() {
     setBusy(true)
@@ -469,7 +522,7 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
   }
 
   const accountBar = session?.name && <div className="focus-heading workspace-topline">
-    {(weddingID || setup) && <a href="#workspace">← My weddings</a>}
+    {(weddingID || setup || joining) && <a href="#workspace" onClick={clearInvite}>← My weddings</a>}
     <span><span className="wedding-account-name">Signed in as {session.name} · </span><button type="button" className="focus-secondary" disabled={busy}
       onClick={() => void signOut()}>{busy ? 'Signing out…' : 'Sign out'}</button></span>
   </div>
@@ -478,6 +531,14 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
       guestSearch={guestSearch} awaitingReply={awaitingReply} rsvpHousehold={rsvpHousehold} refresh={() => refreshPlan(weddingID)}
       accountBar={<>{accountBar}{error && <p role="alert">{error}</p>}</>} />
   }
+
+  if (joining && !pendingInvite) return <main className="focus wedding-entry">
+    <header className="wedding-entry-header">
+      <div><a className="wedding-entry-brand" href="/">Shaadi Planner Pro</a><h1>Join a wedding</h1></div>
+      {accountBar || <a href="#workspace">Back to My weddings</a>}
+    </header>
+    <div className="focus-record-grid"><JoinWeddingForm /></div>
+  </main>
 
   if (!session?.name) return <main className="focus wedding-entry wedding-sign-in">
     <section className="focus-card" aria-labelledby="wedding-sign-in-title">
@@ -497,11 +558,9 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
               .then(result => { if (!result.ok) throw new Error('Could not open the test account.'); window.location.reload() })
               .catch(error => { setError(errorText(error)); setBusy(false) })
           }}>{label}</button>)}</div>
-      </> : <><p>{pendingInvite ? 'Use your Google account to accept the invitation and see your tasks.'
+      </> : <><p>{pendingInvite ? 'Choose the Google account you want to join with. We’ll open the wedding after you sign in.'
         : 'After signing in, you can create a wedding, import your workbook, or open a wedding you’ve joined.'}</p>
-        <a className="package-button" href={setup ? "/auth/google/start?setup=1" : "/auth/google/start"} onClick={() => {
-          if (pendingInvite) try { sessionStorage.setItem(pendingInviteKey, pendingInvite) } catch { /* Reopen the link after sign-in. */ }
-        }}>Continue with Google</a></>)}
+        <a className="package-button" href={setup ? "/auth/google/start?setup=1" : "/auth/google/start"} onClick={rememberInvite}>{pendingInvite ? 'Sign in and join wedding' : 'Continue with Google'}</a></>)}
       <p className="wedding-sample-link"><a href="#demo">Explore the wedding demo</a> <span>· No sign-in needed</span></p>
     </section>
   </main>
@@ -514,14 +573,17 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
       {accountBar}
     </header>
     {error && <p role="alert">{error}</p>}
-      {!weddingID && pendingInvite ? <WorkspaceForm title="Wedding invitation" label="Accept invitation" onSave={async () => {
-        const result = await workspaceRequest<{ id: string }>('/join', { token: pendingInvite })
-        clearInvite()
-        await refreshList(result.id)
-      }}>
-        <p>Accept to join this wedding with the Google account shown above.</p>
-        <a href="#workspace" onClick={clearInvite}>Back to My weddings</a>
-      </WorkspaceForm> : weddingID ? (
+      {!weddingID && pendingInvite ? <section className="focus-card">
+        {joinError ? <>
+          <h2>Could not join this wedding</h2>
+          <p role="alert">{joinError}</p>
+          <div className="focus-actions">
+            <button type="button" onClick={() => setJoinRetry(attempt => attempt + 1)}>Try again</button>
+            {!session.localTest && <a href="/auth/google/start" onClick={rememberInvite}>Use a different Google account</a>}
+            <a href="#workspace/join" onClick={clearInvite}>Use another invite</a>
+          </div>
+        </> : <p role="status">Joining the wedding…</p>}
+      </section> : weddingID ? (
         planError ? <p role="alert">{planError}</p> : <p role="status">Opening wedding…</p>
       ) : weddingList ? <>
         {!weddings && !error && <p role="status">Loading your weddings…</p>}
@@ -532,7 +594,7 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
         {!!weddings?.length && <ul className="wedding-list" aria-label="Your wedding plans">
           {weddings.map(wedding => <li className="focus-card wedding-list-item" key={wedding.id}>
             <div><h2>{wedding.name}</h2><p>{shownDate(wedding.date)} · {weddingRoleLabels[wedding.role] ?? wedding.role}</p></div>
-            {wedding.accessEndsAt && <p>{wedding.exportOnly ? 'Refunded. Export available until' : 'Access ends'}{' '}
+            {wedding.exportOnly && wedding.accessEndsAt && <p>Refunded. Export available until{' '}
               {new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: wedding.timeZone }).format(new Date(wedding.accessEndsAt))}</p>}
             {wedding.exportOnly
               ? <a className="package-button" href={'/api/workspace/weddings/' + wedding.id + '/snapshot.xlsx'}>Export wedding workbook</a>
@@ -540,7 +602,8 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
           </li>)}
         </ul>}
         <div className="focus-actions wedding-list-actions">
-          <a className={weddings?.length ? 'focus-secondary' : 'package-button'} href="#workspace/setup">Create or join a wedding</a>
+          <a className={weddings?.length ? 'focus-secondary' : 'package-button'} href="#workspace/setup">Create a wedding</a>
+          <a className="focus-secondary" href="#workspace/join">Join a wedding</a>
           <a href="#demo">Explore the wedding demo</a>
         </div>
       </> : <div className="focus-record-grid">
@@ -559,12 +622,6 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
         </WorkspaceForm>
         <WorkspaceImport onCreated={refreshList} />
         </>}
-        <WorkspaceForm title="Join a wedding" label="Join wedding" onSave={async data => {
-          const result = await workspaceRequest<{ id: string }>('/join', { token: field(data, 'code') })
-          await refreshList(result.id)
-        }}>
-          <TextField name="code" label="Invite code" maxLength={43} />
-        </WorkspaceForm>
       </div>}
   </main>
 }

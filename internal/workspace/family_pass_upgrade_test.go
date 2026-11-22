@@ -93,7 +93,7 @@ func TestFamilyPassUpgradeAndRetention(t *testing.T) {
 		t.Fatalf("invalid wedding creation response: %v", err)
 	}
 	paidWedding := created.ID
-	t.Run("sign out and switch accounts", func(t *testing.T) { verifyWorkspaceAccountSwitch(t, ctx, store, paidWedding) })
+	t.Run("sign out and switch accounts", func(t *testing.T) { verifyWorkspaceAccountSwitch(t, ctx, store, owner, paidWedding) })
 	if _, err := store.createWedding(ctx, owner, "Second wedding", date, "Asia/Kolkata"); !errors.Is(err, errFamilyPassRequired) {
 		t.Fatalf("reuse of the consumed pass: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestFamilyPassUpgradeAndRetention(t *testing.T) {
 	}
 }
 
-func verifyWorkspaceAccountSwitch(t *testing.T, ctx context.Context, store *workspaceStore, wedding string) {
+func verifyWorkspaceAccountSwitch(t *testing.T, ctx context.Context, store *workspaceStore, owner, wedding string) {
 	const origin = "https://planner.example.test"
 	app := &workspaceHTTP{store: store, origin: origin, login: testWorkspaceLogin{prefix: "upgrade-test:auth:"}}
 	mux := http.NewServeMux()
@@ -201,4 +201,36 @@ func verifyWorkspaceAccountSwitch(t *testing.T, ctx context.Context, store *work
 	if response := request(http.MethodGet, "/api/workspace/weddings/"+wedding, "", second); response.Code != http.StatusNotFound {
 		t.Fatalf("second account's request for another family's wedding returned %d", response.Code)
 	}
+	person, err := store.addPerson(ctx, wedding, owner, "Invited family member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := store.invite(ctx, wedding, owner, person, "family")
+	if err != nil {
+		t.Fatal(err)
+	}
+	join := func(cookie *http.Cookie) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, origin+"/api/workspace/join",
+			strings.NewReader(fmt.Sprintf(`{"token":%q}`, token))).WithContext(ctx)
+		req.Header.Set("Origin", origin)
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, req)
+		return response
+	}
+	for range 2 {
+		response := join(second)
+		var joined struct{ ID string }
+		if response.Code != http.StatusCreated || json.Unmarshal(response.Body.Bytes(), &joined) != nil || joined.ID != wedding {
+			t.Fatalf("joining or reopening an invite returned %d: %s", response.Code, response.Body)
+		}
+	}
+	if response := join(signIn("third")); response.Code != http.StatusNotFound {
+		t.Fatalf("another account retried a used invite and got %d", response.Code)
+	}
+	if response := request(http.MethodGet, "/api/workspace/weddings/"+wedding, "", second); response.Code != http.StatusOK {
+		t.Fatalf("joined family member could not open their wedding: %d", response.Code)
+	}
+
 }
