@@ -170,10 +170,11 @@ function PlannerRoutes({ rsvpDemo }: { rsvpDemo: React.ReactNode }) {
     return <WorkspaceDemo section={workspaceSection(page.slice(5))} layout={layout} guestSearch={filter} awaitingReply={awaitingReply} />
   }
   const workspacePage = /^workspace(?:\/([0-9a-f-]{36})(?:\/([a-z-]+))?)?$/i.exec(page)
-  if (workspacePage || page === 'workspace/setup') {
+  if (workspacePage || page === 'workspace/setup' || page === 'workspace/join') {
+    const inviteCode = page === 'workspace/setup' || page === 'workspace/join' ? query.get('invite') ?? '' : ''
     return <Workspace weddingID={workspacePage?.[1]} section={workspaceSection(workspacePage?.[2] ?? '')} guestSearch={filter}
-      awaitingReply={awaitingReply} rsvpHousehold={query.get('household') ?? ''} setup={page === 'workspace/setup'}
-      inviteCode={page === 'workspace/setup' ? query.get('invite') ?? '' : ''}
+      awaitingReply={awaitingReply} rsvpHousehold={query.get('household') ?? ''} setup={page === 'workspace/setup' && !inviteCode}
+      join={page === 'workspace/join' || Boolean(inviteCode)} inviteCode={inviteCode}
       layout={layout} loginFailed={query.get('login') === 'failed'} />
   }
 
