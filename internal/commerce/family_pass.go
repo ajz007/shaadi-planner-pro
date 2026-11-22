@@ -10,10 +10,11 @@ import (
 )
 
 type familyPassStatus struct {
-	Available bool   `json:"available"`
-	OnSale    bool   `json:"onSale"`
-	TestCode  bool   `json:"testCodeRequired"`
-	OrderCode string `json:"orderCode,omitempty"`
+	Available          bool   `json:"available"`
+	OnSale             bool   `json:"onSale"`
+	TestCode           bool   `json:"testCodeRequired"`
+	OrderCode          string `json:"orderCode,omitempty"`
+	IncludesEssentials bool   `json:"includesEssentials"`
 }
 
 type passReader interface {
@@ -24,14 +25,17 @@ func (s *Shop) familyPassStatus(ctx context.Context, db passReader, account stri
 	status := familyPassStatus{OnSale: s.acceptFamilyPass, TestCode: s.mode == "test" && s.testAccess != ""}
 	var order string
 	err := db.QueryRowContext(ctx, `
+		WITH pending AS (
+			SELECT razorpay_order_id, includes_essentials FROM excel_orders
+			WHERE workspace_account_id=$1 AND mode=$2 AND product=$3 AND paid_at IS NULL AND refunded_at IS NULL
+			ORDER BY created_at DESC LIMIT 1
+		)
 		SELECT EXISTS (
 			SELECT 1 FROM family_passes WHERE account_id=$1 AND mode=$2
 			  AND consumed_at IS NULL AND revoked_at IS NULL
-		), COALESCE((
-			SELECT razorpay_order_id FROM excel_orders
-			WHERE workspace_account_id=$1 AND mode=$2 AND product=$3 AND paid_at IS NULL AND refunded_at IS NULL
-			ORDER BY created_at DESC LIMIT 1
-		), '')`, account, s.mode, familyPassID).Scan(&status.Available, &order)
+		), COALESCE(p.razorpay_order_id, ''), COALESCE(p.includes_essentials, $4)
+		FROM (SELECT 1) AS anchor LEFT JOIN pending p ON true`,
+		account, s.mode, familyPassID, s.packages[essentialsID] != nil).Scan(&status.Available, &order, &status.IncludesEssentials)
 	if order != "" {
 		status.OrderCode = s.accessCode(order)
 	}
