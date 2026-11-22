@@ -22,6 +22,7 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
   const [status, setStatus] = useState<Status>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const passReady = status?.available === true
   const valid = Boolean(draft.bride.trim() && draft.groom.trim() && draft.date && draft.function.trim() && draft.functionTime)
 
   useEffect(() => {
@@ -75,6 +76,16 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
     }
   }
 
+  function submitSetup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!status || !valid || busy) return
+    if (passReady) {
+      void create()
+    } else {
+      setPreview(current => !current)
+    }
+  }
+
   const content = defaultContent()
   content.bride.name = draft.bride.trim()
   content.groom.name = draft.groom.trim()
@@ -82,10 +93,10 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
 
   return <>
     <section className="focus-card">
-      <h2>{status?.available ? 'Create your wedding' : 'Preview your wedding invitation'}</h2>
-      <p>{status?.available ? 'Your Family Pass is ready. Create your wedding here or use the Excel import below.'
+      <h2>{passReady ? 'Create your wedding' : 'Preview your wedding invitation'}</h2>
+      <p>{passReady ? 'Your Family Pass is ready. Enter your wedding details to start from scratch.'
         : 'Preview privately for free. Activate one wedding to share invitations, collect RSVPs and plan with your family.'}</p>
-      <form onSubmit={event => { event.preventDefault(); if (valid) setPreview(current => !current) }}>
+      <form onSubmit={submitSetup}>
         <fieldset className="workspace-fields" disabled={busy}>
           <label className="focus-field">Bride’s name<input value={draft.bride} maxLength={56} required onChange={e => change('bride', e.target.value)} /></label>
           <label className="focus-field">Groom’s name<input value={draft.groom} maxLength={56} required onChange={e => change('groom', e.target.value)} /></label>
@@ -93,16 +104,17 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
           <label className="focus-field">First function<input value={draft.function} maxLength={120} required onChange={e => change('function', e.target.value)} /></label>
           <label className="focus-field">Start time (India time)<input type="time" value={draft.functionTime} required onChange={e => change('functionTime', e.target.value)} /></label>
           <div className="focus-actions">
-            <button type="submit">{preview ? 'Close preview' : 'Preview invitation'}</button>
-            {status?.available && <button type="button" disabled={!valid || busy} onClick={() => void create()}>Create wedding</button>}
+            {passReady
+              ? <button type="submit" disabled={!valid || busy}>{busy ? 'Creating wedding…' : 'Create wedding'}</button>
+              : <button type="submit" disabled={!status || busy}>{preview ? 'Close preview' : 'Preview invitation'}</button>}
           </div>
         </fieldset>
       </form>
-      {preview && valid && <Invitation preview embedded page={{ name, date: draft.date, timeZone: 'Asia/Kolkata', design: { heading: name } }}
+      {!passReady && preview && valid && <Invitation preview embedded page={{ name, date: draft.date, timeZone: 'Asia/Kolkata', design: { heading: name } }}
         invitation={{ template: { id: template.id, version: template.version, options: optionsFor(template) }, content, hasMusic: false,
           events: [{ id: 'first-function', name: draft.function, startsAt: draft.date + 'T' + draft.functionTime + ':00+05:30', place: '', address: '', mapUrl: '' }] }} />}
     </section>
-    {!status?.available && <section className="focus-card">
+    {!passReady && <section className="focus-card">
       <h2>Family Pass · {rupees(weddingPass.amount)} once per wedding</h2>
       <p>Includes all functions in one wedding, family collaboration, household invitations, RSVPs, rooms, pickups, budget and Excel export.</p>
       {!status && !error && <p role="status">Checking your Family Pass.</p>}
@@ -116,6 +128,6 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
       <p><a href="/contact">Get purchase help</a></p>
     </section>}
     {error && <p role="alert">{error}</p>}
-    {status?.available && <WorkspaceImport onCreated={finish} />}
+    {passReady && <WorkspaceImport onCreated={finish} />}
   </>
 }
