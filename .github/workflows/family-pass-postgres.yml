@@ -56,3 +56,4 @@ jobs:
           (cd "$baseline" && SHAADI_DATABASE_URL="$SHAADI_FAMILY_UPGRADE_DATABASE_URL" go run ./cmd/shaadi-planner migrate-workspace)
           go test ./internal/workspace -run '^TestFamilyPassUpgradeAndRetention$' -count=1 -v
           go test ./internal/commerce -run '^TestFamilyPassPaymentRecoveryAndRefund$' -count=1 -v
+          SHAADI_TEST_DATABASE_URL="$SHAADI_FAMILY_UPGRADE_DATABASE_URL" go test ./internal/workspace -run '^TestGuestImport' -count=1 -v

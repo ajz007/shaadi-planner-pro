@@ -4,6 +4,7 @@ import { PrintSection } from './PlanActions'
 import { VoiceField, VoiceNotice } from './VoiceField'
 import { useEditorFocus } from './useEditorFocus'
 import { useWorkspaceData } from './WorkspaceData'
+import { GuestImport } from './GuestImport'
 import { GuestFilters, matchesGuestRules, setGuestRule } from './GuestFilters'
 import type { FilterMode, GuestFilterOptions, GuestRules } from './GuestFilters'
 
@@ -70,6 +71,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [reviewSelected, setReviewSelected] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
@@ -79,7 +81,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
   const url = '/api/workspace/weddings/' + wedding.id + '/guests'
   const today = localDay(wedding.timeZone)
   const current = editing === 'new' ? undefined : editing
-  const { heading, returnTarget, fallback } = useEditorFocus(editing ?? bulkOpen, busy)
+  const { heading, returnTarget, fallback } = useEditorFocus(editing ?? (bulkOpen || importOpen), busy)
 
   async function load(signal?: AbortSignal) {
     const response = await fetchWorkspace(url, { signal })
@@ -227,8 +229,12 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
 
   return <section className="focus-card">
     <div className="focus-heading"><h2 className="workspace-section-title" ref={fallback} tabIndex={-1}>Guest List</h2><div className="focus-actions">
-      <button disabled={busy || preview} onClick={event => editGuest('new', event.currentTarget)}>Add guest</button>
-      {!!guests?.length && <button className="focus-secondary" disabled={busy || bulkOpen} onClick={event => {
+      <button disabled={busy || preview || importOpen} onClick={event => editGuest('new', event.currentTarget)}>Add guest</button>
+      {!preview && <button className="focus-secondary" disabled={busy || importOpen} onClick={event => {
+        returnTarget.current = event.currentTarget
+        setEditing(undefined); closeBulk(); setError(''); setMessage(''); setImportOpen(true)
+      }}>Import guests</button>}
+      {!!guests?.length && <button className="focus-secondary" disabled={busy || bulkOpen || importOpen} onClick={event => {
         returnTarget.current = event.currentTarget
         setEditing(undefined); setError(''); setMessage(''); setBulkOpen(true)
       }}>Bulk edit</button>}
@@ -243,6 +249,11 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
     </div></div>
     {message && <p role="status">{message}</p>}
     {error && <p role="alert">{error}</p>}
+    {importOpen && <GuestImport url={url} heading={heading} onClose={() => setImportOpen(false)} onAdded={added => {
+      setImportOpen(false)
+      setMessage(added === 1 ? 'Added 1 guest.' : 'Added ' + added + ' guests.')
+      void load().catch(() => setError('Guests were added. Refresh the list to see them.'))
+    }} />}
     {editing && <form className="focus-card" key={current?.id ?? 'new'} onSubmit={event => void save(event)}>
       <h3 ref={heading} tabIndex={-1}>{current ? 'Edit ' + current.name : 'Add guest'}</h3>
       <fieldset className="workspace-fields focus-form-grid" disabled={busy}>
@@ -343,7 +354,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
           {[guest.household, guest.side, guest.rsvp, shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode, guest.stayRequired, guest.transportRequired]
             .map((value, index) => <td key={index}>{value}</td>)}
           <td><GuestLinks guest={guest} /></td>
-          <td><button className="focus-secondary" aria-label={'Edit ' + guest.name} disabled={busy || preview}
+          <td><button className="focus-secondary" aria-label={'Edit ' + guest.name} disabled={busy || preview || importOpen}
             onClick={event => editGuest(guest, event.currentTarget)}>Edit</button></td>
         </tr>)}</tbody>
       </table>
@@ -355,7 +366,7 @@ export function WorkspaceGuests({ wedding, initialSearch = '', awaitingReply = f
       <p>{[shownDate(guest.arrivalDate), guest.arrivalTime, guest.arrivalMode].filter(Boolean).join(' · ') || 'Arrival not recorded'}</p>
       <p>Stay required: {guest.stayRequired || 'Not recorded'} · Transport: {guest.transportRequired || 'Not recorded'}</p>
       <GuestLinks guest={guest} />
-      <button className="focus-secondary guest-edit" aria-label={'Edit ' + guest.name} disabled={busy || preview}
+      <button className="focus-secondary guest-edit" aria-label={'Edit ' + guest.name} disabled={busy || preview || importOpen}
         onClick={event => editGuest(guest, event.currentTarget)}>Edit guest</button>
     </article>)}</div>}
   </section>
