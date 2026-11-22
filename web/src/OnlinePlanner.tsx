@@ -80,7 +80,7 @@ function InvitationDemo() {
 
 const features = [
   { title: 'An invitation with your family’s personality', text: 'Set the names, family details and function schedule. Preview the digital invitation before sharing it.',
-    link: '/#workspace', action: 'Open your wedding planner' },
+    link: '#invitation-demo', action: 'Try the sample invitation' },
   { title: 'One private reply for each household', text: 'Invite a family to the functions meant for them. Guests reply on their phones, with travel and stay details alongside their RSVP.',
     link: '/#demo/guest-list', action: 'Explore the guest list' },
   { title: 'The details that get everyone there', text: 'Bring arrivals, pickups and room allocations into the same plan. Review guest updates before changing the arrangements.',
@@ -88,14 +88,13 @@ const features = [
 ]
 
 export function OnlinePlanner() {
-  const [offer, setOffer] = useState({ onSale: false, includesComplete: false })
+  const [checkoutAvailable, setCheckoutAvailable] = useState<boolean>()
   useEffect(() => {
     document.title = 'Online Wedding Planner | ShaadiPlannerPro'
     const controller = new AbortController()
     fetch('/api/excel/shop', { signal: controller.signal })
-      .then(response => response.json()).then(shop => setOffer({
-        onSale: shop.familyPassOnSale === true, includesComplete: shop.familyPassOnSale === true && shop.familyPassCompleteAvailable === true,
-      })).catch(() => {})
+      .then(response => response.json())
+      .then(shop => setCheckoutAvailable(shop.familyPassCompleteAvailable === true)).catch(() => {})
     return () => controller.abort()
   }, [])
   return <main className="public-shell online-planner">
@@ -106,11 +105,10 @@ export function OnlinePlanner() {
         <h1 id="online-title">An invitation they’ll love.<br /><em>A plan your family can share.</em></h1>
         <p className="online-lede">From the first “we’ll be there” to the last airport pickup. Bring your invitations, guests and wedding-day details together.</p>
         <div className="online-actions">
-          <a className="online-primary" href="/#workspace/setup">Get a Family Pass <span aria-hidden="true">↗</span></a>
+          <a className="online-primary" href="/#demo">Try the free planner demo <span aria-hidden="true">↗</span></a>
           <a className="online-secondary" href="#invitation-demo">Open a sample invitation <span aria-hidden="true">↓</span></a>
         </div>
-        <p className="online-small">{rupees(weddingPass.amount)} once per wedding. Invitation preview available before you buy.</p>
-        <div className="online-hero-footnote"><span>One wedding.</span><span>Every function.</span><span>Your whole family.</span></div>
+        <p className="online-small">Explore a sample wedding without signing in. <a href="#family-pass">See pricing and what’s included</a>.</p>
       </div>
       <InvitationDemo />
     </section>
@@ -140,15 +138,16 @@ export function OnlinePlanner() {
     </section>
     <section className="online-excel-bridge" aria-labelledby="online-excel">
       <div><p className="online-eyebrow">ALREADY PLANNING IN EXCEL?</p><h2 id="online-excel">Bring the plan you’ve already started.</h2>
-        <p>Import your supported Shaadi Planner Pro workbook, review the functions and guests, and start coordinating together online. You can also start with a blank wedding.</p></div>
-      <a href="/#workspace/setup">Start your wedding <span aria-hidden="true">↗</span></a>
+        <p>Import your English v1.3.1 Shaadi Planner Pro workbook and review your functions and guests before creating the wedding. You can also start with a blank wedding.</p></div>
+      <a href="/#demo/guest-list">See a sample guest list <span aria-hidden="true">↗</span></a>
     </section>
-    <section className="online-pass" aria-labelledby="online-pass-title">
-      <div><p className="online-eyebrow">{offer.onSale ? "FAMILY PASS" : "FAMILY PASS PREVIEW"}</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>
+    <section className="online-pass" id="family-pass" aria-labelledby="online-pass-title">
+      <div><p className="online-eyebrow">FAMILY PASS</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>
         <p>Share invitations and manage RSVPs, rooms, pickups and budgets with your family from one wedding workspace.</p>
-        {offer.includesComplete && <p>Includes the English Complete bundle at no extra cost, with the Excel planner, vendor negotiation toolkit, and WhatsApp and RSVP message templates.</p>}</div>
+        {checkoutAvailable && <p>Includes the English Complete bundle at no extra cost, with the Excel planner, vendor negotiation toolkit, and WhatsApp and RSVP message templates.</p>}</div>
       <div className="online-pass-price"><strong>{rupees(weddingPass.amount)}</strong><span>one-time price per wedding</span>
-        <a className="online-primary" href="/#workspace/setup">Get a Family Pass <span aria-hidden="true">↗</span></a></div>
+        {checkoutAvailable && <a className="online-primary" href="/#workspace/setup">Continue to Family Pass setup <span aria-hidden="true">↗</span></a>}
+        {checkoutAvailable === false && <span>Family Pass checkout is currently paused.</span>}</div>
     </section>
     <div className="online-faq">
       <details><summary>Can guests reply without an account?</summary><p>Yes. Guests open their private household invitation on their phone and reply to the functions they’re invited to.</p></details>

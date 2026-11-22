@@ -111,10 +111,8 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
         {hasWorkbook && <aside className="excel-planner-offer" aria-label="Online Wedding Planner">
           <h3>Plan together online</h3>
           <p>Share invitations and manage RSVPs, room assignments, and pickups with your family.</p>
-          {shop?.familyPassCompleteAvailable ? <>
-            <p><strong>{rupees(weddingPass.amount)} per wedding.</strong> Includes the English Complete bundle at no extra cost.</p>
-            <a href="/#workspace/setup">Get the Online Planner</a>
-          </> : <a href="/shop/wedding-pass">Explore the Online Planner</a>}
+          {shop?.familyPassCompleteAvailable && <p><strong>{rupees(weddingPass.amount)} per wedding.</strong> Includes the English Complete bundle at no extra cost.</p>}
+          <a href="/shop/wedding-pass">Explore the Online Planner</a>
         </aside>}
         <p>Download the {isPDF ? 'PDF' : 'ZIP'} as soon as Razorpay confirms your payment. Your emailed receipt includes a private link to download it again on another device.</p>
         <p>No planner account is needed for this download.</p>
@@ -322,7 +320,7 @@ export function ShopPurchase({ code }: { code: string }) {
     {canUpgrade && <section className="excel-card">
       <h2>Upgrade to the Online Planner</h2>
       <p>Plan together online, share invitations, and track RSVPs, rooms and pickups. The Family Pass includes the English Complete bundle at no extra cost.</p>
-      <a className="shop-primary" href="/#workspace/setup">Get the Family Pass · {rupees(weddingPass.amount)} per wedding</a>
+      <a className="shop-primary" href="/shop/wedding-pass">Explore the Online Planner</a>
     </section>}
     {shop?.recovery && <Recovery />}
     {!shop?.recovery && !code && <p>Open the private link from your receipt or <a href="/contact">contact support</a> for help.</p>}

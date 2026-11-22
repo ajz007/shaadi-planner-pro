@@ -83,7 +83,7 @@
 .online-excel-bridge > div { max-width: 44rem; }
 .online-excel-bridge h2 { font-size: 1.65rem; font-weight: 400; margin-top: .5rem; }
 .online-excel-bridge p:last-child { color: #5d675a; max-width: 60ch; font-size: .93rem; margin-bottom: 0; }
-.online-pass { background: #203c32; color: #fff8e9; padding: clamp(1.4rem,4vw,3rem); display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); align-items: center; gap: 2rem; border-radius: .9rem; }
+.online-pass { scroll-margin-top: 1rem; background: #203c32; color: #fff8e9; padding: clamp(1.4rem,4vw,3rem); display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); align-items: center; gap: 2rem; border-radius: .9rem; }
 .online-pass .online-eyebrow { color: #d4c49d; }
 .online-pass h2 { font-size: clamp(2rem,3.5vw,3rem); font-weight: 400; line-height: 1.12; margin: .9rem 0; }
 .online-pass p:last-child { font-size: .93rem; color: #d9e0cc; margin-bottom: 0; max-width: 43ch; }
