@@ -30,7 +30,7 @@ type workspaceLogin interface {
 type googleWorkspaceLogin struct{ config oauth2.Config }
 
 func (g googleWorkspaceLogin) authorizationURL(state, verifier string) string {
-	return g.config.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier))
+	return g.config.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier), oauth2.SetAuthURLParam("prompt", "select_account"))
 }
 
 func (g googleWorkspaceLogin) identity(ctx context.Context, code, verifier string) (workspaceIdentity, error) {
@@ -195,6 +195,11 @@ func (a *workspaceHTTP) session(ctx context.Context, r *http.Request) (account, 
 }
 
 func (a *workspaceHTTP) logout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if !a.matchesHost(r) || r.Header.Get("Origin") != a.origin {
+		httpx.Fail(w, http.StatusForbidden, "Open the workspace from its configured address.")
+		return
+	}
 	if cookie, err := r.Cookie(workspaceSessionCookie); err == nil {
 		if _, err := a.store.db.ExecContext(r.Context(), "DELETE FROM workspace_sessions WHERE token_hash = $1", inviteHash(cookie.Value)); err != nil {
 			httpx.Fail(w, http.StatusInternalServerError, "Could not sign out. Try again.")
@@ -202,5 +207,6 @@ func (a *workspaceHTTP) logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.cookie(w, workspaceSessionCookie, "", "/", -1)
+	a.cookie(w, workspaceFlowCookie, "", "/auth/google/callback", -1)
 	w.WriteHeader(http.StatusNoContent)
 }
