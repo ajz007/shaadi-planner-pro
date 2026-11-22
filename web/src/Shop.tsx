@@ -10,6 +10,17 @@ export const weddingPass = catalog.find(item => item.slug === 'wedding-pass')!
 export const shopProduct = (path: string) => catalog.find(item => productURL(item) === path)
 export const productByID = (id?: string) => catalog.find(item => item.id === id)
 export const productURL = (item: ShopProduct) => '/shop/' + item.slug
+
+export function sourceWorkbook() {
+  const slug = new URLSearchParams(window.location.search).get('from')
+  const item = slug && shopProduct('/shop/' + slug)
+  return item && item.group === 'Planning' ? item : undefined
+}
+
+export function plannerShowcaseURL(source?: string) {
+  return productURL(weddingPass) + (source ? '?from=' + encodeURIComponent(source) : '')
+}
+
 export const rupees = (paise: number) => new Intl.NumberFormat('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: paise % 100 === 0 ? 0 : 2,
 }).format(paise / 100)

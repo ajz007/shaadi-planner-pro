@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { productByID, rupees, weddingPass } from './Shop'
+import { plannerShowcaseURL, productByID, rupees, weddingPass } from './Shop'
+import { PlannerExploreLink } from './PlannerExploreLink'
 import { SiteNav } from './SiteNav'
 import type { ShopProduct } from './Shop'
 import { ProductDescription, productDescription } from './ProductDescription'
@@ -113,7 +114,10 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
           <h3>Plan together online</h3>
           <p>Share invitations and manage RSVPs, room assignments, and pickups with your family.</p>
           {plannerBundle && <p><strong>{rupees(weddingPass.amount)} per wedding.</strong> Includes {plannerBundle.name} at no extra cost.</p>}
-          <a href="/shop/wedding-pass">Explore the Online Planner</a>
+          <div className="excel-planner-actions">
+            <PlannerExploreLink href={plannerShowcaseURL(item.slug)}>Explore the Online Planner</PlannerExploreLink>
+            {plannerBundle && <a href="/#workspace/setup">Buy the Online Planner</a>}
+          </div>
         </aside>}
         <p>Download the {isPDF ? 'PDF' : 'ZIP'} as soon as Razorpay confirms your payment. Your emailed receipt includes a private link to download it again on another device.</p>
         <p>No planner account is needed for this download.</p>
@@ -322,7 +326,10 @@ export function ShopPurchase({ code }: { code: string }) {
     {canUpgrade && <section className="excel-card">
       <h2>Upgrade to the Online Planner</h2>
       <p>Plan together online, share invitations, and track RSVPs, rooms and pickups. The Family Pass includes {plannerBundle.name} at no extra cost.</p>
-      <a className="shop-primary" href="/shop/wedding-pass">Explore the Online Planner</a>
+      <div className="excel-status-actions">
+        <PlannerExploreLink className="shop-primary" href={plannerShowcaseURL()}>Explore the Online Planner</PlannerExploreLink>
+        <a href="/#workspace/setup">Buy the Online Planner</a>
+      </div>
     </section>}
     {shop?.recovery && <Recovery />}
     {!shop?.recovery && !code && <p>Open the private link from your receipt or <a href="/contact">contact support</a> for help.</p>}

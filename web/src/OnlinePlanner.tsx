@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { productByID, rupees, weddingPass } from './Shop'
+import { PlannerExploreLink } from './PlannerExploreLink'
+import { productByID, productURL, rupees, sourceWorkbook, weddingPass } from './Shop'
 import { SiteNav } from './SiteNav'
 import { Mandala, EventArt } from './invitation/art'
 import workbook from './workbook-demo.json'
@@ -90,6 +91,8 @@ const features = [
 export function OnlinePlanner() {
   const [bundleID, setBundleID] = useState<string>()
   const bundle = productByID(bundleID)
+  const source = sourceWorkbook()
+  const demoRoot = '/' + (source ? '?from=' + encodeURIComponent(source.slug) : '') + '#demo'
   useEffect(() => {
     document.title = 'Online Wedding Planner | ShaadiPlannerPro'
     const controller = new AbortController()
@@ -99,14 +102,15 @@ export function OnlinePlanner() {
     return () => controller.abort()
   }, [])
   return <main className="public-shell online-planner">
-    <SiteNav />
+    <SiteNav plannerDemoHref={demoRoot} />
+    {source && <p className="online-back"><a href={productURL(source) + '#purchase'}>← Back to your Excel product</a></p>}
     <section className="online-hero" aria-labelledby="online-title">
       <div className="online-hero-copy">
         <p className="online-eyebrow">THE ONLINE WEDDING PLANNER</p>
         <h1 id="online-title">An invitation they’ll love.<br /><em>A plan your family can share.</em></h1>
         <p className="online-lede">From the first “we’ll be there” to the last airport pickup. Bring your invitations, guests and wedding-day details together.</p>
         <div className="online-actions">
-          <a className="online-primary" href="/#demo">Try the free planner demo <span aria-hidden="true">↗</span></a>
+          <PlannerExploreLink className="online-primary" href={demoRoot}>Try the free planner demo</PlannerExploreLink>
           <a className="online-secondary" href="#invitation-demo">Open a sample invitation <span aria-hidden="true">↓</span></a>
         </div>
         <p className="online-small">Explore a sample wedding without signing in. <a href="#family-pass">See pricing and what’s included</a>.</p>
@@ -119,7 +123,9 @@ export function OnlinePlanner() {
     <section className="online-features" aria-labelledby="online-everyone">
       <div className="online-section-heading"><p className="online-eyebrow">BUILT AROUND YOUR PEOPLE</p><h2 id="online-everyone">The celebration is personal.<br />The coordination can be simple.</h2></div>
       <div className="online-feature-grid">{features.map(feature => <article key={feature.title}>
-        <h3>{feature.title}</h3><p>{feature.text}</p><a href={feature.link}>{feature.action} <span aria-hidden="true">↗</span></a>
+        <h3>{feature.title}</h3><p>{feature.text}</p>
+        {feature.link.startsWith('/#demo') ? <PlannerExploreLink href={feature.link.replace('/#demo', demoRoot)}>{feature.action}</PlannerExploreLink>
+          : <a href={feature.link}>{feature.action} <span aria-hidden="true">↓</span></a>}
       </article>)}</div>
     </section>
     <section className="online-logistics" aria-labelledby="online-day">
@@ -127,20 +133,20 @@ export function OnlinePlanner() {
         <p className="online-eyebrow">BEHIND EVERY “SEE YOU THERE”</p>
         <h2 id="online-day">A room ready.<br />A pickup planned.<br /><em>Someone who’s on it.</em></h2>
         <p>Give family members clear responsibilities, keep track of arrivals, and take the wedding timeline with you.</p>
-        <a href="/#demo/family-responsibilities">See how the family shares the work <span aria-hidden="true">↗</span></a>
+        <PlannerExploreLink href={demoRoot + '/family-responsibilities'}>See how the family shares the work</PlannerExploreLink>
       </div>
       <div className="online-logistics-preview" aria-label="Illustrative arrival and pickup plan">
         <p className="online-preview-label">AARAV &amp; MEERA · SAMPLE PLAN</p>
         <div className="online-arrival-time"><span>14 FEB</span><strong>10:45 <small>AM</small></strong><span>Varanasi Airport</span></div>
         <h3>Sharma family</h3><p>4 guests · Pickup requested</p>
         <dl><div><dt>Pickup</dt><dd>Driver confirmation pending</dd></div><div><dt>Stay</dt><dd>2 rooms to arrange</dd></div><div><dt>Family contact</dt><dd>Cousin Rohan</dd></div></dl>
-        <a href="/#demo/transportation">Open the sample transport plan <span aria-hidden="true">→</span></a>
+        <PlannerExploreLink href={demoRoot + '/transportation'}>Open the sample transport plan</PlannerExploreLink>
       </div>
     </section>
     <section className="online-excel-bridge" aria-labelledby="online-excel">
       <div><p className="online-eyebrow">ALREADY PLANNING IN EXCEL?</p><h2 id="online-excel">Bring the plan you’ve already started.</h2>
         <p>Import your English v1.3.1 Shaadi Planner Pro workbook and review your functions and guests before creating the wedding. You can also start with a blank wedding.</p></div>
-      <a href="/#demo/guest-list">See a sample guest list <span aria-hidden="true">↗</span></a>
+      <PlannerExploreLink href={demoRoot + '/guest-list'}>See a sample guest list</PlannerExploreLink>
     </section>
     <section className="online-pass" id="family-pass" aria-labelledby="online-pass-title">
       <div><p className="online-eyebrow">FAMILY PASS</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>

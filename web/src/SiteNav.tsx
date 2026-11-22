@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PlannerExploreLink } from './PlannerExploreLink'
 import './public.css'
 
 type Account = { href: string; label: string; signedIn: boolean }
@@ -28,13 +29,15 @@ export function useAccountLink() {
   return link
 }
 
-export function SiteNav({ shop = false }: { shop?: boolean }) {
+export function SiteNav({ shop = false, plannerDemoHref }: { shop?: boolean; plannerDemoHref?: string }) {
   const link = useAccountLink()
   return <nav className="site-nav" aria-label="Site">
     <a className="site-brand" href="/">Shaadi Planner Pro</a>
     <div>
       <a href="/shop">Shop</a>
-      {shop ? <a href="/shop/purchase">Find a purchase</a> : <a className="site-nav-optional" href="/#demo">Demo</a>}
+      {shop ? <a href="/shop/purchase">Find a purchase</a> : plannerDemoHref
+        ? <PlannerExploreLink className="site-nav-optional" href={plannerDemoHref}>Demo</PlannerExploreLink>
+        : <a className="site-nav-optional" href="/#demo">Demo</a>}
       <a className="site-account" href={link.href}>{link.label}</a>
     </div>
   </nav>
