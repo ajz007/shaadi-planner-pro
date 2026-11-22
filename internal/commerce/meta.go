@@ -35,17 +35,18 @@ var metaCookie = regexp.MustCompile(`^fb\.[0-9]+\.[0-9]{10,14}\.[A-Za-z0-9_.-]{1
 var campaignLabel = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,120}$`)
 
 func configuredMeta(mode string) *metaEvents {
-	id, token := os.Getenv("META_PIXEL_ID"), os.Getenv("META_CAPI_ACCESS_TOKEN")
+	id, token := browserMetaID(), strings.TrimSpace(os.Getenv("META_CAPI_ACCESS_TOKEN"))
 	if mode != "live" || !pixelNumber.MatchString(id) || token == "" {
 		return nil
 	}
 	return &metaEvents{id, token, &http.Client{Timeout: 5 * time.Second}}
 }
-func (s *Shop) metaID() string {
-	if s == nil || s.meta == nil {
+func browserMetaID() string {
+	id := strings.TrimSpace(os.Getenv("META_PIXEL_ID"))
+	if !pixelNumber.MatchString(id) {
 		return ""
 	}
-	return s.meta.id
+	return id
 }
 func (s *Shop) orderAttribution(a *metaAttribution) *string {
 	if a == nil || s.meta == nil {
