@@ -36,6 +36,9 @@ func (s *Shop) recover(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Shop) SendReceipts(ctx context.Context) {
+	if s.meta != nil {
+		go s.sendMetaPurchases(ctx)
+	}
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {

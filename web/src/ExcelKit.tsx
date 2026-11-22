@@ -6,11 +6,12 @@ import { SiteNav } from './SiteNav'
 import type { ShopProduct } from './Shop'
 import { ProductDescription, productDescription } from './ProductDescription'
 import { ProductImage } from './ProductImage'
+import { attribution, marketingChoice, rememberMarketing, trackProduct } from './shopMeta'
 import './excel-kit.css'
 
 type Checkout = { key: string; order: string; email: string; amount: number; currency: string }
 type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; bundleProduct?: string; checkout?: Checkout; payment?: string; product: string }
-type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassBundleProduct?: string }
+type ShopStatus = { metaPixelID?: string; products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassBundleProduct?: string }
 type Confirmation = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
 type Razorpay = new (options: {
   key: string; order_id: string; amount: number; currency: string
@@ -67,6 +68,11 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
   const [shop, setShop] = useState<ShopStatus>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [marketing, setMarketing] = useState(marketingChoice)
+  const pixelID = shop?.metaPixelID
+  useEffect(() => {
+    if (marketing && pixelID) trackProduct(pixelID, item, 'ViewContent')
+  }, [marketing, pixelID, item])
   const previous = rememberedPurchase()
   const available = shop?.products[item.id]
   const isPDF = item.slug === 'message-pack'
@@ -87,7 +93,8 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
     setBusy(true)
     setError('')
     try {
-      const { code } = await request<{ code: string }>('orders', { email, testAccess, product: item.id })
+      const { code } = await request<{ code: string }>('orders', { email, testAccess, product: item.id, meta: marketing && pixelID ? attribution() : undefined })
+      if (marketing && pixelID) trackProduct(pixelID, item, 'InitiateCheckout')
       try { localStorage.setItem(lastPurchase, code) } catch { /* The purchase URL also carries the code. */ }
       window.location.assign(purchasePath + '#' + code)
     } catch (failure) {
@@ -130,6 +137,11 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
             <label htmlFor="excel-test-access">Private test checkout code</label>
             <input name="testAccess" id="excel-test-access" type="password" autoComplete="off" required disabled={!available || busy} />
           </>}
+          {pixelID && <label><input type="checkbox" checked={marketing} onChange={event => {
+            const enabled = event.target.checked
+            rememberMarketing(enabled)
+            setMarketing(enabled)
+          }} /> Allow Meta ad measurement, including matching my purchase using a hashed email. <a href="/privacy">Privacy details</a></label>}
           <button disabled={!available || busy}>{busy ? 'Preparing checkout…' : `Buy ${item.name} — ${rupees(item.amount)}`}</button>
         </form>
         {error && <p role="alert" className="error">{error}</p>}

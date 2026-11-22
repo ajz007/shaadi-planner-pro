@@ -97,6 +97,7 @@ export function PublicInfoPage({ path }: { path: keyof typeof publicPages }) {
     {path === '/privacy' ? <>
       <h2>Information used by the planner</h2>
       <p>For shop orders, we store your checkout email, product, order and payment references, amount and payment date. We use them to confirm purchases, email receipts and restore downloads. Razorpay processes your payment details and our email provider delivers your receipt.</p>
+      <p>If you allow Meta ad measurement on a shop product page, we use Meta’s pixel for product views and checkout activity. For a confirmed purchase we share the product, price, currency, an order event identifier, a hashed receipt email and available Meta browser or ad-click identifiers. We keep campaign labels with the order. You can change your choice on a shop product page for future activity.</p>
       <p>Google sign-in provides basic account information. The planner uses your Google account identifier and display name to create your account and show your name in the workspace. A session cookie keeps you signed in.</p>
       <p>When you upload a workbook or enter wedding details, the planner processes the information you provide. This can include guest names, phone numbers, RSVPs, travel details, room assignments, tasks, and budget records.</p>
       <p>If you use microphone dictation, your browser may send audio to its speech recognition service. The planner receives the resulting text and saves it when you submit the form. You can type instead.</p>

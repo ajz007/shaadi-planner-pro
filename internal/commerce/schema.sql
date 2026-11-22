@@ -23,3 +23,9 @@ CREATE INDEX IF NOT EXISTS family_pass_orders ON excel_orders (workspace_account
     WHERE workspace_account_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS excel_orders_receipt ON excel_orders (receipt_due_at) WHERE receipt_due_at IS NOT NULL;
+
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS meta_attribution jsonb;
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS meta_next_attempt timestamptz NOT NULL DEFAULT now();
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS meta_sent_at timestamptz;
+CREATE INDEX IF NOT EXISTS excel_meta_pending ON excel_orders (meta_next_attempt)
+    WHERE meta_attribution IS NOT NULL AND paid_at IS NOT NULL AND meta_sent_at IS NULL AND refunded_at IS NULL;
