@@ -8,13 +8,16 @@ type Pixel = ((...args: unknown[]) => void) & {
 declare global { interface Window { fbq?: Pixel; _fbq?: Pixel } }
 
 const choiceKey = 'spp-meta-measurement'
+const campaignKey = 'spp-shop-campaign'
+const campaignLifetime = 7 * 24 * 60 * 60 * 1000
+
 export function marketingChoice() {
   try { return localStorage.getItem(choiceKey) } catch { return null }
 }
 export function rememberMarketing(enabled: boolean) {
   try { localStorage.setItem(choiceKey, enabled ? 'yes' : 'no') } catch { /* Current-page choice still applies. */ }
   if (!enabled) {
-    try { sessionStorage.removeItem(choiceKey) } catch { /* Storage may be unavailable. */ }
+    try { sessionStorage.removeItem(choiceKey); localStorage.removeItem(campaignKey) } catch { /* Storage may be unavailable. */ }
   }
 }
 
@@ -70,16 +73,25 @@ export function rememberAttribution() {
   if (click && /^[\w.-]{1,500}$/.test(click)) {
     data.fbc = 'fb.1.' + Date.now() + '.' + click
   }
-  if (Object.keys(data).length) {
-    try { sessionStorage.setItem(choiceKey, JSON.stringify(data)) } catch { /* Storage may be unavailable. */ }
-  }
+  const freshCampaign = Object.keys(data).length > 0
+  if (query.get('entry') === 'post_purchase') data.entry = 'post_purchase'
+  try {
+    const saved = JSON.parse(localStorage.getItem(campaignKey) || 'null')
+    const legacy = sessionStorage.getItem(choiceKey)
+    if (!freshCampaign) {
+      const prior = saved?.expires > Date.now() ? saved.labels : !saved && legacy ? JSON.parse(legacy) : {}
+      Object.assign(data, { ...prior, ...data })
+    }
+    if (freshCampaign || data.entry && query.has('entry') || legacy) {
+      localStorage.setItem(campaignKey, JSON.stringify({ labels: data, expires: Date.now() + campaignLifetime }))
+    }
+    if (legacy) sessionStorage.removeItem(choiceKey)
+  } catch { /* Storage may be unavailable. */ }
   return data
 }
 
 export function attribution() {
-  const current = rememberAttribution()
-  let data: Record<string, string> = current
-  try { data = JSON.parse(sessionStorage.getItem(choiceKey) || 'null') ?? current } catch { /* Storage may be unavailable. */ }
+  const data = rememberAttribution()
   try {
     for (const cookie of document.cookie.split('; ')) {
       const [name, value] = cookie.split('=')

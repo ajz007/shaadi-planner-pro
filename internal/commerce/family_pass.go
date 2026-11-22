@@ -71,7 +71,10 @@ func (s *Shop) CreateFamilyPassOrder(w http.ResponseWriter, r *http.Request, acc
 		httpx.Fail(w, 503, "New Family Pass orders are paused.")
 		return
 	}
-	var input struct{ Email, TestAccess string }
+	var input struct {
+		Email, TestAccess string
+		Meta              *metaAttribution
+	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
@@ -115,7 +118,7 @@ func (s *Shop) CreateFamilyPassOrder(w http.ResponseWriter, r *http.Request, acc
 			s.fail(w)
 			return
 		}
-		order, err := s.openOrder(ctx, tx, item, email, &account, nil)
+		order, err := s.openOrder(ctx, tx, item, email, &account, s.orderAttribution(input.Meta, r.UserAgent()))
 		if err != nil {
 			s.fail(w)
 			return

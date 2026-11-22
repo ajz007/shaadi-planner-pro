@@ -5,6 +5,7 @@ import './studio/studio.css'
 import './family-pass.css'
 import { defaultContent, optionsFor, templateFor, defaultTemplateId } from './invitation/model'
 import { productByID, rupees, weddingPass } from './Shop'
+import { marketingChoice, attribution } from './shopMeta'
 import { workspaceRequest } from './WorkspaceData'
 import { WorkspaceImport } from './WorkspaceImport'
 
@@ -49,7 +50,7 @@ export function FamilyPass({ accountId, onCreated }: { accountId: string; onCrea
     setBusy(true)
     setError('')
     try {
-      const result = await workspaceRequest<Status>('/family-pass', { email: form.get('email'), testAccess: form.get('testAccess') ?? '' })
+      const result = await workspaceRequest<Status>('/family-pass', { email: form.get('email'), testAccess: form.get('testAccess') ?? '', meta: marketingChoice() === 'yes' ? attribution() : undefined })
       if (result.orderCode) window.location.assign(checkoutURL(result.orderCode))
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Checkout could not start.')

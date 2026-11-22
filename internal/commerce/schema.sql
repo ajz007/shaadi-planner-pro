@@ -29,3 +29,18 @@ ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS meta_next_attempt timestamptz 
 ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS meta_sent_at timestamptz;
 CREATE INDEX IF NOT EXISTS excel_meta_pending ON excel_orders (meta_next_attempt)
     WHERE meta_attribution IS NOT NULL AND paid_at IS NOT NULL AND meta_sent_at IS NULL AND refunded_at IS NULL;
+
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS meta_checkout_sent_at timestamptz;
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS meta_checkout_next_attempt timestamptz NOT NULL DEFAULT now();
+
+CREATE INDEX IF NOT EXISTS excel_family_meta_checkout_pending ON excel_orders(meta_checkout_next_attempt)
+    WHERE product='wedding-pass' AND mode='live' AND meta_attribution IS NOT NULL AND meta_checkout_sent_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS excel_checkout_events (
+    razorpay_order_id text NOT NULL REFERENCES excel_orders(razorpay_order_id),
+    event text NOT NULL CHECK (event IN ('checkout_opened','checkout_dismissed','payment_failed','refund_processed')),
+    attempt_id text NOT NULL,
+    amount_paise integer,
+    recorded_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (razorpay_order_id,event,attempt_id)
+);
