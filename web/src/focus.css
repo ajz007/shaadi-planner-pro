@@ -183,3 +183,5 @@ a.focus-item:hover strong, a.focus-item:focus-visible strong { text-decoration: 
 .wedding-list-item h2 { margin: 0 0 .25rem; overflow-wrap: anywhere; }
 .wedding-list-item p { margin: 0; color: #4a5c53; font-size: .9rem; }
 .wedding-list-actions { margin-top: 1rem; }
+.wedding-list-preview { margin-top: 1rem; }
+.wedding-list-preview .studio-preview { margin-top: 1.5rem; }
