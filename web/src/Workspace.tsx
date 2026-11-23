@@ -20,6 +20,7 @@ import { WorkspaceRunSheet } from './WorkspaceRunSheet'
 
 const InvitationStudio = lazy(() => import('./studio/InvitationStudio').then(module => ({ default: module.InvitationStudio })))
 const FamilyPass = lazy(() => import('./FamilyPass').then(module => ({ default: module.FamilyPass })))
+const WorkspaceWeddingPreview = lazy(() => import('./WeddingInvitationPreview').then(module => ({ default: module.WorkspaceWeddingPreview })))
 
 type Session = { accountId?: string; familyPassRequired?: boolean; configured: boolean; name?: string; workspaceURL?: string; localTest?: boolean }
 type Wedding = { exportOnly?: boolean; accessEndsAt?: string; id: string; name: string; date: string; timeZone: string; role: string; personId: string }
@@ -437,6 +438,7 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
   loginFailed: boolean; weddingID?: string; section?: string; layout?: WeddingLayout; guestSearch: string; awaitingReply: boolean; rsvpHousehold: string; setup: boolean; join: boolean; inviteCode: string
 }) {
   const [session, setSession] = useState<Session>()
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [weddings, setWeddings] = useState<Wedding[]>()
   const [plan, setPlan] = useState<Plan>()
   const [error, setError] = useState('')
@@ -608,8 +610,19 @@ export function Workspace({ loginFailed, weddingID, section, layout, guestSearch
         <div className="focus-actions wedding-list-actions">
           <a className={weddings?.length ? 'focus-secondary' : 'package-button'} href="#workspace/setup">Create a wedding</a>
           <a className="focus-secondary" href="#workspace/join">Join a wedding</a>
+          {session.accountId && <button type="button" className="focus-secondary" aria-expanded={previewOpen}
+            aria-controls="wedding-list-preview" onClick={() => setPreviewOpen(open => !open)}>
+            {previewOpen ? 'Hide wedding preview' : 'Preview a wedding'}
+          </button>}
           <a href="#demo">Explore the wedding demo</a>
         </div>
+        {session.accountId && <section id="wedding-list-preview" hidden={!previewOpen}
+          className="focus-card wedding-list-preview" aria-labelledby="wedding-list-preview-title">
+          <h2 id="wedding-list-preview-title">Preview your wedding invitation</h2>
+          {previewOpen && <Suspense fallback={<p role="status">Opening invitation preview.</p>}>
+            <WorkspaceWeddingPreview key={session.accountId} accountId={session.accountId} />
+          </Suspense>}
+        </section>}
       </> : <div className="focus-record-grid">
         {session.familyPassRequired && session.accountId ? <Suspense fallback={<p role="status">Opening wedding setup.</p>}>
           <FamilyPass key={session.accountId} accountId={session.accountId} onCreated={refreshList} />
