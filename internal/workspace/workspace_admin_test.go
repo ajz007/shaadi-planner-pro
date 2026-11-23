@@ -79,26 +79,60 @@ func TestAdminAnalyticsAccessAndAccountCounts(t *testing.T) {
 	if redirect := request("/admin", nil, http.StatusSeeOther).Header().Get("Location"); redirect != "/auth/google/start?admin=1" {
 		t.Fatalf("unexpected sign-in redirect %q", redirect)
 	}
-	if _, err := store.db.ExecContext(ctx, "INSERT INTO workspace_accounts (identity_subject, display_name, created_at) VALUES ($1, 'Returning user', NULL)", prefix+"returning"); err != nil {
+	if _, err := store.db.ExecContext(ctx, `INSERT INTO workspace_accounts (identity_subject, display_name, created_at)
+		VALUES ($1, 'Returning user', NULL), ($2, 'Legacy co-organizer', NULL)`, prefix+"returning", prefix+"legacy"); err != nil {
 		t.Fatal(err)
 	}
+	var weddings []string
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		for _, wedding := range weddings {
+			if _, err := store.db.ExecContext(cleanup, "DELETE FROM weddings WHERE id = $1", wedding); err != nil {
+				t.Error(err)
+			}
+		}
 		if _, err := store.db.ExecContext(cleanup, "DELETE FROM workspace_accounts WHERE identity_subject LIKE $1", prefix+"%"); err != nil {
 			t.Error(err)
 		}
 	}()
 	denied := request("/admin", login("returning"), http.StatusForbidden)
-	if strings.Contains(denied.Body.String(), "Successful sign-ins") {
+	if strings.Contains(denied.Body.String(), "Successful sign-ins") || strings.Contains(denied.Body.String(), "returning@example.test") {
 		t.Fatal("analytics exposed to a non-admin")
 	}
 	login("owner")
 	owner := login("owner")
+	var ownerID string
+	if err := store.db.QueryRowContext(ctx, "SELECT id FROM workspace_accounts WHERE identity_subject = $1", prefix+"owner").Scan(&ownerID); err != nil {
+		t.Fatal(err)
+	}
+	for _, membership := range []struct{ subject, role string }{{"legacy", "co-organizer"}, {"returning", "family"}} {
+		wedding, err := store.createWedding(ctx, ownerID, "Analytics wedding", "2027-12-01", "Asia/Kolkata")
+		if err != nil {
+			t.Fatal(err)
+		}
+		weddings = append(weddings, wedding)
+		if _, err := store.db.ExecContext(ctx, `WITH person AS (
+			INSERT INTO wedding_people (wedding_id, name) VALUES ($1, 'Invitee') RETURNING id
+		) INSERT INTO wedding_memberships (wedding_id, account_id, person_id, role)
+		SELECT $1, a.id, p.id, $3 FROM person p CROSS JOIN workspace_accounts a WHERE a.identity_subject = $2`,
+			wedding, prefix+membership.subject, membership.role); err != nil {
+			t.Fatal(err)
+		}
+	}
 	page := request("/admin?days=7", owner, http.StatusOK)
 	if page.Header().Get("Cache-Control") != "private, no-store" ||
 		!strings.Contains(page.Body.String(), "Daily activity") {
 		t.Fatal("dashboard content or private cache header missing")
+	}
+	for _, row := range []string{
+		"owner@example.test</th><td>2</td>",
+		"returning@example.test</th><td>0</td>",
+		"Legacy co-organizer <span class=\"note\">(email pending next sign-in)</span></th><td>1</td>",
+	} {
+		if strings.Count(page.Body.String(), row) != 1 {
+			t.Errorf("expected one account row matching %q", row)
+		}
 	}
 	report, err := store.analytics(ctx, nil, now, 7)
 	if err != nil {

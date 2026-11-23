@@ -28,7 +28,7 @@
     .note { line-height: 1.55; }
     section { margin-top: 1.3rem; }
     .scroll { overflow: auto; }
-    .daily { max-height: 27rem; }
+    .limited-height { max-height: 27rem; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .875rem; }
     th, td { padding: .65rem .75rem; text-align: right; white-space: nowrap; border-bottom: 1px solid #ede8f2; font-variant-numeric: tabular-nums; }
     th:first-child { text-align: left; }
@@ -76,9 +76,23 @@
       {{else}}<p class="note">No live order activity in this period.</p>{{end}}
     </section>
     {{else}}<p class="note">Commerce analytics are unavailable while checkout is unconfigured.</p>{{end}}
+    <section aria-labelledby="accounts">
+      <h2 id="accounts">Google accounts</h2>
+      <p class="note">All registered Google accounts, across all dates. Owners and co-organizers count as managers.</p>
+      {{if .GoogleAccounts}}
+      <div class="scroll limited-height" role="region" aria-labelledby="accounts" tabindex="0">
+        <table aria-labelledby="accounts">
+          <thead><tr><th scope="col">Google account</th><th scope="col">Weddings managed</th></tr></thead>
+          <tbody>{{range .GoogleAccounts}}
+            <tr><th scope="row">{{if .Email}}{{.Email}}{{else}}{{.Name}} <span class="note">(email pending next sign-in)</span>{{end}}</th><td>{{.Weddings}}</td></tr>
+          {{end}}</tbody>
+        </table>
+      </div>
+      {{else}}<p class="note">No Google accounts yet.</p>{{end}}
+    </section>
     <section aria-labelledby="daily">
       <h2 id="daily">Daily activity</h2>
-      <div class="scroll daily" role="region" aria-labelledby="daily" tabindex="0">
+      <div class="scroll limited-height" role="region" aria-labelledby="daily" tabindex="0">
         <table aria-labelledby="daily">
           <thead><tr><th scope="col">Date</th><th scope="col">New accounts</th><th scope="col">Sign-ins</th>{{if .HasCommerce}}<th scope="col">Orders</th><th scope="col">Checkout landings</th><th scope="col">Confirmed purchases</th><th scope="col">Gross sales</th>{{end}}</tr></thead>
           <tbody>{{range .Days}}<tr><th scope="row">{{.Label}}</th><td>{{.NewAccounts}}</td><td>{{.Signins}}</td>{{if $.HasCommerce}}<td>{{.Orders}}</td><td>{{.Landings}}</td><td>{{.Purchases}}</td><td>{{rupees .GrossPaise}}</td>{{end}}</tr>{{end}}</tbody>

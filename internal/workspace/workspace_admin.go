@@ -35,13 +35,19 @@ type analyticsProduct struct {
 	commerce.AnalyticsCounts
 }
 
+type analyticsGoogleAccount struct {
+	Name, Email string
+	Weddings    int64
+}
+
 type analyticsReport struct {
-	Range       string
-	Period      string
-	HasCommerce bool
-	Total       analyticsDay
-	Days        []analyticsDay
-	Products    []analyticsProduct
+	Range          string
+	Period         string
+	HasCommerce    bool
+	Total          analyticsDay
+	Days           []analyticsDay
+	Products       []analyticsProduct
+	GoogleAccounts []analyticsGoogleAccount
 }
 
 func (a *workspaceHTTP) RegisterAdmin(mux *http.ServeMux, shop *commerce.Shop) {
@@ -119,6 +125,11 @@ func (s *workspaceStore) analytics(ctx context.Context, shop *commerce.Shop, now
 	if err := s.readAccountAnalytics(ctx, start, end, byDay, &report.Total); err != nil {
 		return report, err
 	}
+	accounts, err := s.googleAccountAnalytics(ctx)
+	if err != nil {
+		return report, err
+	}
+	report.GoogleAccounts = accounts
 	if shop == nil {
 		return report, nil
 	}
@@ -145,6 +156,28 @@ func (s *workspaceStore) analytics(ctx context.Context, shop *commerce.Shop, now
 		return left.Label < right.Label
 	})
 	return report, nil
+}
+
+func (s *workspaceStore) googleAccountAnalytics(ctx context.Context) ([]analyticsGoogleAccount, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT a.display_name, COALESCE(a.google_email, ''), COUNT(m.wedding_id)
+		FROM workspace_accounts a
+		LEFT JOIN wedding_memberships m ON m.account_id = a.id AND m.role IN ('owner', 'co-organizer')
+		WHERE a.identity_subject LIKE $1
+		GROUP BY a.id
+		ORDER BY COUNT(m.wedding_id) DESC, lower(a.google_email) NULLS LAST, lower(a.display_name), a.id`, googleSubjectPrefix+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var accounts []analyticsGoogleAccount
+	for rows.Next() {
+		var account analyticsGoogleAccount
+		if err := rows.Scan(&account.Name, &account.Email, &account.Weddings); err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+	return accounts, rows.Err()
 }
 
 func (s *workspaceStore) readAccountAnalytics(ctx context.Context, start, end time.Time, byDay map[string]*analyticsDay, total *analyticsDay) error {
