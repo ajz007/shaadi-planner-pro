@@ -201,7 +201,7 @@ export function ShopPurchase({ code }: { code: string }) {
     }).catch(() => {})
     if (code) {
       setBusy('Checking payment…')
-      request<Purchase>('status', { code }).then(result => {
+      request<Purchase>('status', { code, checkoutLanding: true }).then(result => {
         if (active) setPurchase(result)
       }).catch(failure => {
         if (active) setError(errorText(failure))

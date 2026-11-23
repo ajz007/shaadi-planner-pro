@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/mail"
 	"os"
 	"regexp"
 	"strings"
@@ -22,6 +23,13 @@ var workspaceUUID = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}
 func Configure(ctx context.Context, publicOrigin string) (*workspaceHTTP, error) {
 	connection, id, secret := os.Getenv("SHAADI_DATABASE_URL"), os.Getenv("SHAADI_GOOGLE_CLIENT_ID"), os.Getenv("SHAADI_GOOGLE_CLIENT_SECRET")
 	localTest := os.Getenv("SHAADI_LOCAL_TEST_LOGIN") == "1"
+	adminEmail := strings.ToLower(strings.TrimSpace(os.Getenv("SHAADI_ADMIN_GOOGLE_EMAIL")))
+	if adminEmail != "" {
+		address, err := mail.ParseAddress(adminEmail)
+		if err != nil || address.Address != adminEmail {
+			return nil, errors.New("SHAADI_ADMIN_GOOGLE_EMAIL must contain a single Google account email")
+		}
+	}
 	if publicOrigin != "" && localTest {
 		return nil, errors.New("local test sign-in is only available in loopback mode")
 	}
@@ -75,7 +83,7 @@ func Configure(ctx context.Context, publicOrigin string) (*workspaceHTTP, error)
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 	}
-	return &workspaceHTTP{store: store, origin: origin, login: googleWorkspaceLogin{config: config}}, nil
+	return &workspaceHTTP{store: store, origin: origin, login: googleWorkspaceLogin{config: config}, adminEmail: adminEmail}, nil
 }
 
 func (a *workspaceHTTP) matchesHost(r *http.Request) bool {

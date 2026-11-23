@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Analytics | Shaadi Planner Pro</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #241b31; background: #f7f5fa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 72rem; margin: auto; padding: clamp(1rem, 4vw, 3.5rem); }
+    h1 { margin: .3rem 0 .45rem; font-size: clamp(1.9rem, 4vw, 2.8rem); letter-spacing: -.04em; }
+    h2 { margin: 0 0 .8rem; font-size: 1.15rem; }
+    p { margin: 0; }
+    a { color: #63369e; text-underline-offset: .18em; }
+    a:focus-visible, [tabindex]:focus-visible { outline: 2px solid #7044a1; outline-offset: 3px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
+    header > a, .period, .note { font-size: .875rem; }
+    .period, .note, dt, .brand { color: #554861; }
+    .brand { font-weight: 700; font-size: .9rem; }
+    nav { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1.25rem; }
+    nav a { padding: .5rem .8rem; border-radius: .55rem; border: 1px solid #d9cfe3; background: #fff; text-decoration: none; }
+    nav a[aria-current] { background: #eee2fb; border-color: #aa8bc8; font-weight: 700; }
+    dl { margin: 1rem 0 .7rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr)); gap: .75rem; }
+    dl div, section { background: #fff; border: 1px solid #e4ddeb; border-radius: .8rem; padding: 1rem; }
+    dt { font-size: .85rem; }
+    dd { margin: .4rem 0 0; font-size: 1.45rem; font-weight: 720; font-variant-numeric: tabular-nums; }
+    .note { line-height: 1.55; }
+    section { margin-top: 1.3rem; }
+    .scroll { overflow: auto; }
+    .daily { max-height: 27rem; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .875rem; }
+    th, td { padding: .65rem .75rem; text-align: right; white-space: nowrap; border-bottom: 1px solid #ede8f2; font-variant-numeric: tabular-nums; }
+    th:first-child { text-align: left; }
+    tbody th { font-weight: 550; }
+    thead th { color: #49375a; background: #f4eff8; position: sticky; top: 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="brand">Shaadi Planner Pro</p>
+        <h1>Admin analytics</h1>
+        <p class="period">{{.Period}} · India time</p>
+      </div>
+      <a href="/#workspace">Open planner</a>
+    </header>
+    <nav aria-label="Reporting period">
+      <a href="/admin?days=7" {{if eq .Range "7"}}aria-current="page"{{end}}>7 days</a>
+      <a href="/admin?days=30" {{if eq .Range "30"}}aria-current="page"{{end}}>30 days</a>
+      <a href="/admin?days=90" {{if eq .Range "90"}}aria-current="page"{{end}}>90 days</a>
+    </nav>
+    <dl>
+      <div><dt>New accounts</dt><dd>{{.Total.NewAccounts}}</dd></div>
+      <div><dt>Successful sign-ins</dt><dd>{{.Total.Signins}}</dd></div>
+      {{if .HasCommerce}}
+      <div><dt>Orders created</dt><dd>{{.Total.Orders}}</dd></div>
+      <div><dt>Checkout landings</dt><dd>{{.Total.Landings}}</dd></div>
+      <div><dt>Confirmed purchases</dt><dd>{{.Total.Purchases}}</dd></div>
+      <div><dt>Gross sales</dt><dd>{{rupees .Total.GrossPaise}}</dd></div>
+      {{end}}
+    </dl>
+    <p class="note">Sign-ins count successful Google logins, including the first one for a new account. Account activity starts when tracking is enabled.</p>
+    {{if .HasCommerce}}
+    <p class="note">A checkout landing is counted once per unpaid order when its payment page loads. Captured payments are counted on confirmation. Gross sales are before refunds and fees. Sales figures use live orders.</p>
+    <section aria-labelledby="products">
+      <h2 id="products">Sales by product</h2>
+      {{if .Products}}
+      <div class="scroll" role="region" aria-labelledby="products" tabindex="0">
+        <table aria-labelledby="products">
+          <thead><tr><th scope="col">Product</th><th scope="col">Orders</th><th scope="col">Checkout landings</th><th scope="col">Confirmed purchases</th><th scope="col">Gross sales</th></tr></thead>
+          <tbody>{{range .Products}}<tr><th scope="row">{{.Label}}</th><td>{{.Orders}}</td><td>{{.Landings}}</td><td>{{.Purchases}}</td><td>{{rupees .GrossPaise}}</td></tr>{{end}}</tbody>
+        </table>
+      </div>
+      {{else}}<p class="note">No live order activity in this period.</p>{{end}}
+    </section>
+    {{else}}<p class="note">Commerce analytics are unavailable while checkout is unconfigured.</p>{{end}}
+    <section aria-labelledby="daily">
+      <h2 id="daily">Daily activity</h2>
+      <div class="scroll daily" role="region" aria-labelledby="daily" tabindex="0">
+        <table aria-labelledby="daily">
+          <thead><tr><th scope="col">Date</th><th scope="col">New accounts</th><th scope="col">Sign-ins</th>{{if .HasCommerce}}<th scope="col">Orders</th><th scope="col">Checkout landings</th><th scope="col">Confirmed purchases</th><th scope="col">Gross sales</th>{{end}}</tr></thead>
+          <tbody>{{range .Days}}<tr><th scope="row">{{.Label}}</th><td>{{.NewAccounts}}</td><td>{{.Signins}}</td>{{if $.HasCommerce}}<td>{{.Orders}}</td><td>{{.Landings}}</td><td>{{.Purchases}}</td><td>{{rupees .GrossPaise}}</td>{{end}}</tr>{{end}}</tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
