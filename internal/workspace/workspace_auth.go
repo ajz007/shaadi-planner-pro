@@ -20,7 +20,9 @@ const workspaceSessionCookie = "shaadi_session"
 const workspaceFlowCookie = "shaadi_google_flow"
 const workspaceSessionAge = 8 * time.Hour
 
-type workspaceIdentity struct{ subject, name string }
+const googleSubjectPrefix = "https://accounts.google.com:"
+
+type workspaceIdentity struct{ subject, name, email string }
 
 type workspaceLogin interface {
 	authorizationURL(state, verifier string) string
@@ -55,6 +57,7 @@ func (g googleWorkspaceLogin) identity(ctx context.Context, code, verifier strin
 	var profile struct {
 		Sub           string `json:"sub"`
 		Name          string `json:"name"`
+		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&profile); err != nil {
@@ -66,14 +69,15 @@ func (g googleWorkspaceLogin) identity(ctx context.Context, code, verifier strin
 	if !validLabel(profile.Name, 120) {
 		profile.Name = "Wedding planner"
 	}
-	return workspaceIdentity{subject: "https://accounts.google.com:" + profile.Sub, name: profile.Name}, nil
+	return workspaceIdentity{subject: googleSubjectPrefix + profile.Sub, name: profile.Name, email: profile.Email}, nil
 }
 
 type workspaceHTTP struct {
-	store     *workspaceStore
-	login     workspaceLogin
-	origin    string
-	localTest bool
+	store      *workspaceStore
+	login      workspaceLogin
+	origin     string
+	localTest  bool
+	adminEmail string
 }
 
 func workspaceSecret() string {
@@ -93,7 +97,9 @@ func (a *workspaceHTTP) startLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	state, verifier := workspaceSecret(), workspaceSecret()
 	flow := state + "." + verifier
-	if r.URL.Query().Get("setup") == "1" {
+	if a.adminEmail != "" && r.URL.Query().Get("admin") == "1" {
+		flow += ".admin"
+	} else if r.URL.Query().Get("setup") == "1" {
 		flow += ".setup"
 	}
 	a.cookie(w, workspaceFlowCookie, flow, "/auth/google/callback", 300)
@@ -108,7 +114,8 @@ func (a *workspaceHTTP) finishLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/#workspace?login=failed", http.StatusSeeOther)
 		return
 	}
-	flow, setup := strings.CutSuffix(cookie.Value, ".setup")
+	flow, admin := strings.CutSuffix(cookie.Value, ".admin")
+	flow, setup := strings.CutSuffix(flow, ".setup")
 	state, verifier, valid := strings.Cut(flow, ".")
 	code := r.URL.Query().Get("code")
 	if !valid || len(state) != 43 || len(verifier) != 43 || code == "" ||
@@ -125,36 +132,51 @@ func (a *workspaceHTTP) finishLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	destination := "/#workspace"
-	if setup {
+	if admin {
+		destination = "/admin"
+	} else if setup {
 		destination += "/setup"
 	}
 	http.Redirect(w, r, destination, http.StatusSeeOther)
 }
 
 func (a *workspaceHTTP) openSession(w http.ResponseWriter, r *http.Request, identity workspaceIdentity) bool {
-	account, err := a.store.syncAccount(r.Context(), identity.subject, identity.name)
-	if err != nil {
-		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
-		return false
-	}
+	ctx := r.Context()
 	token := workspaceSecret()
 	// Rotate an existing session and remove expired records as part of sign-in.
-	tx, err := a.store.db.BeginTx(r.Context(), nil)
+	tx, err := a.store.db.BeginTx(ctx, nil)
 	if err != nil {
 		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
 		return false
 	}
 	defer tx.Rollback()
+	account, err := syncWorkspaceAccount(ctx, tx, identity.subject, identity.name)
+	if err != nil {
+		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
+		return false
+	}
 	previous := ""
 	if current, err := r.Cookie(workspaceSessionCookie); err == nil {
 		previous = current.Value
 	}
-	if _, err := tx.ExecContext(r.Context(), "DELETE FROM workspace_sessions WHERE expires_at <= now() OR token_hash = $1", inviteHash(previous)); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM workspace_sessions WHERE expires_at <= now() OR token_hash = $1", inviteHash(previous)); err != nil {
 		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
 		return false
 	}
-	if _, err := tx.ExecContext(r.Context(), "INSERT INTO workspace_sessions (token_hash, account_id, expires_at) VALUES ($1, $2, $3)",
-		inviteHash(token), account, time.Now().Add(workspaceSessionAge)); err != nil || tx.Commit() != nil {
+	var adminEmail *string
+	if strings.HasPrefix(identity.subject, googleSubjectPrefix) {
+		if a.adminEmail != "" && strings.EqualFold(identity.email, a.adminEmail) {
+			adminEmail = &a.adminEmail
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO workspace_daily_signins (day, signins)
+			VALUES ((now() AT TIME ZONE 'Asia/Kolkata')::date, 1)
+			ON CONFLICT (day) DO UPDATE SET signins = workspace_daily_signins.signins + 1`); err != nil {
+			httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
+			return false
+		}
+	}
+	if _, err := tx.ExecContext(ctx, "INSERT INTO workspace_sessions (token_hash, account_id, expires_at, admin_email) VALUES ($1, $2, $3, $4)",
+		inviteHash(token), account, time.Now().Add(workspaceSessionAge), adminEmail); err != nil || tx.Commit() != nil {
 		httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
 		return false
 	}

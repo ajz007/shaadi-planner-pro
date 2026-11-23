@@ -83,6 +83,7 @@ func main() {
 	}
 	app.Register(mux)
 	shop.Register(mux)
+	app.RegisterAdmin(mux, shop)
 	app.RegisterFamilyPass(mux, shop.FamilyPassStatus, shop.CreateFamilyPassOrder)
 	server := &http.Server{
 		Addr: address, Handler: handler,

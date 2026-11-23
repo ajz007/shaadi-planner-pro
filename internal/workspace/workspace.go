@@ -79,6 +79,9 @@ var familyPassMigration string
 //go:embed migrations/021_family_pass_access.sql
 var familyPassAccessMigration string
 
+//go:embed migrations/022_admin_analytics.sql
+var adminAnalyticsMigration string
+
 var (
 	errWorkspaceNotFound    = errors.New("record not found or access denied")
 	errWorkspaceConflict    = errors.New("record changed or no longer available")
@@ -124,6 +127,7 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 		workspaceReadinessMigration, workspaceGuestStayMigration, workspaceGuestRSVPMigration, workspaceRunSheetMigration,
 		workspaceGuestPageMigration, workspaceReusableScheduleMigration, workspaceFunctionVisibilityMigration,
 		workspaceGuestLabelsMigration, workspaceBudgetMigration, workspaceInvitationMigration, workspaceInvitationPublishingMigration, familyPassMigration, familyPassAccessMigration,
+		adminAnalyticsMigration,
 	}
 	for i, migration := range migrations {
 		version := i + 1
@@ -160,11 +164,17 @@ func scanWorkspace(row *sql.Row, targets ...any) error {
 // The identity subject must come from a verified identity provider, never a
 // client-supplied identity claim. It includes the issuer to prevent collisions.
 func (s *workspaceStore) syncAccount(ctx context.Context, subject, name string) (string, error) {
+	return syncWorkspaceAccount(ctx, s.db, subject, name)
+}
+
+func syncWorkspaceAccount(ctx context.Context, db interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, subject, name string) (string, error) {
 	if strings.TrimSpace(subject) == "" || !validLabel(name, 120) {
 		return "", errWorkspaceInput
 	}
 	var id string
-	err := scanWorkspace(s.db.QueryRowContext(ctx, `
+	err := scanWorkspace(db.QueryRowContext(ctx, `
 		INSERT INTO workspace_accounts (identity_subject, display_name) VALUES ($1, $2)
 		ON CONFLICT (identity_subject) DO UPDATE SET display_name = EXCLUDED.display_name RETURNING id`,
 		subject, strings.TrimSpace(name)), &id)

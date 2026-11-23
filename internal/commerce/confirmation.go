@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 
@@ -56,7 +57,10 @@ func (s *Shop) readPurchase(w http.ResponseWriter, r *http.Request, code string)
 }
 
 func (s *Shop) status(w http.ResponseWriter, r *http.Request) {
-	var input struct{ Code string }
+	var input struct {
+		Code            string
+		CheckoutLanding bool
+	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return
 	}
@@ -71,6 +75,14 @@ func (s *Shop) status(w http.ResponseWriter, r *http.Request) {
 	if p.PaidAt.Valid {
 		httpx.Reply(w, 200, s.purchaseState(p, "paid", p.Payment))
 		return
+	}
+	if input.CheckoutLanding {
+		// The purchase code was verified above. A reload can only mark an order once.
+		if _, err := s.db.ExecContext(r.Context(), `UPDATE excel_orders SET checkout_landed_at=now()
+			WHERE razorpay_order_id=$1 AND mode=$2 AND checkout_landed_at IS NULL
+				AND paid_at IS NULL AND refunded_at IS NULL`, id, s.mode); err != nil {
+			log.Print("could not record a checkout landing")
+		}
 	}
 
 	// Reconcile directly with Razorpay when a buyer returns without a callback.

@@ -19,6 +19,10 @@ ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS workspace_account_id uuid;
 ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS refunded_at timestamptz;
 ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS includes_essentials boolean NOT NULL DEFAULT false;
 ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS bundle_product text;
+ALTER TABLE excel_orders ADD COLUMN IF NOT EXISTS checkout_landed_at timestamptz;
+CREATE INDEX IF NOT EXISTS excel_orders_live_created ON excel_orders (created_at) WHERE mode = 'live';
+CREATE INDEX IF NOT EXISTS excel_orders_live_landed ON excel_orders (checkout_landed_at) WHERE mode = 'live' AND checkout_landed_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS excel_orders_live_paid ON excel_orders (paid_at) WHERE mode = 'live' AND paid_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS family_pass_orders ON excel_orders (workspace_account_id, mode, created_at DESC)
     WHERE workspace_account_id IS NOT NULL;
 
