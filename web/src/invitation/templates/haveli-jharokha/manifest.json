@@ -1,0 +1,79 @@
+{
+  "id": "haveli-jharokha",
+  "version": 1,
+  "order": 6,
+  "name": "Haveli Jharokha",
+  "description": "Carved jali shutters swing open on a sandstone haveli window and the guest steps through into arched windows, blue-pottery tiles and drifting lattice light.",
+  "premium": false,
+  "tags": {
+    "mood": [
+      "heritage",
+      "royal"
+    ],
+    "region": [
+      "north",
+      "west"
+    ],
+    "time": "day"
+  },
+  "sections": [
+    "hero",
+    "blessing",
+    "countdown",
+    "couple",
+    "events",
+    "rsvp",
+    "family",
+    "venue",
+    "contacts",
+    "closing"
+  ],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "terracotta",
+      "choices": [
+        {
+          "value": "terracotta",
+          "label": "Terracotta & Indigo",
+          "swatch": [
+            "#f7efe3",
+            "#c66b3d",
+            "#1d2756"
+          ]
+        },
+        {
+          "value": "pink-city",
+          "label": "Pink City",
+          "swatch": [
+            "#fbf1ec",
+            "#df9a8c",
+            "#0f3f3c"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "windowLine",
+      "label": "Line under the window",
+      "type": "text",
+      "max": 90,
+      "default": "",
+      "help": "Leave empty for “Tap the shutters to open your invitation to … wedding”."
+    },
+    {
+      "key": "jaliLight",
+      "label": "Lattice light drifting across the windows",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "pigeons",
+      "label": "Pigeons on the ledges",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
