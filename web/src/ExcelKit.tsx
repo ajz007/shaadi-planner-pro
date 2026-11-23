@@ -114,6 +114,23 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
       </div>
       <section id="purchase" className="excel-card product-purchase" aria-labelledby="excel-price">
         <h2 id="excel-price">{rupees(item.amount)} <span>one-time payment</span></h2>
+        {item.slug === 'complete' && <p>English Excel planner, vendor negotiation kit and WhatsApp RSVP pack.</p>}
+        <p>Download the {isPDF ? 'PDF' : 'ZIP'} as soon as Razorpay confirms your payment. Your emailed receipt includes a private link to download it again on another device.</p>
+        <p>No planner account is needed for this download.</p>
+        {shop?.test && <p className="excel-notice" role="status">Test checkout. No money will be charged.</p>}
+        <form onSubmit={order}>
+          <label htmlFor="excel-email">Email for your receipt</label>
+          <input name="email" id="excel-email" type="email" autoComplete="email" maxLength={254} required disabled={!available || busy} />
+          {shop?.testAccessRequired && <>
+            <label htmlFor="excel-test-access">Private test checkout code</label>
+            <input name="testAccess" id="excel-test-access" type="password" autoComplete="off" required disabled={!available || busy} />
+          </>}
+          <button disabled={!available || busy}>{busy ? 'Preparing checkout…' : `Continue to payment · ${rupees(item.amount)}`}</button>
+        </form>
+        {error && <p role="alert" className="error">{error}</p>}
+        {shop && !available && <p role="status">Checkout is currently unavailable.</p>}
+        {previous && <p><a href={purchasePath + '#' + previous}>Return to your last purchase</a></p>}
+        <p className="product-requirements">{!isPDF && 'Unzip the download. '}{hasWorkbook && 'Open the .xlsx files in Microsoft Excel with automatic calculation enabled. '}{hasWord && 'Use Word or a compatible editor for editable scripts. '}Use a PDF reader for {isPDF ? 'the templates' : 'the guides'}.</p>
         {hasWorkbook && <aside className="excel-planner-offer" aria-label="Online Wedding Planner">
           <h3>Plan together online</h3>
           <p>Share invitations and manage RSVPs, room assignments, and pickups with your family.</p>
@@ -123,22 +140,6 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
             {plannerBundle && <a href="/#workspace/setup">Buy the Online Planner</a>}
           </div>
         </aside>}
-        <p>Download the {isPDF ? 'PDF' : 'ZIP'} as soon as Razorpay confirms your payment. Your emailed receipt includes a private link to download it again on another device.</p>
-        <p>No planner account is needed for this download.</p>
-        <p className="product-requirements">{!isPDF && 'Unzip the download. '}{hasWorkbook && 'Open the .xlsx files in Microsoft Excel with automatic calculation enabled. '}{hasWord && 'Use Word or a compatible editor for editable scripts. '}Use a PDF reader for {isPDF ? 'the templates' : 'the guides'}.</p>
-        {shop?.test && <p className="excel-notice" role="status">Test checkout. No money will be charged.</p>}
-        <form onSubmit={order}>
-          <label htmlFor="excel-email">Email for your receipt</label>
-          <input name="email" id="excel-email" type="email" autoComplete="email" maxLength={254} required disabled={!available || busy} />
-          {shop?.testAccessRequired && <>
-            <label htmlFor="excel-test-access">Private test checkout code</label>
-            <input name="testAccess" id="excel-test-access" type="password" autoComplete="off" required disabled={!available || busy} />
-          </>}
-          <button disabled={!available || busy}>{busy ? 'Preparing checkout…' : `Buy ${item.name} — ${rupees(item.amount)}`}</button>
-        </form>
-        {error && <p role="alert" className="error">{error}</p>}
-        {shop && !available && <p role="status">Checkout is currently unavailable.</p>}
-        {previous && <p><a href={purchasePath + '#' + previous}>Return to your last purchase</a></p>}
       </section>
       <div className="product-full-description">
         <div className="product-introduction">{description.intro.map(text => <p key={text}>{text}</p>)}</div>
@@ -235,10 +236,15 @@ export function ShopPurchase({ code }: { code: string }) {
         return
       }
       const RazorpayCheckout = await loadCheckout()
+      const attempt = window.crypto?.randomUUID?.()
+      const record = (event: string) => {
+        if (attempt) void request('checkout-event', { code, event, attempt }).catch(() => {})
+      }
       new RazorpayCheckout({
         key: info.key, order_id: info.order, amount: info.amount, currency: info.currency,
         name: 'ShaadiPlannerPro', description: productByID(latest.product)?.name ?? 'Digital download', prefill: { email: info.email },
         modal: { ondismiss: () => {
+          record('checkout_dismissed')
           setNotice('Checkout was closed. Check payment status before trying again if your bank shows a debit.')
           void refresh()
         } },
@@ -258,6 +264,7 @@ export function ShopPurchase({ code }: { code: string }) {
           }
         },
       }).open()
+      record('checkout_opened')
       setBusy('Checkout is open…')
     } catch (failure) {
       setError(errorText(failure))
@@ -331,8 +338,8 @@ export function ShopPurchase({ code }: { code: string }) {
       <h2>Upgrade to the Online Planner</h2>
       <p>Plan together online, share invitations, and track RSVPs, rooms and pickups. The Family Pass includes {plannerBundle.name} at no extra cost.</p>
       <div className="excel-status-actions">
-        <PlannerExploreLink className="shop-primary" href={plannerShowcaseURL()}>Explore the Online Planner</PlannerExploreLink>
-        <a href="/#workspace/setup">Buy the Online Planner</a>
+        <PlannerExploreLink className="shop-primary" href={plannerShowcaseURL() + '?entry=post_purchase'}>Explore the Online Planner</PlannerExploreLink>
+        <a href="/?entry=post_purchase#workspace/setup">Buy the Online Planner</a>
       </div>
     </section>}
     {shop?.recovery && <Recovery />}

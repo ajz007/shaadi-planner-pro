@@ -153,6 +153,7 @@ func (s *Shop) Register(mux *http.ServeMux) {
 		return
 	}
 	mux.HandleFunc("POST /api/excel/orders", s.createOrder)
+	mux.HandleFunc("POST /api/excel/checkout-event", s.checkoutEvent)
 	mux.HandleFunc("POST /api/excel/status", s.status)
 	mux.HandleFunc("POST /api/excel/confirm", s.confirm)
 	mux.HandleFunc("POST /api/excel/download", s.download)

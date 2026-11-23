@@ -21,14 +21,15 @@ type metaEvents struct {
 	client    *http.Client
 }
 type metaAttribution struct {
+	Entry     string `json:"entry,omitempty"`
 	UserAgent string `json:"client_user_agent,omitempty"`
-	FBP      string `json:"fbp,omitempty"`
-	FBC      string `json:"fbc,omitempty"`
-	Campaign string `json:"utm_campaign,omitempty"`
-	Source   string `json:"utm_source,omitempty"`
-	Medium   string `json:"utm_medium,omitempty"`
-	Content  string `json:"utm_content,omitempty"`
-	Term     string `json:"utm_term,omitempty"`
+	FBP       string `json:"fbp,omitempty"`
+	FBC       string `json:"fbc,omitempty"`
+	Campaign  string `json:"utm_campaign,omitempty"`
+	Source    string `json:"utm_source,omitempty"`
+	Medium    string `json:"utm_medium,omitempty"`
+	Content   string `json:"utm_content,omitempty"`
+	Term      string `json:"utm_term,omitempty"`
 }
 
 var pixelNumber = regexp.MustCompile(`^[0-9]{5,24}$`)
@@ -53,6 +54,9 @@ func (s *Shop) orderAttribution(a *metaAttribution, userAgent string) *string {
 	if a == nil || s.meta == nil {
 		return nil
 	}
+	if a.Entry != "post_purchase" {
+		a.Entry = ""
+	}
 	a.UserAgent = strings.ToValidUTF8(strings.TrimSpace(userAgent), "")
 	if len(a.UserAgent) > 1024 {
 		a.UserAgent = strings.ToValidUTF8(a.UserAgent[:1024], "")
@@ -76,16 +80,18 @@ func (s *Shop) sendMetaPurchases(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
-		for range 10 {
-			work, err := s.sendMetaPurchase(ctx)
-			if err != nil {
-				if ctx.Err() == nil {
-					log.Print("Shop Meta purchase queue unavailable")
+		for _, event := range []string{"Purchase", "InitiateCheckout"} {
+			for range 10 {
+				work, err := s.sendMetaOrderEvent(ctx, event)
+				if err != nil {
+					if ctx.Err() == nil {
+						log.Print("Shop Meta purchase queue unavailable")
+					}
+					break
 				}
-				break
-			}
-			if !work {
-				break
+				if !work {
+					break
+				}
 			}
 		}
 		select {
@@ -96,7 +102,7 @@ func (s *Shop) sendMetaPurchases(ctx context.Context) {
 	}
 }
 
-func (s *Shop) sendMetaPurchase(ctx context.Context) (bool, error) {
+func (s *Shop) sendMetaOrderEvent(ctx context.Context, eventName string) (bool, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return false, err
@@ -106,10 +112,15 @@ func (s *Shop) sendMetaPurchase(ctx context.Context) (bool, error) {
 	var attribution []byte
 	var amount int
 	var paid time.Time
-	err = tx.QueryRowContext(ctx, `SELECT razorpay_order_id,buyer_email,product,currency,amount_paise,paid_at,meta_attribution
- FROM excel_orders WHERE mode='live' AND meta_attribution IS NOT NULL AND paid_at IS NOT NULL
- AND paid_at > now()-interval '7 days' AND refunded_at IS NULL AND meta_sent_at IS NULL
- AND meta_next_attempt<=now() ORDER BY meta_next_attempt LIMIT 1 FOR UPDATE SKIP LOCKED`).
+	// Each queue has its own retry time so a rejected checkout cannot delay a paid conversion.
+	eventTime, sent, next, condition := "paid_at", "meta_sent_at", "meta_next_attempt", "refunded_at IS NULL"
+	if eventName == "InitiateCheckout" {
+		eventTime, sent, next, condition = "created_at", "meta_checkout_sent_at", "meta_checkout_next_attempt", "product='wedding-pass'"
+	}
+	query := `SELECT razorpay_order_id,buyer_email,product,currency,amount_paise,` + eventTime + `,meta_attribution
+	 FROM excel_orders WHERE mode='live' AND meta_attribution IS NOT NULL AND ` + condition +
+		" AND " + eventTime + " > now()-interval '7 days' AND " + sent + " IS NULL AND " + next + "<=now() ORDER BY " + next + " LIMIT 1 FOR UPDATE SKIP LOCKED"
+	err = tx.QueryRowContext(ctx, query).
 		Scan(&order, &email, &productID, &currency, &amount, &paid, &attribution)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -132,7 +143,11 @@ func (s *Shop) sendMetaPurchase(ctx context.Context) (bool, error) {
 	if a.FBC != "" {
 		user["fbc"] = a.FBC
 	}
-	event := map[string]any{"event_name": "Purchase", "event_time": paid.Unix(), "event_id": "spp-" + order, "action_source": "website",
+	dedupID := "spp-" + order
+	if eventName == "InitiateCheckout" {
+		dedupID = "spp-start-" + order
+	}
+	event := map[string]any{"event_name": eventName, "event_time": paid.Unix(), "event_id": dedupID, "action_source": "website",
 		"event_source_url": s.origin + "/shop/" + catalog[productID].Slug, "user_data": user,
 		"custom_data": map[string]any{"currency": currency, "value": float64(amount) / 100, "content_ids": []string{productID}, "content_type": "product"}}
 	body, err := json.Marshal(map[string]any{"data": []any{event}})
@@ -155,10 +170,10 @@ func (s *Shop) sendMetaPurchase(ctx context.Context) (bool, error) {
 		accepted = response.StatusCode/100 == 2 && json.NewDecoder(response.Body).Decode(&result) == nil && result.Count == 1
 	}
 	if accepted {
-		_, err = tx.ExecContext(ctx, "UPDATE excel_orders SET meta_sent_at=now() WHERE razorpay_order_id=$1", order)
+		_, err = tx.ExecContext(ctx, "UPDATE excel_orders SET "+sent+"=now() WHERE razorpay_order_id=$1", order)
 	} else {
-		log.Print("Meta purchase delivery deferred; check dataset credentials and Events Manager")
-		_, err = tx.ExecContext(ctx, "UPDATE excel_orders SET meta_next_attempt=now()+interval '15 minutes' WHERE razorpay_order_id=$1", order)
+		log.Printf("Meta %s delivery deferred; check dataset credentials and Events Manager", eventName)
+		_, err = tx.ExecContext(ctx, "UPDATE excel_orders SET "+next+"=now()+interval '15 minutes' WHERE razorpay_order_id=$1", order)
 	}
 	if err != nil {
 		return false, err
