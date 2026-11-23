@@ -165,6 +165,13 @@ func (a *workspaceHTTP) openSession(w http.ResponseWriter, r *http.Request, iden
 	}
 	var adminEmail *string
 	if strings.HasPrefix(identity.subject, googleSubjectPrefix) {
+		if email := strings.TrimSpace(identity.email); email != "" {
+			if _, err := tx.ExecContext(ctx, `UPDATE workspace_accounts SET google_email = $1
+				WHERE id = $2 AND google_email IS DISTINCT FROM $1`, email, account); err != nil {
+				httpx.Fail(w, http.StatusInternalServerError, "Could not open your workspace.")
+				return false
+			}
+		}
 		if a.adminEmail != "" && strings.EqualFold(identity.email, a.adminEmail) {
 			adminEmail = &a.adminEmail
 		}

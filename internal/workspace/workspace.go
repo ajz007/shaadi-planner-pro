@@ -82,6 +82,9 @@ var familyPassAccessMigration string
 //go:embed migrations/022_admin_analytics.sql
 var adminAnalyticsMigration string
 
+//go:embed migrations/023_google_account_emails.sql
+var googleAccountEmailsMigration string
+
 var (
 	errWorkspaceNotFound    = errors.New("record not found or access denied")
 	errWorkspaceConflict    = errors.New("record changed or no longer available")
@@ -127,7 +130,7 @@ func (s *workspaceStore) migrate(ctx context.Context) error {
 		workspaceReadinessMigration, workspaceGuestStayMigration, workspaceGuestRSVPMigration, workspaceRunSheetMigration,
 		workspaceGuestPageMigration, workspaceReusableScheduleMigration, workspaceFunctionVisibilityMigration,
 		workspaceGuestLabelsMigration, workspaceBudgetMigration, workspaceInvitationMigration, workspaceInvitationPublishingMigration, familyPassMigration, familyPassAccessMigration,
-		adminAnalyticsMigration,
+		adminAnalyticsMigration, googleAccountEmailsMigration,
 	}
 	for i, migration := range migrations {
 		version := i + 1
