@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -74,6 +75,7 @@ func main() {
 		go shop.SendReceipts(maintenance)
 	}
 	mux := routes(http.Dir("web/dist"), publicOrigin == "")
+	mux.HandleFunc("GET /api/storefront-analytics", storefrontAnalytics(os.Getenv("GA4_MEASUREMENT_ID")))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -92,6 +94,20 @@ func main() {
 	}
 	log.Printf("Shaadi Planner listening on %s", address)
 	log.Fatal(server.ListenAndServe())
+}
+
+var ga4MeasurementID = regexp.MustCompile(`^G-[A-Z0-9]+$`)
+
+func storefrontAnalytics(id string) http.HandlerFunc {
+	id = strings.TrimSpace(id)
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if !ga4MeasurementID.MatchString(id) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		httpx.Reply(w, http.StatusOK, map[string]string{"measurementID": id})
+	}
 }
 
 func serverSettings(port, origin string) (address, publicOrigin string, err error) {

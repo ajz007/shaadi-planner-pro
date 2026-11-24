@@ -295,7 +295,9 @@ function App() {
   const demo = path === '/' && /^#demo(?:\/[a-z-]+)?$/.test(section)
   const sample = path === '/' && section === '#dashboard'
   const publicPage = (hash === '' && (path === '/' || path === '/shop' || !!item)) || demo || sample
-  return <ShopMeasurement pageKey={publicPage ? path + section : undefined} item={item} demo={demo || sample}>
+  const purchasePage = path === '/shop/purchase' || path === '/excel-kit/purchase'
+  const analyticsPath = purchasePage || path === '/shop' || item || (path === '/' && !hash) ? path : undefined
+  return <ShopMeasurement pageKey={publicPage ? path + section : undefined} analyticsPath={analyticsPath} item={item} demo={demo || sample}>
     {content}
   </ShopMeasurement>
 }

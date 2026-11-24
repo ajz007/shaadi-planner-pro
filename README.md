@@ -162,6 +162,8 @@ Run the workflow test with `go test ./...`.
 
 ### Deploy to Railway
 
+For optional storefront analytics, set `GA4_MEASUREMENT_ID` in the Railway app service to the `G-…` ID of the Google Analytics web stream. Turn off Enhanced measurement for this stream so Google does not send automatic events alongside the application's manually scoped page views. Verify in GA4 Realtime by opening a tagged storefront URL, allowing Store analytics, and continuing to the payment page.
+
 The public homepage is at `/`, the sample wedding at `/#demo`, the Excel workbook example at `/#dashboard`, and the private planner at `/#workspace`. Privacy, Terms and Contact are draft previews at `/privacy`, `/terms` and `/contact`. Set `VITE_SELLER_NAME` and `VITE_SUPPORT_EMAIL` on the app service to override the defaults of Ajit Shukla and support@shaadiplannerpro.com. These are public values compiled into the frontend during the build, so changes require a rebuild.
 
 Before publishing the policies, verify that the support inbox receives mail and that the proposed retention rules can be carried out. The draft proposes 90 days of access after the wedding and up to 30 days in backups after removal from the live service. Confirm the deletion workflow, backup schedules and policy wording before removing the draft notice and indexing restriction.

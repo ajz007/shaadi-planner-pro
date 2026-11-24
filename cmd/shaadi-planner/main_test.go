@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,6 +9,23 @@ import (
 
 	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
+
+func TestStorefrontAnalytics(t *testing.T) {
+	for _, id := range []string{"", "555057816", "G-INVALID/ID"} {
+		response := httptest.NewRecorder()
+		storefrontAnalytics(id)(response, httptest.NewRequest("GET", "/api/storefront-analytics", nil))
+		if response.Code != http.StatusNoContent || response.Body.Len() != 0 {
+			t.Errorf("invalid GA4 ID %q produced status %d and body %q", id, response.Code, response.Body.String())
+		}
+	}
+	response := httptest.NewRecorder()
+	storefrontAnalytics(" G-TEST123 ")(response, httptest.NewRequest("GET", "/api/storefront-analytics", nil))
+	var config map[string]string
+	err := json.Unmarshal(response.Body.Bytes(), &config)
+	if err != nil || response.Code != http.StatusOK || config["measurementID"] != "G-TEST123" {
+		t.Errorf("GA4 configuration response %d %s: %v", response.Code, response.Body.String(), err)
+	}
+}
 
 func TestPaidKitCannotBeServedAsStaticFile(t *testing.T) {
 	assets := fstest.MapFS{
