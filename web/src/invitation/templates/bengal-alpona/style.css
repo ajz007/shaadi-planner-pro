@@ -1,0 +1,526 @@
+/* Alpona. Every rule is scoped to .t-bengal-alpona; colours are tokens per
+   palette; motion uses only opacity and transform and switches off for
+   reduced motion. */
+
+.t-bengal-alpona {
+  --al-page: #fbf5ec;
+  --al-cloth: #fffdf8;
+  --al-ink: #3f070c;
+  --al-text: #3a1a17;
+  --al-muted: #6e4440;
+  --al-accent: #b5121b;
+  --al-accent-deep: #860d14;
+  --al-on-accent: #fff8ef;
+  --al-kicker: #a3121a;
+  --al-gold: #c9962e;
+  --al-gold-light: #ecc879;
+  --al-paar: #b5121b;
+  --al-paar-edge: #ecc879;
+  --al-paar-dot: #fffdf8;
+  --al-line: #ecdccb;
+  --al-ground: #b3141e;
+  --al-ground-2: #640910;
+  --al-chalk: #fff7ec;
+  --al-chalk-dot: #f5d48a;
+  --al-on-ground: #fff6ea;
+  --al-on-ground-soft: #f8d7b4;
+  --al-shola: #fffaf0;
+  --al-crown-edge: #b5121b;
+  --al-crown-line: #b5121b;
+  --al-shakha: #fffdf6;
+  --al-shakha-shade: #eee2cf;
+  --al-shakha-edge: #d9c6a8;
+  --al-pola: #b5121b;
+  --al-wood: #6b2410;
+  --al-wood-2: #4a170a;
+  --al-pidi-line: #fff3e2;
+  --al-pidi-text: #fff6ea;
+  --al-pidi-soft: #f6cfa5;
+  --al-medal: #b5121b;
+  --al-medal-face: #fffdf8;
+  --al-icon: #9a0f17;
+  --al-ic-a: #f6c9c3;
+  --al-ic-b: #f3d389;
+  --al-ghost: rgb(181 18 27 / .07);
+  --al-shadow: rgb(90 20 10 / .2);
+  --al-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --al-serif: 'Gentium Book Plus', 'Noto Serif Bengali', Georgia, serif;
+  --al-label: 'Tenor Sans', 'Gill Sans', 'Trebuchet MS', sans-serif;
+  --al-deva: 'Noto Serif Devanagari', 'Noto Serif Bengali', 'Tiro Devanagari Hindi', 'Nirmala UI', serif;
+
+  /* Alpona marks on the page: red rice-paste lines on white cloth. */
+  --al-mark: var(--al-accent);
+  --al-mark-cut: var(--al-cloth);
+  --al-mark-dot: var(--al-gold);
+
+  /* The shared RSVP panel reads these. */
+  --invite-ink: var(--al-text);
+  --invite-accent: var(--al-accent);
+  --invite-line: var(--al-line);
+  --invite-paper: var(--al-cloth);
+  --invite-gold: var(--al-gold);
+
+  position: relative;
+  min-height: 100vh;
+  overflow-x: clip;
+  color: var(--al-text);
+  background: var(--al-page);
+  font-family: var(--al-serif);
+  font-size: 1.06rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.t-bengal-alpona[data-palette="shola"] {
+  --al-page: #f7efdf;
+  --al-cloth: #fffaf0;
+  --al-ink: #5e0c18;
+  --al-text: #3d2016;
+  --al-muted: #6c4b3a;
+  --al-accent: #6e0f1c;
+  --al-accent-deep: #4c0912;
+  --al-on-accent: #fff6e6;
+  --al-kicker: #855a12;
+  --al-gold: #b0832c;
+  --al-gold-light: #e2c27a;
+  --al-paar: #b0832c;
+  --al-paar-edge: #6e0f1c;
+  --al-paar-dot: #fff3d6;
+  --al-line: #e6d6b8;
+  --al-ground: #f5ead3;
+  --al-ground-2: #e2cfa8;
+  --al-chalk: #7a1424;
+  --al-chalk-dot: #b0832c;
+  --al-on-ground: #5e0c18;
+  --al-on-ground-soft: #7c5418;
+  --al-shola: #fffaf0;
+  --al-crown-edge: #9b7224;
+  --al-crown-line: #6e0f1c;
+  --al-shakha: #fffcf4;
+  --al-shakha-shade: #efe2c8;
+  --al-shakha-edge: #d3bd92;
+  --al-pola: #8c1322;
+  --al-wood: #7a4a1c;
+  --al-wood-2: #57330f;
+  --al-pidi-line: #f3dca6;
+  --al-pidi-text: #fff7e6;
+  --al-pidi-soft: #f0d49a;
+  --al-medal: #b0832c;
+  --al-medal-face: #fffaf0;
+  --al-icon: #6e0f1c;
+  --al-ic-a: #f0d9a8;
+  --al-ic-b: #e9b9ae;
+  --al-ghost: rgb(176 131 44 / .12);
+  --al-shadow: rgb(80 50 10 / .2);
+  --al-mark-dot: var(--al-accent);
+}
+
+html.t-bengal-alpona-locked, html.t-bengal-alpona-locked body { overflow: hidden; }
+.t-bengal-alpona *, .t-bengal-alpona *::before, .t-bengal-alpona *::after { box-sizing: border-box; }
+.t-bengal-alpona :where(h1, h2, h3, p, figure, ol, ul) { margin: 0; padding: 0; }
+.t-bengal-alpona :where(ol, ul) { list-style: none; }
+.t-bengal-alpona svg { display: block; }
+
+/* ---------------- Alpona marks ---------------- */
+.t-bengal-alpona .al-art { overflow: visible; }
+.t-bengal-alpona .al-line { fill: none; stroke: var(--al-mark); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.t-bengal-alpona .al-line.is-thin { stroke-width: 1.5; }
+.t-bengal-alpona .al-fill { fill: var(--al-mark); }
+.t-bengal-alpona .al-cut { fill: none; stroke: var(--al-mark-cut); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.t-bengal-alpona .al-cut-dot { fill: var(--al-mark-cut); }
+.t-bengal-alpona .al-dot { fill: var(--al-mark-dot); }
+.t-bengal-alpona .al-part { transform-box: fill-box; transform-origin: center; }
+.t-bengal-alpona .al-part.is-base { transform-origin: 50% 100%; }
+.t-bengal-alpona .al-part.is-start { transform-origin: 0 50%; }
+.t-bengal-alpona .al-ring { transform-box: view-box; transform-origin: 0 0; }
+@keyframes al-grow { from { opacity: 0; transform: scale(.12); } 45% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes al-ring { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: none; } }
+@keyframes al-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------------- Opening: alpona on a red floor, then a doorway ---------------- */
+.t-bengal-alpona .al-opening {
+  --size: min(118vw, 74vh);
+  --cy: 63%;
+  --al-mark: var(--al-chalk);
+  --al-mark-cut: var(--al-ground);
+  --al-mark-dot: var(--al-chalk-dot);
+  position: fixed; inset: 0; z-index: 30; overflow: hidden;
+  color: var(--al-on-ground); text-align: center;
+  perspective: 1800px;
+}
+.t-bengal-alpona .al-door {
+  position: absolute; top: 0; bottom: 0; width: 50%; overflow: hidden;
+  transition: transform 1s cubic-bezier(.55, .05, .35, 1), opacity .45s ease .55s;
+}
+.t-bengal-alpona .al-door.is-l { left: 0; transform-origin: 0 50%; }
+.t-bengal-alpona .al-door.is-r { right: 0; transform-origin: 100% 50%; }
+.t-bengal-alpona .al-door-art {
+  position: absolute; top: 0; bottom: 0; width: 200%;
+  background:
+    radial-gradient(circle, rgb(255 255 255 / .05) 1px, transparent 1.6px) 0 0 / 7px 7px,
+    radial-gradient(120% 80% at 50% var(--cy), var(--al-ground) 0%, var(--al-ground) 35%, var(--al-ground-2) 100%);
+}
+.t-bengal-alpona .al-door.is-l .al-door-art { left: 0; }
+.t-bengal-alpona .al-door.is-r .al-door-art { right: 0; }
+.t-bengal-alpona .al-door-art::before, .t-bengal-alpona .al-door-art::after { content: ""; position: absolute; pointer-events: none; }
+.t-bengal-alpona .al-door-art::before { inset: 10px; border: 1.5px solid var(--al-chalk); opacity: .7; }
+.t-bengal-alpona .al-door-art::after { inset: 16px; border: 1px dotted var(--al-chalk-dot); opacity: .8; }
+.t-bengal-alpona .al-door::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 1px; opacity: 0; transition: opacity .6s ease;
+  background: linear-gradient(180deg, transparent 0 33%, var(--al-chalk-dot) 45%, var(--al-chalk-dot) 85%, transparent);
+}
+.t-bengal-alpona .al-door.is-l::after { right: 0; }
+.t-bengal-alpona .al-door.is-r::after { left: 0; }
+.t-bengal-alpona .al-opening:is([data-stage="drawn"], [data-stage="leaving"]) .al-door::after { opacity: .5; }
+.t-bengal-alpona .al-opening[data-stage="leaving"] { pointer-events: none; }
+.t-bengal-alpona .al-opening[data-stage="leaving"] .al-door.is-l { transform: rotateY(84deg); opacity: 0; }
+.t-bengal-alpona .al-opening[data-stage="leaving"] .al-door.is-r { transform: rotateY(-84deg); opacity: 0; }
+
+.t-bengal-alpona .al-door-alpona { position: absolute; left: 50%; top: var(--cy); width: var(--size); height: var(--size); transform: translate(-50%, -50%); }
+.t-bengal-alpona .al-corner { position: absolute; width: min(36vw, 26vh, 230px); height: auto; }
+.t-bengal-alpona .al-corner.is-tl { left: 22px; top: 22px; }
+.t-bengal-alpona .al-corner.is-tr { right: 22px; top: 22px; transform: scaleX(-1); }
+.t-bengal-alpona .al-corner.is-bl { left: 22px; bottom: 22px; transform: scaleY(-1); }
+.t-bengal-alpona .al-corner.is-br { right: 22px; bottom: 22px; transform: scale(-1); }
+.t-bengal-alpona .al-door :is(.al-part, .al-ring, .al-cut) { opacity: 0; }
+.t-bengal-alpona .al-opening[data-stage="closed"] .al-door .al-ring { opacity: .22; }
+.t-bengal-alpona .al-opening:not([data-stage="closed"]) .al-door .al-part { animation: al-grow .5s cubic-bezier(.2, .8, .3, 1) calc(var(--d) + var(--lag, 0s)) both; }
+.t-bengal-alpona .al-opening:not([data-stage="closed"]) .al-door .al-ring { animation: al-guide .6s ease-out calc(var(--d) + var(--lag, 0s)) both; }
+.t-bengal-alpona .al-opening:not([data-stage="closed"]) .al-door .al-cut { animation: al-fade .35s ease calc(var(--d) + var(--lag, 0s) + .12s) both; }
+.t-bengal-alpona .al-side { display: none; position: absolute; top: 50%; width: 52vh; height: 52vh; --lag: .55s; }
+.t-bengal-alpona .al-side.is-l { left: 0; transform: translate(-50%, -50%); }
+.t-bengal-alpona .al-side.is-r { right: 0; transform: translate(50%, -50%); }
+@keyframes al-guide { from { opacity: .22; transform: scale(.94); } to { opacity: 1; transform: none; } }
+
+.t-bengal-alpona .al-opening-words {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 2; padding: max(40px, 5.5vh) 16px 0;
+  transition: opacity .5s ease, transform .9s ease; pointer-events: none;
+}
+.t-bengal-alpona .al-opening[data-stage="leaving"] .al-opening-words { opacity: 0; transform: translateY(-14px); }
+.t-bengal-alpona .al-opening-dear { font: italic 400 1.14rem/1.3 var(--al-serif); color: var(--al-on-ground-soft); margin-bottom: .55rem; }
+.t-bengal-alpona .al-opening-title { font: 400 .82rem/1.3 var(--al-label); letter-spacing: .32em; text-transform: uppercase; padding-left: .32em; }
+.t-bengal-alpona .al-opening-names {
+  display: flex; flex-direction: column; align-items: center; max-width: 34rem; margin: .4rem auto .3rem;
+  font: italic 500 clamp(2.7rem, 12.5vw, 4.4rem)/1.04 var(--al-display); text-shadow: 0 2px 18px rgb(0 0 0 / .18);
+}
+.t-bengal-alpona .al-opening-names > span { display: block; max-width: 100%; white-space: nowrap; }
+.t-bengal-alpona .al-opening-names em { font: italic 400 .48em/1.1 var(--al-display); color: var(--al-chalk-dot); }
+.t-bengal-alpona .al-opening-date { font: 400 .85rem/1.3 var(--al-label); letter-spacing: .26em; text-transform: uppercase; padding-left: .26em; color: var(--al-on-ground-soft); }
+
+.t-bengal-alpona .al-seed {
+  position: absolute; z-index: 3; left: 50%; top: var(--cy);
+  width: calc(var(--size) * .215); height: calc(var(--size) * .215); min-width: 84px; min-height: 84px;
+  padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: transparent;
+  transform: translate(-50%, -50%); transition: transform .9s ease, opacity .5s ease;
+}
+.t-bengal-alpona .al-seed::before {
+  content: ""; position: absolute; inset: -14%; border-radius: 50%; border: 1.5px solid var(--al-chalk); opacity: 0;
+}
+.t-bengal-alpona .al-opening[data-stage="closed"] .al-seed::before { animation: al-call 2.2s ease-out infinite; }
+.t-bengal-alpona .al-opening[data-stage="closed"] .al-seed-art { animation: al-breathe 2.2s ease-in-out infinite; }
+.t-bengal-alpona .al-seed-art { width: 100%; height: 100%; }
+.t-bengal-alpona .al-seed:focus-visible { outline: 2px dashed var(--al-chalk); outline-offset: 10px; }
+.t-bengal-alpona .al-opening[data-stage="leaving"] .al-seed { opacity: 0; transform: translate(-50%, -50%) scale(.6); }
+@keyframes al-call { from { opacity: .8; transform: scale(.85); } to { opacity: 0; transform: scale(1.35); } }
+@keyframes al-breathe { 50% { transform: scale(1.06); } }
+
+.t-bengal-alpona .al-opening-hint {
+  position: absolute; z-index: 2; left: 50%; bottom: max(30px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 64px); padding: .5rem 1.1rem; border-radius: 999px;
+  font: italic 400 1.02rem/1.35 var(--al-serif); color: var(--al-on-ground);
+  background: color-mix(in srgb, var(--al-ground-2) 78%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--al-chalk) 35%, transparent);
+  transition: opacity .4s ease;
+}
+.t-bengal-alpona[data-palette="shola"] .al-opening-hint { background: color-mix(in srgb, var(--al-cloth) 88%, transparent); }
+.t-bengal-alpona .al-opening[data-stage="drawn"] .al-opening-hint { animation: al-pulse-text 1.8s ease-in-out infinite; }
+.t-bengal-alpona .al-opening[data-stage="leaving"] .al-opening-hint { opacity: 0; }
+@keyframes al-pulse-text { 50% { opacity: .62; } }
+
+/* ---------------- Page ---------------- */
+.t-bengal-alpona .al-backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    repeating-radial-gradient(circle at 0 0, transparent 0 34px, var(--al-ghost) 34px 35.5px, transparent 35.5px 44px),
+    repeating-radial-gradient(circle at 100% 100%, transparent 0 34px, var(--al-ghost) 34px 35.5px, transparent 35.5px 44px);
+  background-size: 320px 320px, 320px 320px; background-position: 0 0, 100% 100%; background-repeat: no-repeat; }
+.t-bengal-alpona .al-preview { position: sticky; top: 0; z-index: 20; padding: .55rem 1rem; text-align: center;
+  font: 700 .92rem var(--al-serif); color: var(--al-on-accent); background: var(--al-accent); }
+.t-bengal-alpona .al-main { position: relative; z-index: 1; max-width: calc(48rem + 32px); margin: 0 auto; padding: 0 16px; }
+.t-bengal-alpona:is([data-stage="closed"], [data-stage="flowing"], [data-stage="drawn"]) .al-main { visibility: hidden; }
+
+.t-bengal-alpona [data-reveal] { opacity: 0; transform: translateY(18px); transition: opacity .9s ease, transform .9s cubic-bezier(.2, .7, .2, 1); }
+.t-bengal-alpona [data-reveal].is-in { opacity: 1; transform: none; }
+
+/* The signature: alpona draws itself in as each part of the page appears. */
+.t-bengal-alpona[data-draw="draw"] .al-main [data-reveal]:not(.is-in) :is(.al-part, .al-ring, .al-cut) { opacity: 0; }
+.t-bengal-alpona[data-draw="draw"] .al-main .is-in .al-part { animation: al-grow .55s cubic-bezier(.2, .8, .3, 1) calc(var(--d) + .2s) both; }
+.t-bengal-alpona[data-draw="draw"] .al-main .is-in .al-ring { animation: al-ring .6s ease-out calc(var(--d) + .2s) both; }
+.t-bengal-alpona[data-draw="draw"] .al-main .is-in .al-cut { animation: al-fade .35s ease calc(var(--d) + .35s) both; }
+
+.t-bengal-alpona .al-section { position: relative; padding: 3.2rem 0 0; }
+.t-bengal-alpona .al-head { text-align: center; margin: 0 auto 1.7rem; }
+.t-bengal-alpona .al-kicker { font: 400 .8rem/1.35 var(--al-label); letter-spacing: .24em; padding-left: .24em; text-transform: uppercase; color: var(--al-kicker); }
+.t-bengal-alpona .al-head h2 { font: 500 clamp(1.85rem, 6.4vw, 2.6rem)/1.14 var(--al-display); color: var(--al-ink); margin: .35rem 0 .75rem; text-wrap: balance; }
+.t-bengal-alpona .al-head-band { width: min(100%, 400px); height: auto; margin: 0 auto; }
+.t-bengal-alpona .al-soft { font: italic 400 1.08rem/1.4 var(--al-serif); color: var(--al-muted); }
+.t-bengal-alpona .al-label { font: 400 .76rem/1.4 var(--al-label); letter-spacing: .16em; text-transform: uppercase; color: var(--al-kicker); }
+.t-bengal-alpona .al-note { font-style: italic; color: var(--al-muted); }
+
+/* A white panel with a red woven border top and bottom, like a laal paar saree. */
+.t-bengal-alpona .al-panel {
+  position: relative; padding: 2.5rem 1.25rem 2.4rem; background: var(--al-cloth); color: var(--al-text);
+  box-shadow: inset 1px 0 0 var(--al-line), inset -1px 0 0 var(--al-line), 0 22px 40px -30px var(--al-shadow);
+}
+.t-bengal-alpona .al-panel::before, .t-bengal-alpona .al-panel::after { content: ""; position: absolute; left: 0; right: 0; height: 22px; pointer-events: none; }
+.t-bengal-alpona .al-panel::before {
+  top: 0;
+  background:
+    linear-gradient(var(--al-paar-edge) 0 0) 0 3px / 100% 1.2px no-repeat,
+    linear-gradient(var(--al-paar-edge) 0 0) 0 12px / 100% 1.2px no-repeat,
+    radial-gradient(circle, var(--al-paar-dot) 1.3px, transparent 1.8px) 0 4.5px / 9px 7px repeat-x,
+    linear-gradient(var(--al-paar) 0 0) 0 0 / 100% 16px no-repeat,
+    conic-gradient(from -45deg at 50% 100%, var(--al-paar) 90deg, transparent 0) 0 16px / 12px 6px repeat-x;
+}
+.t-bengal-alpona .al-panel::after {
+  bottom: 0;
+  background:
+    linear-gradient(var(--al-paar-edge) 0 0) 0 9.8px / 100% 1.2px no-repeat,
+    linear-gradient(var(--al-paar-edge) 0 0) 0 18.8px / 100% 1.2px no-repeat,
+    radial-gradient(circle, var(--al-paar-dot) 1.3px, transparent 1.8px) 0 10.5px / 9px 7px repeat-x,
+    linear-gradient(var(--al-paar) 0 0) 0 6px / 100% 16px no-repeat,
+    conic-gradient(from 135deg at 50% 0, var(--al-paar) 90deg, transparent 0) 0 0 / 12px 6px repeat-x;
+}
+
+/* ---------------- Buttons ---------------- */
+.t-bengal-alpona .al-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 1.5rem; }
+.t-bengal-alpona .al-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 2.95rem; padding: .6rem 1.35rem;
+  border: 1.5px solid var(--al-accent); border-radius: 3px; cursor: pointer; text-decoration: none;
+  font: 400 .86rem/1.2 var(--al-label); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--al-on-accent); background: var(--al-accent);
+  box-shadow: inset 0 0 0 2.5px var(--al-accent), inset 0 0 0 3.5px var(--al-gold-light);
+  transition: transform .2s ease;
+}
+.t-bengal-alpona .al-button:active { transform: translateY(1px); }
+.t-bengal-alpona .al-button.is-quiet { color: var(--al-accent); background: var(--al-cloth); box-shadow: inset 0 0 0 2.5px var(--al-cloth), inset 0 0 0 3.5px var(--al-line); }
+.t-bengal-alpona .al-button.is-small { min-height: 2.65rem; padding: .45rem .95rem; font-size: .8rem; }
+.t-bengal-alpona :is(.al-button, .al-music, .al-chip, .al-stop-place) svg { width: 1.1rem; height: 1.1rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-bengal-alpona :is(.al-button, .al-music, .al-chip, .al-link, .al-stop-place a):focus-visible { outline: 2px solid var(--al-gold); outline-offset: 3px; }
+
+/* ---------------- Hero ---------------- */
+.t-bengal-alpona .al-hero { --al-mark-cut: var(--al-page); text-align: center; padding-top: 0; }
+.t-bengal-alpona .al-anchal {
+  position: relative; width: 100vw; height: 44px; margin: 0 0 2.2rem calc(50% - 50vw);
+  background:
+    conic-gradient(from -45deg at 50% 100%, var(--al-paar) 90deg, transparent 0) 0 36px / 12px 6px repeat-x,
+    radial-gradient(circle, var(--al-paar-dot) 1.4px, transparent 1.9px) 0 5px / 10px 8px repeat-x,
+    linear-gradient(180deg, var(--al-paar) 0 18px, var(--al-paar-edge) 18px 19.5px, var(--al-paar) 19.5px 23px, var(--al-cloth) 23px 25px,
+      var(--al-paar) 25px 29px, var(--al-cloth) 29px 30.5px, var(--al-paar) 30.5px 36px, transparent 36px);
+}
+.t-bengal-alpona .al-anchal.is-foot { margin: 0 0 0 calc(50% - 50vw); transform: scaleY(-1); }
+.t-bengal-alpona .al-greeting { font: italic 400 1.2rem/1.3 var(--al-serif); color: var(--al-muted); margin-bottom: .4rem; }
+.t-bengal-alpona .al-hero-ring { position: relative; width: min(100%, 540px); aspect-ratio: 1; margin: 0 auto; }
+.t-bengal-alpona .al-hero-wreath { position: absolute; inset: 0; width: 100%; height: 100%; }
+.t-bengal-alpona :is(.al-hero-wreath, .al-doorstep-art) .al-line { stroke-width: 3.8; }
+.t-bengal-alpona :is(.al-hero-wreath, .al-doorstep-art) .al-line.is-thin { stroke-width: 2.6; }
+.t-bengal-alpona :is(.al-hero-wreath, .al-doorstep-art) .al-cut { stroke-width: 2.2; }
+.t-bengal-alpona .al-hero-inner { position: absolute; inset: 22%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.t-bengal-alpona .al-hero-title { font: 400 clamp(.72rem, 2.6vw, .9rem)/1.3 var(--al-label); letter-spacing: .3em; padding-left: .3em; text-transform: uppercase; color: var(--al-kicker); margin-bottom: .3rem; }
+.t-bengal-alpona .al-names {
+  display: flex; flex-direction: column; align-items: center; width: 100%;
+  font: italic 500 clamp(2.5rem, 11.5vw, 4.3rem)/1.02 var(--al-display); color: var(--al-ink);
+}
+.t-bengal-alpona .al-names > span { display: block; max-width: 100%; white-space: nowrap; }
+.t-bengal-alpona .al-names .al-amp { font: italic 400 .5em/1.1 var(--al-display); color: var(--al-accent); }
+.t-bengal-alpona .al-date { display: flex; align-items: center; justify-content: center; gap: .8rem; margin-top: .4rem;
+  font: 400 .92rem/1.3 var(--al-label); letter-spacing: .24em; text-transform: uppercase; color: var(--al-ink); }
+.t-bengal-alpona .al-date::before, .t-bengal-alpona .al-date::after { content: ""; width: 34px; height: 7px;
+  background: radial-gradient(circle, var(--al-accent) 2px, transparent 2.5px) 0 50% / 9px 7px repeat-x; }
+
+/* ---------------- Blessing ---------------- */
+.t-bengal-alpona .al-blessing-panel { text-align: center; padding-inline: 1.4rem; }
+.t-bengal-alpona .al-symbols { display: flex; justify-content: center; align-items: center; gap: .9rem; margin-bottom: 1.1rem; }
+.t-bengal-alpona .al-medal { overflow: visible; }
+.t-bengal-alpona .al-medal-disc { fill: var(--al-medal); }
+.t-bengal-alpona .al-medal-petal { fill: var(--al-medal-face); }
+.t-bengal-alpona .al-medal-face { fill: var(--al-medal-face); }
+.t-bengal-alpona .al-medal-ring { fill: none; stroke: var(--al-medal); stroke-width: 1; stroke-dasharray: 1.4 2.6; }
+.t-bengal-alpona .al-symbol { width: 64px; height: 64px; color: var(--al-icon); }
+.t-bengal-alpona .al-symbol.is-large { width: 84px; height: 84px; }
+.t-bengal-alpona .al-glyph { font: 600 34px var(--al-deva); fill: currentColor; }
+.t-bengal-alpona .al-glyph.is-shri { font-size: 24px; }
+.t-bengal-alpona .al-invocation { font: 600 1.3rem/1.5 var(--al-deva); color: var(--al-accent); }
+.t-bengal-alpona .al-shloka { display: flex; flex-direction: column; gap: .15rem; margin-top: .55rem; font: 500 1.02rem/1.75 var(--al-deva); color: var(--al-text); }
+.t-bengal-alpona .al-blessed { margin-top: 1.25rem; }
+.t-bengal-alpona .al-deity { font: 500 1.35rem/1.3 var(--al-display); color: var(--al-ink); margin-top: .15rem; }
+.t-bengal-alpona .al-elders { font: 500 1.2rem/1.35 var(--al-display); color: var(--al-ink); margin-top: .15rem; text-wrap: balance; }
+.t-bengal-alpona .al-photo { margin: 1.6rem auto 0; max-width: 22rem; padding: 8px; background: var(--al-paar); box-shadow: inset 0 0 0 2px var(--al-paar-edge); }
+.t-bengal-alpona .al-photo img { display: block; width: 100%; height: auto; border: 3px solid var(--al-cloth); }
+.t-bengal-alpona .al-intro { margin: 1.4rem auto 0; max-width: 26rem; font: italic 400 1.22rem/1.45 var(--al-display); color: var(--al-accent); text-wrap: balance; }
+
+/* ---------------- Couple ---------------- */
+.t-bengal-alpona .al-pair { display: grid; gap: 1rem; justify-items: center; }
+.t-bengal-alpona .al-person { width: 100%; max-width: 24rem; margin-top: 52px; text-align: center; padding-top: 3.2rem; }
+.t-bengal-alpona .al-person-crown { position: absolute; left: 50%; top: -54px; width: 96px; transform: translateX(-50%); filter: drop-shadow(0 6px 8px var(--al-shadow)); }
+.t-bengal-alpona .al-crown { width: 100%; height: auto; overflow: visible; }
+.t-bengal-alpona .al-crown-body { fill: var(--al-shola); stroke: var(--al-crown-edge); stroke-width: 1.4; stroke-linejoin: round; }
+.t-bengal-alpona .al-crown-line { fill: none; stroke: var(--al-crown-line); stroke-width: 1.2; stroke-linecap: round; }
+.t-bengal-alpona .al-tag { font: 400 .8rem/1.3 var(--al-label); letter-spacing: .26em; padding-left: .26em; text-transform: uppercase; color: var(--al-kicker); }
+.t-bengal-alpona .al-honorific { margin-top: .55rem; font: italic 400 1rem/1.3 var(--al-serif); color: var(--al-muted); }
+.t-bengal-alpona .al-person h3 { font: 500 clamp(1.6rem, 6vw, 1.95rem)/1.18 var(--al-display); color: var(--al-ink); overflow-wrap: anywhere; }
+.t-bengal-alpona .al-tiny-lotus { display: block; width: 30px; height: 30px; margin: .9rem auto .55rem; }
+.t-bengal-alpona .al-tiny-lotus svg { width: 100%; height: 100%; overflow: visible; }
+.t-bengal-alpona .al-parents { font: 400 1.08rem/1.45 var(--al-serif); margin-top: .15rem; text-wrap: balance; }
+.t-bengal-alpona .al-pair-fish { display: block; width: 70px; height: 70px; margin: .3rem 0 -1.6rem; }
+.t-bengal-alpona .al-pair-fish svg { width: 100%; height: 100%; overflow: visible; }
+
+/* ---------------- Countdown: shakha-pola bangles ---------------- */
+.t-bengal-alpona .al-countdown { text-align: center; }
+.t-bengal-alpona .al-bangles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .55rem; max-width: 30rem; margin: 1rem auto 0; }
+.t-bengal-alpona .al-bangle { display: flex; flex-direction: column; align-items: center; gap: .45rem; }
+.t-bengal-alpona .al-bangle-face { position: relative; display: block; width: min(100%, 104px); aspect-ratio: 1; }
+.t-bengal-alpona .al-bangle-art { width: 100%; height: 100%; filter: drop-shadow(0 6px 8px var(--al-shadow)); }
+.t-bengal-alpona .al-bangle-face strong { position: absolute; inset: 0; display: grid; place-items: center;
+  font: 500 clamp(1.25rem, 5.4vw, 1.7rem)/1 var(--al-display); color: var(--al-ink); font-variant-numeric: tabular-nums; }
+.t-bengal-alpona .al-bangle-label { font: 400 .72rem/1.2 var(--al-label); letter-spacing: .16em; text-transform: uppercase; color: var(--al-muted); }
+.t-bengal-alpona[data-draw="draw"] .al-bangles .al-bangle-face { transform: rotate(-40deg) scale(.8); opacity: 0;
+  transition: transform .8s cubic-bezier(.2, .8, .3, 1.2), opacity .6s ease; transition-delay: calc(.2s + var(--i) * .12s); }
+.t-bengal-alpona[data-draw="draw"] .al-bangles.is-in .al-bangle-face { transform: none; opacity: 1; }
+
+/* ---------------- Functions: a procession down an alpona path ---------------- */
+.t-bengal-alpona .al-chip { display: flex; align-items: center; gap: .55rem; width: fit-content; max-width: 100%; margin: 0 auto 2rem; padding: .55rem 1.1rem;
+  border: 1px solid var(--al-line); border-radius: 999px; background: var(--al-cloth); color: var(--al-text); text-decoration: none; font-size: 1rem; }
+.t-bengal-alpona .al-chip svg { color: var(--al-accent); }
+.t-bengal-alpona .al-chip strong { color: var(--al-ink); }
+.t-bengal-alpona .al-day ~ .al-day { margin-top: 2.6rem; }
+.t-bengal-alpona .al-pidi {
+  position: relative; display: flex; flex-direction: column; align-items: center; width: fit-content; max-width: 100%;
+  margin: 0 auto 1.9rem; padding: .7rem 1.7rem .75rem; text-align: center; color: var(--al-pidi-text);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--al-wood) 82%, #fff) 0 4px, var(--al-wood) 4px);
+  border-radius: 12px 12px 6px 6px; outline: 1.5px dashed var(--al-pidi-line); outline-offset: -7px;
+  box-shadow: 0 10px 18px -12px var(--al-shadow);
+}
+.t-bengal-alpona .al-pidi::before, .t-bengal-alpona .al-pidi::after { content: ""; position: absolute; bottom: -9px; width: 20px; height: 10px; border-radius: 0 0 7px 7px; background: var(--al-wood-2); }
+.t-bengal-alpona .al-pidi::before { left: 13%; }
+.t-bengal-alpona .al-pidi::after { right: 13%; }
+.t-bengal-alpona .al-pidi-n { font: 400 .74rem/1.3 var(--al-label); letter-spacing: .24em; padding-left: .24em; text-transform: uppercase; color: var(--al-pidi-soft); }
+.t-bengal-alpona .al-pidi-date { font: 500 1.08rem/1.3 var(--al-display); }
+
+.t-bengal-alpona .al-walk { position: relative; }
+.t-bengal-alpona .al-walk::before {
+  content: ""; position: absolute; left: 29px; top: 0; bottom: 0; width: 8px; opacity: .6;
+  background: radial-gradient(circle, var(--al-accent) 2.2px, transparent 2.7px) 50% 0 / 8px 14px repeat-y;
+}
+.t-bengal-alpona .al-stop { position: relative; display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: .7rem; align-items: start; }
+.t-bengal-alpona .al-stop ~ .al-stop { margin-top: 1.2rem; }
+.t-bengal-alpona .al-stop-node { position: relative; width: 66px; height: 66px; margin-top: 1rem; filter: drop-shadow(0 5px 6px var(--al-shadow)); }
+.t-bengal-alpona .al-stop-node .al-medal { width: 100%; height: 100%; }
+.t-bengal-alpona .al-stop-node .inv-event-icon { position: absolute; left: 24%; top: 24%; width: 52%; height: 52%; color: var(--al-icon); }
+.t-bengal-alpona .inv-ic-a { fill: var(--al-ic-a); }
+.t-bengal-alpona .inv-ic-b { fill: var(--al-ic-b); }
+.t-bengal-alpona .al-stop-card { padding: 2rem 1.15rem 1.85rem; }
+.t-bengal-alpona .al-stop-time { display: inline-block; padding: .32rem .7rem; border-radius: 2px;
+  font: 400 .76rem/1.3 var(--al-label); letter-spacing: .14em; text-transform: uppercase; color: var(--al-on-accent); background: var(--al-accent); }
+.t-bengal-alpona .al-stop-card h3 { margin: .55rem 0 0; font: 500 1.6rem/1.15 var(--al-display); color: var(--al-ink); overflow-wrap: anywhere; }
+.t-bengal-alpona .al-stop-sub { margin-top: .2rem; font-style: italic; color: var(--al-muted); }
+.t-bengal-alpona .al-stop-place { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; margin-top: .5rem; font-size: .98rem; }
+.t-bengal-alpona .al-stop-place svg { color: var(--al-accent); }
+.t-bengal-alpona .al-stop-place a { color: var(--al-accent); font-weight: 700; }
+
+/* ---------------- RSVP ---------------- */
+.t-bengal-alpona .al-rsvp-by { text-align: center; margin: -.6rem 0 1.2rem; }
+.t-bengal-alpona .invite-panel { position: relative; margin: 0; border: 0; border-radius: 0; background: var(--al-cloth); color: var(--al-text);
+  border-block: 10px solid var(--al-paar); box-shadow: inset 0 1.5px 0 var(--al-paar-edge), inset 0 -1.5px 0 var(--al-paar-edge), 0 22px 40px -30px var(--al-shadow); }
+.t-bengal-alpona .invite-panel h2 { font: 500 clamp(1.5rem, 5vw, 1.9rem)/1.2 var(--al-display); color: var(--al-ink); }
+.t-bengal-alpona .invite-panel button { border-radius: 3px; color: var(--al-on-accent); font-family: var(--al-label); letter-spacing: .08em; }
+.t-bengal-alpona .invite-panel .invite-secondary { color: var(--al-accent); border-color: var(--al-accent); background: transparent; }
+.t-bengal-alpona .invite-panel .invite-secondary[aria-pressed="true"] { color: var(--al-on-accent); background: var(--al-accent); }
+.t-bengal-alpona .invite-panel a { color: var(--al-accent); }
+.t-bengal-alpona .invite-toolbar :is(select, input) { background: var(--al-page); color: var(--al-text); }
+.t-bengal-alpona .invite-feedback { background: var(--al-cloth); }
+
+/* ---------------- Family, venue, contacts ---------------- */
+.t-bengal-alpona .al-grid { display: grid; gap: 1.3rem; }
+.t-bengal-alpona .al-family { text-align: center; }
+.t-bengal-alpona .al-family h3 { font: italic 500 1.4rem/1.25 var(--al-display); color: var(--al-accent); margin-bottom: .8rem; }
+.t-bengal-alpona .al-family-line ~ .al-family-line { margin-top: .9rem; }
+.t-bengal-alpona .al-name { font: 400 1.1rem/1.45 var(--al-serif); text-wrap: balance; }
+.t-bengal-alpona .al-place { text-align: center; }
+.t-bengal-alpona .al-place-icon { display: grid; place-items: center; width: 46px; height: 46px; margin: 0 auto .7rem; border-radius: 50%;
+  color: var(--al-on-accent); background: var(--al-accent); box-shadow: 0 0 0 3px var(--al-cloth), 0 0 0 4.5px var(--al-gold); }
+.t-bengal-alpona .al-place-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-bengal-alpona .al-place h3 { font: 500 1.45rem/1.2 var(--al-display); color: var(--al-ink); }
+.t-bengal-alpona .al-address { margin-top: .3rem; text-wrap: balance; }
+.t-bengal-alpona .al-link { display: inline-block; margin-top: .6rem; color: var(--al-accent); font-weight: 700; }
+.t-bengal-alpona .al-contacts { display: grid; gap: 1.2rem; }
+.t-bengal-alpona .al-contact { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 2.5rem 1.4rem 2.4rem; }
+.t-bengal-alpona .al-contact h3 { font: 500 1.35rem/1.2 var(--al-display); color: var(--al-ink); }
+.t-bengal-alpona .al-contact-actions { display: flex; flex-wrap: wrap; gap: .55rem; }
+
+/* ---------------- Closing ---------------- */
+.t-bengal-alpona .al-closing { text-align: center; padding-top: 4rem; --al-mark-cut: var(--al-page); }
+.t-bengal-alpona .al-closing-line { font: italic 400 clamp(1.45rem, 5.4vw, 1.9rem)/1.3 var(--al-display); color: var(--al-accent); text-wrap: balance; }
+.t-bengal-alpona .al-closing-names { margin-top: .5rem; white-space: nowrap; font: italic 500 clamp(2.2rem, 9vw, 3.2rem)/1.15 var(--al-display); color: var(--al-ink); }
+.t-bengal-alpona .al-closing-names em { margin: 0 .32em; font-size: .6em; color: var(--al-accent); }
+.t-bengal-alpona .al-hosts { font: 500 1.25rem/1.35 var(--al-display); color: var(--al-ink); margin-top: .15rem; }
+.t-bengal-alpona .al-doorstep { position: relative; height: clamp(150px, 40vw, 230px); margin: 2.2rem auto 0; overflow: hidden; }
+.t-bengal-alpona .al-doorstep-art { position: absolute; left: 50%; top: 0; width: clamp(300px, 80vw, 460px); height: auto; transform: translateX(-50%); }
+.t-bengal-alpona .al-anchal.is-foot { margin-top: -2px; }
+
+/* ---------------- Music ---------------- */
+.t-bengal-alpona .al-music {
+  position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 26;
+  display: inline-flex; align-items: center; gap: .5rem; min-height: 3rem; padding: .55rem 1.15rem;
+  border: 1.5px solid var(--al-gold-light); border-radius: 999px; cursor: pointer;
+  font: 400 .95rem var(--al-label); letter-spacing: .08em; color: var(--al-on-accent); background: var(--al-accent);
+  box-shadow: inset 0 0 0 3px var(--al-accent), inset 0 0 0 4px var(--al-gold-light), 0 10px 22px -10px rgb(0 0 0 / .45);
+}
+.t-bengal-alpona .al-music.is-pulse { animation: al-attention 1.6s ease-in-out infinite; }
+@keyframes al-attention { 50% { transform: scale(1.06); } }
+
+/* ---------------- Larger screens ---------------- */
+@media (max-width: 699px) {
+  .t-bengal-alpona .al-corner:is(.is-tl, .is-tr) { width: min(25vw, 110px); }
+  .t-bengal-alpona .al-opening-words { padding-top: max(46px, 6.5vh); }
+}
+@media (min-width: 700px) {
+  .t-bengal-alpona .al-opening { --size: min(90vw, 68vh); --cy: 64%; }
+}
+@media (min-width: 1000px) {
+  .t-bengal-alpona .al-side { display: block; }
+  .t-bengal-alpona .al-corner { width: min(20vh, 190px); }
+}
+@media (min-width: 700px) {
+  .t-bengal-alpona .al-opening-names { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0 .3em; max-width: 90vw; font-size: clamp(3rem, 6vw, 4.4rem); }
+  .t-bengal-alpona .al-pair { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
+  .t-bengal-alpona .al-pair-fish { align-self: center; margin: 52px 0 0; }
+  .t-bengal-alpona .al-pair:has(> :only-child) { grid-template-columns: minmax(0, 24rem); justify-content: center; }
+  .t-bengal-alpona .al-grid { grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+  .t-bengal-alpona .al-panel { padding-inline: 1.8rem; }
+  .t-bengal-alpona .al-blessing-panel { padding: 3rem 2.4rem; }
+}
+@media (min-width: 820px) {
+  .t-bengal-alpona .al-walk::before { left: calc(50% - 4px); }
+  .t-bengal-alpona .al-stop { grid-template-columns: minmax(0, 1fr) 80px minmax(0, 1fr); gap: 1.1rem; }
+  .t-bengal-alpona .al-stop-node { grid-column: 2; grid-row: 1; width: 80px; height: 80px; margin-top: 1.2rem; }
+  .t-bengal-alpona .al-stop.is-left .al-stop-card { grid-column: 1; grid-row: 1; text-align: right; }
+  .t-bengal-alpona .al-stop.is-left .al-stop-place { justify-content: flex-end; }
+  .t-bengal-alpona .al-stop.is-right .al-stop-card { grid-column: 3; grid-row: 1; }
+  .t-bengal-alpona .al-stop ~ .al-stop { margin-top: -1.2rem; }
+}
+@media (max-width: 559px) {
+  .t-bengal-alpona .al-contact { flex-direction: column; align-items: flex-start; }
+  .t-bengal-alpona .al-music { min-height: 2.9rem; padding: .5rem 1rem; font-size: .9rem; }
+}
+@media (max-width: 360px) {
+  .t-bengal-alpona .al-bangle-label { font-size: .6rem; letter-spacing: .05em; }
+  .t-bengal-alpona .al-opening-words { padding-inline: 26px; }
+  .t-bengal-alpona .al-date::before, .t-bengal-alpona .al-date::after { display: none; }
+  .t-bengal-alpona .al-stop { grid-template-columns: 54px minmax(0, 1fr); }
+  .t-bengal-alpona .al-stop-node { width: 54px; height: 54px; }
+  .t-bengal-alpona .al-walk::before { left: 23px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-bengal-alpona *, .t-bengal-alpona *::before, .t-bengal-alpona *::after { animation: none !important; transition: none !important; }
+  .t-bengal-alpona [data-reveal] { opacity: 1; transform: none; }
+  .t-bengal-alpona :is(.al-part, .al-ring, .al-cut), .t-bengal-alpona .al-bangles .al-bangle-face { opacity: 1 !important; transform: none !important; }
+}
