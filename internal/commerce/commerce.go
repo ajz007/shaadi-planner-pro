@@ -49,6 +49,7 @@ type Shop struct {
 	mailer                                  receiptMailer
 	packages                                map[string][]byte
 	acceptOrders, acceptFamilyPass          bool
+	firstWeddingDiscount                    int
 }
 
 func Configure(ctx context.Context, origin string) (*Shop, error) {
@@ -62,6 +63,10 @@ func Configure(ctx context.Context, origin string) (*Shop, error) {
 	}
 	if mode != "test" && (mode != "live" || origin == "") {
 		return nil, errors.New("Excel checkout requires test mode or an HTTPS live origin")
+	}
+	discount, err := firstWeddingDiscount(os.Getenv("SHAADI_FIRST_WEDDING_DISCOUNT_PERCENT"), os.Getenv("SHAADI_FAMILY_PASS_REQUIRED") == "1")
+	if err != nil {
+		return nil, err
 	}
 	testAccess := os.Getenv("SHAADI_EXCEL_TEST_ACCESS")
 	if mode == "test" && origin != "" && len(testAccess) < 32 {
@@ -105,8 +110,8 @@ func Configure(ctx context.Context, origin string) (*Shop, error) {
 		meta: configuredMeta(mode), db: db, mode: mode, origin: origin, linkSecret: linkSecret, webhookSecret: webhookSecret,
 		gateway:    gateway{"https://api.razorpay.com/v1", key, secret, client},
 		mailer:     receiptMailer{client: sesv2.NewFromConfig(cfg), from: emailFrom, replyTo: replyTo},
-		testAccess: testAccess,
-		packages:   packages, acceptOrders: os.Getenv("SHAADI_EXCEL_ACCEPT_ORDERS") == "1",
+		testAccess: testAccess, firstWeddingDiscount: discount,
+		packages: packages, acceptOrders: os.Getenv("SHAADI_EXCEL_ACCEPT_ORDERS") == "1",
 		acceptFamilyPass: os.Getenv("SHAADI_FAMILY_PASS_REQUIRED") == "1" && os.Getenv("SHAADI_FAMILY_PASS_ACCEPT_ORDERS") == "1",
 	}, nil
 }
@@ -145,6 +150,7 @@ func (s *Shop) Register(mux *http.ServeMux) {
 			"test":                    s != nil && s.mode == "test",
 			"recovery":                s != nil,
 			"testAccessRequired":      s != nil && s.mode == "test" && s.testAccess != "",
+			"firstWeddingOffer":       s.publicFirstWeddingOffer(),
 			"familyPassOnSale":        s.canSellFamilyPass() && s.mode == "live",
 			"familyPassBundleProduct": s.availableFamilyPassBundle(),
 		})
@@ -201,7 +207,7 @@ func (s *Shop) createOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	var input struct {
 		Email, TestAccess, Product string
-		Meta *metaAttribution
+		Meta                       *metaAttribution
 	}
 	if !httpx.ReadJSON(w, r, &input) {
 		return

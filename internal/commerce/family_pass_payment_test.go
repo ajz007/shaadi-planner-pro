@@ -19,6 +19,20 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 )
 
+func TestConfiguredFirstWeddingPrice(t *testing.T) {
+	for raw, want := range map[string]int{"": 0, "0": 299900, "50": 149950, "100": 0} {
+		percent, err := firstWeddingDiscount(raw, true)
+		if err != nil || weddingPrice(percent).Amount != want {
+			t.Errorf("setting %q: percent=%d, error=%v", raw, percent, err)
+		}
+	}
+	for _, raw := range []string{"-1", "101", "half"} {
+		if _, err := firstWeddingDiscount(raw, true); err == nil {
+			t.Errorf("accepted %q", raw)
+		}
+	}
+}
+
 func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 	connection := os.Getenv("SHAADI_FAMILY_UPGRADE_DATABASE_URL")
 	if connection == "" {
@@ -39,12 +53,54 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Run("free offer", func(t *testing.T) {
+		var account, joined string
+		if err := db.QueryRowContext(ctx, "INSERT INTO workspace_accounts(identity_subject,display_name) VALUES ('offer-fixture','Family') RETURNING id").Scan(&account); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.QueryRowContext(ctx, "INSERT INTO weddings(name,wedding_date,time_zone) VALUES ('Joined wedding',current_date+1,'Asia/Kolkata') RETURNING id").Scan(&joined); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.ExecContext(ctx, `WITH person AS (INSERT INTO wedding_people(wedding_id,name) VALUES ($1,'Guest') RETURNING id)
+   INSERT INTO wedding_memberships(wedding_id,account_id,person_id,role) SELECT $1,$2,id,'family' FROM person`, joined, account); err != nil {
+			t.Fatal(err)
+		}
+		shop := &Shop{db: db, mode: "test", firstWeddingDiscount: 100}
+		claim := func() int {
+			r := httptest.NewRequest("POST", "/api/workspace/family-pass", strings.NewReader(`{"claimFree":true,"expectedAmount":0}`)).WithContext(ctx)
+			r.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			shop.CreateFamilyPassOrder(w, r, account)
+			return w.Code
+		}
+		results := make(chan int, 2)
+		for range 2 {
+			go func() { results <- claim() }()
+		}
+		for range 2 {
+			if code := <-results; code != 200 && code != 201 {
+				t.Fatalf("claim returned %d", code)
+			}
+		}
+		var n int
+		if err := db.QueryRowContext(ctx, "SELECT count(*) FROM family_passes WHERE account_id=$1", account).Scan(&n); err != nil || n != 1 {
+			t.Fatalf("expected one grant, got %d: %v", n, err)
+		}
+		if _, err := db.ExecContext(ctx, "UPDATE family_passes SET consumed_at=now() WHERE account_id=$1", account); err != nil {
+			t.Fatal(err)
+		}
+		status, err := shop.familyPassStatus(ctx, db, account)
+		if err != nil || status.Available || status.Quote.Amount != catalog[familyPassID].Amount || claim() != 409 {
+			t.Fatalf("second wedding price: %+v, %v", status, err)
+		}
+	})
 	for _, fixture := range []struct {
 		suffix    string
 		activated bool
 		bundle    string
 	}{
 		{"Unused", false, allInOneID},
+		{"Discounted", true, allInOneID},
 		{"Activated", true, allInOneID},
 		{"Complete", false, completeID},
 		{"Essentials", false, essentialsID},
@@ -55,6 +111,11 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 			order := "order_Family" + fixture.suffix
 			payID := "pay_Family" + fixture.suffix
 			amount := catalog[familyPassID].Amount
+			percent := 0
+			if fixture.suffix == "Discounted" {
+				percent = 50
+				amount = 149950
+			}
 			var account string
 			if err := db.QueryRowContext(ctx, "INSERT INTO workspace_accounts (identity_subject, display_name) VALUES ($1, 'Checkout fixture') RETURNING id", order).Scan(&account); err != nil {
 				t.Fatal(err)
@@ -82,9 +143,16 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 					_ = json.NewEncoder(w).Encode(map[string]string{"MessageId": "fixture"})
 				case r.Method == http.MethodPost && r.URL.Path == "/orders":
 					orders.Add(1)
-					var input struct{ Receipt string }
+					var input struct {
+						Receipt string
+						Amount  int
+					}
 					if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 						http.Error(w, "invalid order", 400)
+						return
+					}
+					if input.Amount != amount {
+						http.Error(w, "incorrect gateway price", http.StatusBadRequest)
 						return
 					}
 					_ = json.NewEncoder(w).Encode(map[string]any{"id": order, "amount": amount, "currency": currency, "receipt": input.Receipt})
@@ -103,7 +171,7 @@ func TestFamilyPassPaymentRecoveryAndRefund(t *testing.T) {
 			defer gatewayServer.Close()
 
 			zipBytes := "fixture ZIP " + fixture.bundle
-			shop := &Shop{db: db, mode: "test", origin: "https://example.test", acceptFamilyPass: true, linkSecret: rand.Text(), webhookSecret: rand.Text(),
+			shop := &Shop{db: db, mode: "test", origin: "https://example.test", firstWeddingDiscount: percent, acceptFamilyPass: true, linkSecret: rand.Text(), webhookSecret: rand.Text(),
 				gateway: gateway{url: gatewayServer.URL, client: gatewayServer.Client()}, packages: make(map[string][]byte)}
 			shop.mailer = receiptMailer{from: "receipts@example.test", client: sesv2.NewFromConfig(aws.Config{
 				Region: "ap-south-1", Credentials: aws.AnonymousCredentials{}, HTTPClient: gatewayServer.Client(),

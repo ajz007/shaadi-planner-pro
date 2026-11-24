@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PlannerExploreLink } from './PlannerExploreLink'
-import { productByID, productURL, rupees, sourceWorkbook, weddingPass } from './Shop'
+import { productByID, productURL, rupees, sourceWorkbook, weddingPass, WeddingPrice, type WeddingQuote } from './Shop'
 import { SiteNav } from './SiteNav'
 import { Mandala, EventArt } from './invitation/art'
 import workbook from './workbook-demo.json'
@@ -90,6 +90,7 @@ const features = [
 
 export function OnlinePlanner() {
   const [bundleID, setBundleID] = useState<string>()
+  const [offer, setOffer] = useState<WeddingQuote>()
   const bundle = productByID(bundleID)
   const source = sourceWorkbook()
   const demoRoot = '/' + (source ? '?from=' + encodeURIComponent(source.slug) : '') + '#demo'
@@ -98,7 +99,7 @@ export function OnlinePlanner() {
     const controller = new AbortController()
     fetch('/api/excel/shop', { signal: controller.signal })
       .then(response => response.json())
-      .then(shop => setBundleID(typeof shop.familyPassBundleProduct === 'string' ? shop.familyPassBundleProduct : '')).catch(() => {})
+      .then(shop => { setOffer(shop.firstWeddingOffer); setBundleID(shop.familyPassBundleProduct || '') }).catch(() => {})
     return () => controller.abort()
   }, [])
   return <main className="public-shell online-planner">
@@ -110,7 +111,8 @@ export function OnlinePlanner() {
         <h1 id="online-title">An invitation they’ll love.<br /><em>A plan your family can share.</em></h1>
         <p className="online-lede">From the first “we’ll be there” to the last airport pickup. Bring your invitations, guests and wedding-day details together.</p>
         <div className="online-actions">
-          <PlannerExploreLink className="online-primary" href={demoRoot}>Try the free planner demo</PlannerExploreLink>
+          {offer && <a className="online-primary" href="/#workspace/setup">{offer.amount === 0 ? 'Create my free wedding' : 'Get the first-wedding offer'}</a>}
+          <PlannerExploreLink className={offer ? "online-secondary" : "online-primary"} href={demoRoot}>Try the free planner demo</PlannerExploreLink>
           <a className="online-secondary" href="#invitation-demo">Open a sample invitation <span aria-hidden="true">↓</span></a>
         </div>
         <p className="online-small">Explore a sample wedding without signing in. <a href="#family-pass">See pricing and what’s included</a>.</p>
@@ -149,12 +151,14 @@ export function OnlinePlanner() {
       <PlannerExploreLink href={demoRoot + '/guest-list'}>See a sample guest list</PlannerExploreLink>
     </section>
     <section className="online-pass" id="family-pass" aria-labelledby="online-pass-title">
-      <div><p className="online-eyebrow">FAMILY PASS</p><h2 id="online-pass-title">One wedding.<br />One payment.</h2>
+      <div><p className="online-eyebrow">FAMILY PASS</p><h2 id="online-pass-title">Your family’s wedding planner</h2>
         <p>Share invitations and manage RSVPs, rooms, pickups and budgets with your family from one wedding workspace.</p>
-        {bundle && <p>Includes {bundle.name} at no extra cost, with the Excel planner, vendor negotiation toolkit, WhatsApp and RSVP message templates, and Sangeet Host Kit PRO.</p>}</div>
-      <div className="online-pass-price"><strong>{rupees(weddingPass.amount)}</strong><span>one-time price per wedding</span>
-        {bundle && <a className="online-primary" href="/#workspace/setup">Continue to Family Pass setup <span aria-hidden="true">↗</span></a>}
-        {bundleID === '' && <span>Family Pass checkout is currently paused.</span>}</div>
+        {bundle && <p>Paid passes include {bundle.name} at no extra cost, with the Excel planner, vendor negotiation toolkit, WhatsApp and RSVP message templates, and Sangeet Host Kit PRO.</p>}</div>
+      <div className="online-pass-price">{offer ? <><span>Your first wedding</span><div><WeddingPrice quote={offer} /></div>
+          <span>Additional weddings · {rupees(offer.listAmount)} each</span></> :
+          <><strong>{rupees(weddingPass.amount)}</strong><span>one-time price per wedding</span></>}
+        {(offer || bundle) && <a className="online-primary" href="/#workspace/setup">Continue to Family Pass setup <span aria-hidden="true">↗</span></a>}
+        {!offer && bundleID === '' && <span>Family Pass checkout is currently paused.</span>}</div>
     </section>
     <div className="online-faq">
       <details><summary>Can guests reply without an account?</summary><p>Yes. Guests open their private household invitation on their phone and reply to the functions they’re invited to.</p></details>

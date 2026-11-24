@@ -4,17 +4,53 @@ import (
 	"context"
 	"crypto/hmac"
 	"database/sql"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/ajz007/shaadi-planner-pro/internal/httpx"
 )
 
+type weddingQuote struct {
+	ListAmount      int `json:"listAmount"`
+	Amount          int `json:"amount"`
+	DiscountPercent int `json:"discountPercent"`
+}
+
+func firstWeddingDiscount(raw string, required bool) (int, error) {
+	if !required {
+		return 0, nil
+	}
+	if raw == "" {
+		return 100, nil
+	}
+	percent, err := strconv.Atoi(raw)
+	if err != nil || percent < 0 || percent > 100 {
+		return 0, fmt.Errorf("SHAADI_FIRST_WEDDING_DISCOUNT_PERCENT must be a whole number from 0 to 100")
+	}
+	return percent, nil
+}
+
+func weddingPrice(percent int) weddingQuote {
+	list := catalog[familyPassID].Amount
+	return weddingQuote{ListAmount: list, Amount: (list*(100-percent) + 50) / 100, DiscountPercent: percent}
+}
+
+func (s *Shop) publicFirstWeddingOffer() *weddingQuote {
+	if s == nil || s.firstWeddingDiscount == 0 || (s.firstWeddingDiscount < 100 && !s.canSellFamilyPass()) {
+		return nil
+	}
+	quote := weddingPrice(s.firstWeddingDiscount)
+	return &quote
+}
+
 type familyPassStatus struct {
-	Available     bool   `json:"available"`
-	OnSale        bool   `json:"onSale"`
-	TestCode      bool   `json:"testCodeRequired"`
-	OrderCode     string `json:"orderCode,omitempty"`
-	BundleProduct string `json:"bundleProduct,omitempty"`
+	Quote         weddingQuote `json:"quote"`
+	Available     bool         `json:"available"`
+	OnSale        bool         `json:"onSale"`
+	TestCode      bool         `json:"testCodeRequired"`
+	OrderCode     string       `json:"orderCode,omitempty"`
+	BundleProduct string       `json:"bundleProduct,omitempty"`
 }
 
 type passReader interface {
@@ -35,22 +71,41 @@ func (s *Shop) availableFamilyPassBundle() string {
 func (s *Shop) familyPassStatus(ctx context.Context, db passReader, account string) (familyPassStatus, error) {
 	status := familyPassStatus{OnSale: s.canSellFamilyPass(), TestCode: s.mode == "test" && s.testAccess != ""}
 	var order string
+	var first bool
+	var pendingAmount int
 	err := db.QueryRowContext(ctx, `
 		WITH pending AS (
-			SELECT razorpay_order_id, `+familyBundleSQL+` AS bundle FROM excel_orders
+			SELECT razorpay_order_id, amount_paise, `+familyBundleSQL+` AS bundle FROM excel_orders
 			WHERE workspace_account_id=$1 AND mode=$2 AND product=$3 AND paid_at IS NULL AND refunded_at IS NULL
 			ORDER BY created_at DESC LIMIT 1
 		)
 		SELECT EXISTS (
 			SELECT 1 FROM family_passes WHERE account_id=$1 AND mode=$2
 			  AND consumed_at IS NULL AND revoked_at IS NULL
-		), COALESCE(p.razorpay_order_id, ''), COALESCE(p.bundle, $4)
+		), COALESCE(p.razorpay_order_id, ''), COALESCE(p.bundle, $4), COALESCE(p.amount_paise,0),
+       NOT EXISTS (SELECT 1 FROM family_passes WHERE account_id=$1 AND mode=$2
+         AND (consumed_at IS NOT NULL OR source='first-wedding:' || $2 || ':' || $1::uuid::text))
+       AND NOT EXISTS (SELECT 1 FROM wedding_memberships m WHERE m.account_id=$1 AND m.role='owner'
+         AND NOT EXISTS (SELECT 1 FROM family_passes f WHERE f.wedding_id=m.wedding_id))
 		FROM (SELECT 1) AS anchor LEFT JOIN pending p ON true`,
-		account, s.mode, familyPassID, s.availableFamilyPassBundle()).Scan(&status.Available, &order, &status.BundleProduct)
+		account, s.mode, familyPassID, s.availableFamilyPassBundle()).Scan(&status.Available, &order, &status.BundleProduct, &pendingAmount, &first)
+	if err != nil {
+		return status, err
+	}
+	status.Quote = weddingPrice(0)
+	if first && !status.Available {
+		status.Quote = weddingPrice(s.firstWeddingDiscount)
+	}
 	if order != "" {
+		// Resume an outstanding order at the amount already agreed with Razorpay.
+		status.Quote.Amount = pendingAmount
+		status.Quote.DiscountPercent = (100*(status.Quote.ListAmount-pendingAmount) + status.Quote.ListAmount/2) / status.Quote.ListAmount
 		status.OrderCode = s.accessCode(order)
 	}
-	return status, err
+	if status.Quote.Amount == 0 {
+		status.BundleProduct = ""
+	}
+	return status, nil
 }
 
 func (s *Shop) FamilyPassStatus(w http.ResponseWriter, r *http.Request, account string) {
@@ -67,24 +122,17 @@ func (s *Shop) FamilyPassStatus(w http.ResponseWriter, r *http.Request, account 
 }
 
 func (s *Shop) CreateFamilyPassOrder(w http.ResponseWriter, r *http.Request, account string) {
-	if s == nil || !s.acceptFamilyPass {
+	if s == nil {
 		httpx.Fail(w, 503, "New Family Pass orders are paused.")
 		return
 	}
 	var input struct {
 		Email, TestAccess string
+		ExpectedAmount    *int
+		ClaimFree         bool
 		Meta              *metaAttribution
 	}
 	if !httpx.ReadJSON(w, r, &input) {
-		return
-	}
-	if s.mode == "test" && s.testAccess != "" && !hmac.Equal([]byte(s.testAccess), []byte(input.TestAccess)) {
-		httpx.Fail(w, 403, "Enter the private test checkout code.")
-		return
-	}
-	email := cleanEmail(input.Email)
-	if email == "" {
-		httpx.Fail(w, 400, "Enter a valid email for your receipt.")
 		return
 	}
 	ctx := r.Context()
@@ -104,26 +152,62 @@ func (s *Shop) CreateFamilyPassOrder(w http.ResponseWriter, r *http.Request, acc
 		s.fail(w)
 		return
 	}
+	if input.ClaimFree && status.Available {
+		httpx.Reply(w, 200, status)
+		return
+	}
 	if status.Available {
 		httpx.Fail(w, 409, "You already have a Family Pass available. Return to wedding setup.")
 		return
 	}
-	if status.OrderCode == "" {
-		if !status.OnSale {
-			httpx.Fail(w, http.StatusServiceUnavailable, "New Family Pass orders are paused.")
+	if input.ExpectedAmount != nil && *input.ExpectedAmount != status.Quote.Amount {
+		httpx.Fail(w, 409, "The wedding price has changed. Refresh to see the current price.")
+		return
+	}
+	if input.ClaimFree {
+		if status.OrderCode != "" || status.Quote.Amount != 0 {
+			httpx.Fail(w, 409, "The first-wedding offer has changed. Refresh to see your price.")
 			return
 		}
-		item, ok := catalog[familyPassID]
-		if !ok {
-			s.fail(w)
-			return
-		}
-		order, err := s.openOrder(ctx, tx, item, email, &account, s.orderAttribution(input.Meta, r.UserAgent()))
+		_, err = tx.ExecContext(ctx, `INSERT INTO family_passes(account_id,source,mode)
+   VALUES ($1,$2,$3)`, account, "first-wedding:"+s.mode+":"+account, s.mode)
 		if err != nil {
 			s.fail(w)
 			return
 		}
-		status.OrderCode = s.accessCode(order)
+		status.Available = true
+	} else {
+		if status.Quote.Amount == 0 {
+			httpx.Fail(w, 409, "Your first wedding is free. Refresh to start setup.")
+			return
+		}
+		if s.mode == "test" && s.testAccess != "" && !hmac.Equal([]byte(s.testAccess), []byte(input.TestAccess)) {
+			httpx.Fail(w, 403, "Enter the private test checkout code.")
+			return
+		}
+		email := cleanEmail(input.Email)
+		if email == "" {
+			httpx.Fail(w, 400, "Enter a valid email for your receipt.")
+			return
+		}
+		if status.OrderCode == "" {
+			if !status.OnSale {
+				httpx.Fail(w, http.StatusServiceUnavailable, "New Family Pass orders are paused.")
+				return
+			}
+			item, ok := catalog[familyPassID]
+			if !ok {
+				s.fail(w)
+				return
+			}
+			item.Amount = status.Quote.Amount
+			order, err := s.openOrder(ctx, tx, item, email, &account, s.orderAttribution(input.Meta, r.UserAgent()))
+			if err != nil {
+				s.fail(w)
+				return
+			}
+			status.OrderCode = s.accessCode(order)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		s.fail(w)
