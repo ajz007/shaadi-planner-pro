@@ -1,0 +1,72 @@
+{
+  "id": "phulkari-bloom",
+  "version": 1,
+  "order": 9,
+  "name": "Phulkari Bloom",
+  "description": "A silk phulkari bloom stitches itself onto the cloth, the fabric parts along a zigzag seam, and the page bursts into bold colour blocks, embroidered patches and a dhol that makes everything dance.",
+  "premium": false,
+  "tags": {
+    "mood": [
+      "festive",
+      "playful"
+    ],
+    "region": [
+      "north"
+    ],
+    "time": "any"
+  },
+  "sections": [
+    "hero",
+    "blessing",
+    "countdown",
+    "couple",
+    "events",
+    "rsvp",
+    "family",
+    "venue",
+    "contacts",
+    "closing"
+  ],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "magenta",
+      "choices": [
+        {
+          "value": "magenta",
+          "label": "Magenta & Saffron",
+          "swatch": [
+            "#fff4e4",
+            "#b0145f",
+            "#3d0a22"
+          ]
+        },
+        {
+          "value": "emerald",
+          "label": "Emerald & Mustard",
+          "swatch": [
+            "#fbf5e2",
+            "#0f6b4a",
+            "#0f2a20"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "openingLine",
+      "label": "Line under the bloom",
+      "type": "text",
+      "max": 90,
+      "default": "",
+      "help": "Leave empty for “Tap the bloom to stitch your invitation to … wedding”."
+    },
+    {
+      "key": "dhol",
+      "label": "“Beat the dhol” buttons that make the page dance",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
