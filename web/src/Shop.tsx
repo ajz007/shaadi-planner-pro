@@ -25,6 +25,15 @@ export const rupees = (paise: number) => new Intl.NumberFormat('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: paise % 100 === 0 ? 0 : 2,
 }).format(paise / 100)
 
+export type WeddingQuote = { listAmount: number; amount: number; discountPercent: number }
+
+export function WeddingPrice({ quote }: { quote: WeddingQuote }) {
+  if (quote.amount >= quote.listAmount) return <strong>{rupees(quote.amount)}</strong>
+  return <><del aria-label="Regular price">{rupees(quote.listAmount)}</del>{' '}
+    <strong>{quote.amount === 0 ? 'Free' : rupees(quote.amount)}</strong>{' '}
+    <span>({quote.discountPercent}% off)</span></>
+}
+
 function ProductCard({ item }: { item: ShopProduct }) {
   return <article className="shop-card">
     <a className="shop-cover-link" href={productURL(item)} aria-label={'See ' + item.name}><ProductImage slug={item.slug} /></a>

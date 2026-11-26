@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { plannerShowcaseURL, productByID, rupees, weddingPass } from './Shop'
+import { plannerShowcaseURL, productByID, rupees, weddingPass, WeddingPrice, type WeddingQuote } from './Shop'
 import { PlannerExploreLink } from './PlannerExploreLink'
 import { SiteNav } from './SiteNav'
 import type { ShopProduct } from './Shop'
@@ -12,7 +12,7 @@ import './excel-kit.css'
 
 type Checkout = { key: string; order: string; email: string; amount: number; currency: string }
 type Purchase = { state: 'pending' | 'paid' | 'refunded'; test: boolean; bundleProduct?: string; checkout?: Checkout; payment?: string; product: string }
-type ShopStatus = { products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassBundleProduct?: string }
+type ShopStatus = { firstWeddingOffer?: WeddingQuote; products: Record<string, boolean>; test: boolean; testAccessRequired?: boolean; familyPassBundleProduct?: string }
 type Confirmation = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
 type Razorpay = new (options: {
   key: string; order_id: string; amount: number; currency: string
@@ -134,10 +134,11 @@ export function DownloadProduct({ item }: { item: ShopProduct }) {
         {hasWorkbook && <aside className="excel-planner-offer" aria-label="Online Wedding Planner">
           <h3>Plan together online</h3>
           <p>Share invitations and manage RSVPs, room assignments, and pickups with your family.</p>
-          {plannerBundle && <p><strong>{rupees(weddingPass.amount)} per wedding.</strong> Includes {plannerBundle.name} at no extra cost.</p>}
+          {shop?.firstWeddingOffer && <p>First wedding · <WeddingPrice quote={shop.firstWeddingOffer} />. Additional weddings · {rupees(weddingPass.amount)} each.</p>}
+          {plannerBundle && <p>Paid Family Pass purchases include {plannerBundle.name}.</p>}
           <div className="excel-planner-actions">
             <PlannerExploreLink href={plannerShowcaseURL(item.slug)}>Explore the Online Planner</PlannerExploreLink>
-            {plannerBundle && <a href="/#workspace/setup">Buy the Online Planner</a>}
+            {(plannerBundle || shop?.firstWeddingOffer) && <a href="/#workspace/setup">Start your wedding</a>}
           </div>
         </aside>}
       </section>
@@ -324,6 +325,8 @@ export function ShopPurchase({ code }: { code: string }) {
       </> : <>
         {purchase && <h2>{purchase.checkout ? 'Ready to pay' : 'Payment awaiting confirmation'}</h2>}
         {bundle && <p>Includes {bundle.name} at no extra cost.</p>}
+        {purchase?.checkout && item?.id === weddingPass.id && purchase.checkout.amount < item.amount &&
+          <p>Regular Family Pass price <del>{rupees(item.amount)}</del> · Your price <strong>{rupees(purchase.checkout.amount)}</strong></p>}
         {purchase?.checkout && <button disabled={Boolean(busy)} onClick={pay}>Pay {rupees(purchase.checkout.amount)} with Razorpay</button>}
         {purchase && !purchase.checkout && <p>Access unlocks after Razorpay confirms the payment. If you just paid, check again in a moment.</p>}
         <div className="excel-status-actions">
@@ -336,10 +339,10 @@ export function ShopPurchase({ code }: { code: string }) {
     {!code && rememberedPurchase() && <p><a href={purchasePath + '#' + rememberedPurchase()}>Return to the last purchase on this device</a></p>}
     {canUpgrade && <section className="excel-card">
       <h2>Upgrade to the Online Planner</h2>
-      <p>Plan together online, share invitations, and track RSVPs, rooms and pickups. The Family Pass includes {plannerBundle.name} at no extra cost.</p>
+      <p>Plan together online, share invitations, and track RSVPs, rooms and pickups. The paid Family Pass includes {plannerBundle.name} at no extra cost.</p>
       <div className="excel-status-actions">
         <PlannerExploreLink className="shop-primary" href={plannerShowcaseURL() + '?entry=post_purchase'}>Explore the Online Planner</PlannerExploreLink>
-        <a href="/?entry=post_purchase#workspace/setup">Buy the Online Planner</a>
+        <a href="/?entry=post_purchase#workspace/setup">See my Family Pass price</a>
       </div>
     </section>}
     {shop?.recovery && <Recovery />}

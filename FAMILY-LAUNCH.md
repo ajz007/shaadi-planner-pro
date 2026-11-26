@@ -1,5 +1,10 @@
 # Shaadi Planner Pro family launch
 
+With Family Pass access enabled, `SHAADI_FIRST_WEDDING_DISCOUNT_PERCENT` defaults to `100`. Set it on the app service to an integer from `0` to `100` and restart to change the first-wedding offer. At the ₹2,999 catalog price, `50` charges ₹1,499.50 and `0` charges the regular price. Later weddings use the regular catalog price.
+
+A free claim grants one planner pass without a Razorpay order or downloadable bundle. Joining a wedding does not consume the offer. Paid passes retain their bundle, and orders already opened retain their original price.
+
+
 ## Offer and customer flow
 
 Sell one Family Pass at ₹2,999 for one wedding, including its functions, digital invitations, household RSVPs, family collaboration, logistics, budget and Excel export. The public showcase uses fictional data. After signing in, a customer can preview their invitation with the couple's names, wedding date and first function. This draft stays in the browser tab through checkout. The paid workspace inherits those details. A buyer with a supported Excel workbook can create their wedding through the import instead.
