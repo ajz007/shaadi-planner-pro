@@ -1,0 +1,448 @@
+/* Kasavu & Lamp. Every rule is scoped to .t-kerala-kasavu; colours are
+   tokens per palette; motion uses only opacity and transform and switches
+   off for reduced motion. */
+
+.t-kerala-kasavu {
+  --kk-paper: #f7f1e3;
+  --kk-outer: #e9dfc7;
+  --kk-card: #fffbf1;
+  --kk-ink: #1d3f2b;
+  --kk-text: #33291b;
+  --kk-muted: #63553c;
+  --kk-gold: #c79a2e;
+  --kk-gold-light: #f2dc92;
+  --kk-gold-deep: #7f5e14;
+  --kk-label: #7f5e14;
+  --kk-btn: #1d4a32;
+  --kk-btn-text: #fbf5e3;
+  --kk-brass: #c8962f;
+  --kk-brass-light: #f6de98;
+  --kk-brass-deep: #7a5514;
+  --kk-veil: #160f07;
+  --kk-dusk-text: #f5e7c4;
+  --kk-glow: rgb(255 196 92 / .55);
+  --kk-flame: #ffb43a;
+  --kk-flame-core: #fff6d2;
+  --kk-palm: #2f5b3c;
+  --kk-palm-line: #173723;
+  --kk-palm-nut: #6f7d2d;
+  --kk-spray: #e2c470;
+  --kk-paddy: #d8a83e;
+  --kk-paddy-deep: #a6741b;
+  --kk-wood: #7a3d1c;
+  --kk-wood-deep: #4b230d;
+  --kk-jasmine: #fffdf6;
+  --kk-jasmine-edge: #b9b48c;
+  --kk-thread: #7c9a48;
+  --kk-water: #b9d3c5;
+  --kk-bank: #3f6c4a;
+  --kk-ripple: #f7f1e3;
+  --kk-hull: #5a2e14;
+  --kk-thatch: #b98a3e;
+  --kk-thatch-line: #6c4a17;
+  --kk-line: #e4d4a8;
+  --kk-shadow: rgb(70 50 15 / .14);
+  --kk-weft: rgb(120 95 40 / .032);
+  --kk-display: 'Gilda Display', 'Didot', Georgia, serif;
+  --kk-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --kk-deva: 'Noto Serif Devanagari', 'Tiro Devanagari Hindi', 'Nirmala UI', 'Kohinoor Devanagari', serif;
+
+  /* The shared RSVP panel reads these. */
+  --invite-ink: var(--kk-text);
+  --invite-accent: var(--kk-btn);
+  --invite-line: var(--kk-line);
+  --invite-paper: var(--kk-card);
+  --invite-gold: var(--kk-gold);
+
+  position: relative;
+  min-height: 100vh;
+  overflow-x: clip;
+  color: var(--kk-text);
+  background:
+    repeating-linear-gradient(90deg, var(--kk-weft) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(0deg, var(--kk-weft) 0 1px, transparent 1px 5px),
+    var(--kk-outer);
+  font-family: var(--kk-serif);
+  font-size: 1.08rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+.t-kerala-kasavu[data-palette="temple-night"] {
+  --kk-paper: #0f2b1f;
+  --kk-outer: #0a1f16;
+  --kk-card: #143829;
+  --kk-ink: #f6ecd0;
+  --kk-text: #ece3c7;
+  --kk-muted: #c4b994;
+  --kk-gold: #d8b357;
+  --kk-gold-light: #f4de98;
+  --kk-gold-deep: #a07c26;
+  --kk-label: #e2c36f;
+  --kk-btn: #d8b357;
+  --kk-btn-text: #10261b;
+  --kk-veil: #020805;
+  --kk-dusk-text: #f2e4be;
+  --kk-glow: rgb(255 190 80 / .45);
+  --kk-palm: #061811;
+  --kk-palm-line: #23493a;
+  --kk-palm-nut: #183424;
+  --kk-water: #0b3527;
+  --kk-bank: #05150e;
+  --kk-ripple: #d8b357;
+  --kk-hull: #3a1a0a;
+  --kk-thatch: #8a6526;
+  --kk-thatch-line: #2f1f08;
+  --kk-jasmine: #fbf6e6;
+  --kk-jasmine-edge: #a99f7f;
+  --kk-thread: #6d8f43;
+  --kk-line: #2f5a43;
+  --kk-shadow: rgb(0 0 0 / .35);
+  --kk-weft: rgb(216 179 87 / .03);
+  color-scheme: dark;
+}
+
+html.t-kerala-kasavu-locked, html.t-kerala-kasavu-locked body { overflow: hidden; }
+.t-kerala-kasavu *, .t-kerala-kasavu *::before, .t-kerala-kasavu *::after { box-sizing: border-box; }
+.t-kerala-kasavu :where(h1, h2, h3, p, figure, ol, ul) { margin: 0; padding: 0; }
+.t-kerala-kasavu :where(ol, ul) { list-style: none; }
+.t-kerala-kasavu svg { display: block; }
+
+/* ---------------- Kasavu borders ---------------- */
+.t-kerala-kasavu .kk-borders { position: fixed; z-index: 45; top: 0; bottom: 0; left: 50%; width: min(100%, 780px); transform: translateX(-50%); pointer-events: none; }
+.t-kerala-kasavu .kk-border { position: absolute; top: 0; bottom: 0; left: 0; width: 32px; }
+.t-kerala-kasavu .kk-border.is-r { left: auto; right: 0; transform: scaleX(-1); }
+.t-kerala-kasavu .kk-border::before { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1.5px; background: var(--kk-gold); }
+.t-kerala-kasavu .kk-border-band { position: absolute; top: 0; bottom: 0; left: 7px; width: 13px; overflow: hidden; transform-origin: 0 50%;
+  transform: scaleX(calc(1 + var(--kk-weave, 0) * .75)); transition: transform .3s ease-out;
+  background:
+    repeating-linear-gradient(0deg, rgb(255 255 255 / .16) 0 1px, transparent 1px 3px),
+    linear-gradient(90deg, var(--kk-gold-deep), var(--kk-gold-light) 34%, var(--kk-gold) 62%, var(--kk-gold-deep)); }
+.t-kerala-kasavu .kk-border-band::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 30vh;
+  background: linear-gradient(180deg, transparent, rgb(255 250 225 / .55) 50%, transparent); animation: kk-sweep 9s linear infinite; }
+.t-kerala-kasavu .kk-border-glint { position: absolute; left: 0; right: 0; top: 0; height: 36vh; opacity: 0; transition: opacity .5s ease;
+  background: linear-gradient(180deg, transparent, rgb(255 252 235 / .95) 50%, transparent); transform: translateY(var(--kk-glint, -40vh)); }
+.t-kerala-kasavu[data-shimmer="on"] .kk-border-glint { opacity: 1; }
+.t-kerala-kasavu .kk-border-teeth { position: absolute; top: 0; bottom: 0; left: 21px; width: 7px; transition: transform .3s ease-out;
+  transform: translateX(calc(var(--kk-weave, 0) * 9.75px));
+  background: conic-gradient(at 100% 50%, transparent 234deg, var(--kk-gold) 0 306deg, transparent 0) 0 0 / 7px 11px repeat-y; }
+@keyframes kk-sweep { from { transform: translateY(-30vh); } to { transform: translateY(130vh); } }
+
+/* ---------------- Opening ---------------- */
+.t-kerala-kasavu .kk-opening { position: fixed; z-index: 40; inset: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center;
+  background:
+    repeating-linear-gradient(90deg, var(--kk-weft) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(0deg, var(--kk-weft) 0 1px, transparent 1px 5px),
+    var(--kk-paper);
+  transition: opacity .9s ease, transform .9s ease; }
+.t-kerala-kasavu .kk-opening[data-stage="leaving"] { opacity: 0; transform: scale(1.04); pointer-events: none; }
+.t-kerala-kasavu .kk-opening-glow { position: absolute; z-index: 1; left: 50%; bottom: 8vh; width: 150vmin; height: 150vmin; margin-left: -75vmin;
+  border-radius: 50%; background: radial-gradient(circle, var(--kk-glow), transparent 62%); opacity: 0; transform: scale(.4); transition: opacity 1.4s ease, transform 1.8s ease; }
+.t-kerala-kasavu .kk-opening:not([data-stage="closed"]) .kk-opening-glow { opacity: 1; transform: scale(1); }
+.t-kerala-kasavu .kk-opening-palm { position: absolute; z-index: 1; top: -4vh; width: min(52vw, 300px); height: auto; }
+.t-kerala-kasavu .kk-opening-palm.is-l { left: -16vw; transform: rotate(8deg); }
+.t-kerala-kasavu .kk-opening-palm.is-r { right: -16vw; transform: scaleX(-1) rotate(8deg); }
+@media (min-width: 900px) {
+  .t-kerala-kasavu .kk-opening-palm.is-l { left: calc(50% - 450px); }
+  .t-kerala-kasavu .kk-opening-palm.is-r { right: calc(50% - 450px); }
+}
+
+.t-kerala-kasavu .kk-opening-words { position: relative; z-index: 2; width: min(100% - 4.5rem, 34rem); margin-top: max(9vh, 3.5rem); text-align: center; }
+.t-kerala-kasavu .kk-opening-words > * { opacity: 0; transform: translateY(14px); transition: opacity 1s ease, transform 1s ease; }
+.t-kerala-kasavu .kk-opening:is([data-wicks="4"], [data-wicks="5"]) .kk-opening-words > * { opacity: 1; transform: none; }
+.t-kerala-kasavu .kk-opening-words > :nth-child(2) { transition-delay: .15s; }
+.t-kerala-kasavu .kk-opening-words > :nth-child(3) { transition-delay: .3s; }
+.t-kerala-kasavu .kk-opening-words > :nth-child(4) { transition-delay: .45s; }
+.t-kerala-kasavu .kk-opening-dear { font-style: italic; font-size: 1.15rem; color: var(--kk-muted); }
+.t-kerala-kasavu .kk-opening-title { margin-top: .4rem; font: 500 .82rem/1.4 var(--kk-serif); letter-spacing: .34em; text-transform: uppercase; color: var(--kk-label); }
+.t-kerala-kasavu .kk-opening-names { margin-top: .5rem; display: flex; flex-direction: column; align-items: center; font: 400 clamp(2.8rem, 13vw, 4.8rem)/1.02 var(--kk-display); color: var(--kk-ink); }
+.t-kerala-kasavu .kk-opening-names span { display: block; max-width: 100%; white-space: nowrap; }
+.t-kerala-kasavu .kk-opening-names em { font: italic 400 .42em/1.3 var(--kk-serif); color: var(--kk-gold-deep); }
+.t-kerala-kasavu[data-palette="temple-night"] .kk-opening-names em { color: var(--kk-gold); }
+.t-kerala-kasavu .kk-opening-date { margin-top: .7rem; font: 500 .9rem/1.4 var(--kk-serif); letter-spacing: .26em; text-transform: uppercase; color: var(--kk-label); }
+
+.t-kerala-kasavu .kk-altar { position: absolute; bottom: max(7vh, 3.4rem); left: 0; right: 0; display: flex; align-items: flex-end; justify-content: center; }
+.t-kerala-kasavu .kk-lamp-slot { position: relative; height: min(48vh, 105vw, 420px); aspect-ratio: 200 / 430; flex: none; margin-inline: -4%; }
+.t-kerala-kasavu .kk-lamp { position: relative; z-index: 3; width: 100%; height: 100%; }
+.t-kerala-kasavu .kk-para { position: relative; z-index: 3; width: auto; height: min(15vh, 30vw, 140px); flex: none; }
+.t-kerala-kasavu .kk-veil { position: absolute; z-index: 4; inset: 0; background: radial-gradient(ellipse at 50% 70%, color-mix(in srgb, var(--kk-veil) 82%, transparent), var(--kk-veil) 70%);
+  opacity: .9; transition: opacity .7s ease; pointer-events: none; }
+.t-kerala-kasavu .kk-opening[data-wicks="1"] .kk-veil { opacity: .74; }
+.t-kerala-kasavu .kk-opening[data-wicks="2"] .kk-veil { opacity: .56; }
+.t-kerala-kasavu .kk-opening[data-wicks="3"] .kk-veil { opacity: .36; }
+.t-kerala-kasavu .kk-opening[data-wicks="4"] .kk-veil { opacity: .16; }
+.t-kerala-kasavu .kk-opening[data-wicks="5"] .kk-veil { opacity: 0; }
+
+.t-kerala-kasavu .kk-lamp-button { position: absolute; z-index: 6; inset: -4% -10% -2%; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 40% 40% 12px 12px;
+  -webkit-tap-highlight-color: transparent; }
+.t-kerala-kasavu .kk-lamp-button:focus-visible { outline: 2px dashed var(--kk-gold-light); outline-offset: 4px; }
+.t-kerala-kasavu .kk-lamp-flames { position: absolute; inset: 4% 9.1% 2%; width: 81.8%; height: 94%; overflow: visible; }
+.t-kerala-kasavu .kk-lamp-halo { position: absolute; left: 50%; top: 22%; width: 140%; aspect-ratio: 1; margin-left: -70%; margin-top: -70%; border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 214 130 / .75), rgb(255 190 90 / .25) 40%, transparent 68%); opacity: .55; transform: scale(.32);
+  animation: kk-beckon 2.2s ease-in-out infinite; transition: opacity 1s ease, transform 1.4s ease; }
+.t-kerala-kasavu .kk-opening:not([data-stage="closed"]) .kk-lamp-halo { animation: none; opacity: .85; transform: scale(1); }
+@keyframes kk-beckon { 50% { opacity: .9; transform: scale(.44); } }
+
+.t-kerala-kasavu .kk-flame-body { transform-box: fill-box; transform-origin: 50% 100%; transform: scale(0); opacity: 0;
+  transition: transform .45s cubic-bezier(.3, 1.6, .5, 1), opacity .25s ease; }
+.t-kerala-kasavu .kk-flame.is-on .kk-flame-body { transform: scale(1); opacity: 1; animation: kk-flicker 1.9s ease-in-out var(--fd, 0s) infinite; }
+.t-kerala-kasavu .kk-flame-outer { fill: var(--kk-flame); }
+.t-kerala-kasavu .kk-flame-inner { fill: var(--kk-flame-core); }
+.t-kerala-kasavu .kk-flame-glow { opacity: 0; transition: opacity .6s ease; }
+.t-kerala-kasavu .kk-flame.is-on .kk-flame-glow { opacity: 1; }
+@keyframes kk-flicker { 0%, 100% { transform: scale(1, 1) rotate(0); } 30% { transform: scale(.94, 1.06) rotate(-2.5deg); } 55% { transform: scale(1.04, .95) rotate(1.5deg); } 80% { transform: scale(.97, 1.04) rotate(-1deg); } }
+
+.t-kerala-kasavu .kk-dusk-words { position: absolute; z-index: 5; top: max(13vh, 5rem); left: 2.5rem; right: 2.5rem; text-align: center; color: var(--kk-dusk-text);
+  transition: opacity .6s ease, transform .6s ease; }
+.t-kerala-kasavu .kk-opening:not([data-stage="closed"]) .kk-dusk-words { opacity: 0; transform: translateY(-10px); }
+.t-kerala-kasavu .kk-dusk-dear { font: italic 400 1.35rem/1.3 var(--kk-serif); }
+.t-kerala-kasavu .kk-dusk-line { margin-top: .9rem; font: 400 clamp(1.6rem, 6.4vw, 2.3rem)/1.2 var(--kk-display); }
+.t-kerala-kasavu .kk-opening-hint { position: absolute; z-index: 7; bottom: max(1.6vh, .7rem); left: 2.4rem; right: 2.4rem; text-align: center; font: italic 400 1.02rem/1.35 var(--kk-serif); }
+.t-kerala-kasavu .kk-hint-dusk { color: var(--kk-dusk-text); }
+.t-kerala-kasavu .kk-opening:not([data-stage="closed"]) .kk-hint-dusk { opacity: 0; transition: opacity .4s ease; }
+.t-kerala-kasavu .kk-hint-lit { color: var(--kk-muted); animation: kk-fade-in .8s ease both; }
+@keyframes kk-fade-in { from { opacity: 0; } }
+
+/* ---------------- Page ---------------- */
+.t-kerala-kasavu .kk-preview { position: sticky; top: 0; z-index: 30; padding: .5rem 1.8rem; text-align: center; font-size: .8rem; letter-spacing: .01em;
+  color: var(--kk-btn-text); background: var(--kk-btn); }
+.t-kerala-kasavu .kk-main { --kk-pad: clamp(2.15rem, 7vw, 4.5rem); position: relative; display: block; width: min(100%, 780px); margin: 0 auto; padding: 0 var(--kk-pad);
+  background:
+    repeating-linear-gradient(90deg, var(--kk-weft) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(0deg, var(--kk-weft) 0 1px, transparent 1px 5px),
+    var(--kk-paper);
+  box-shadow: 0 0 60px var(--kk-shadow); }
+.t-kerala-kasavu [data-reveal] { opacity: 0; transform: translateY(18px); transition: opacity .9s ease, transform .9s cubic-bezier(.2, .7, .2, 1); }
+.t-kerala-kasavu [data-reveal].is-in { opacity: 1; transform: none; }
+
+.t-kerala-kasavu .kk-section { position: relative; padding: 3.2rem 0 0; text-align: center; }
+.t-kerala-kasavu .kk-section ~ .kk-section::before { content: ""; display: block; width: 7rem; height: 7px; margin: 0 auto 2.8rem;
+  background: conic-gradient(at 50% 0, transparent 135deg, var(--kk-gold) 0 225deg, transparent 0) 0 0 / 10px 7px repeat-x;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
+
+.t-kerala-kasavu .kk-head { margin-bottom: 1.8rem; }
+.t-kerala-kasavu .kk-kicker { font: 500 .8rem/1.4 var(--kk-serif); letter-spacing: .3em; text-transform: uppercase; color: var(--kk-label); }
+.t-kerala-kasavu .kk-head h2 { margin-top: .45rem; font: 400 clamp(1.85rem, 7vw, 2.6rem)/1.15 var(--kk-display); color: var(--kk-ink); text-wrap: balance; }
+.t-kerala-kasavu .kk-jasmine { width: min(220px, 70%); height: auto; margin: .9rem auto 0; }
+.t-kerala-kasavu .kk-jasmine.is-wide { width: min(300px, 90%); margin-top: 2.2rem; }
+.t-kerala-kasavu .kk-label { font: 500 .76rem/1.4 var(--kk-serif); letter-spacing: .2em; text-transform: uppercase; color: var(--kk-label); }
+.t-kerala-kasavu .kk-soft { font-style: italic; color: var(--kk-muted); }
+.t-kerala-kasavu .kk-center { text-align: center; }
+.t-kerala-kasavu .kk-tag { display: inline-block; padding: .15rem .8rem; font: 500 .72rem/1.6 var(--kk-serif); letter-spacing: .24em; text-transform: uppercase;
+  color: var(--kk-label); border-top: 1px solid var(--kk-gold); border-bottom: 1px solid var(--kk-gold); }
+
+/* Hero */
+.t-kerala-kasavu .kk-hero { padding-top: 0; min-height: min(94svh, 50rem); display: flex; flex-direction: column; }
+.t-kerala-kasavu .kk-canopy { position: relative; height: clamp(11.5rem, 50vw, 17rem); margin: 0 clamp(-4.5rem, -7vw, -2.15rem); overflow: hidden; }
+.t-kerala-kasavu .kk-canopy::before { content: ""; position: absolute; left: 50%; bottom: calc(42% - clamp(9rem, 38vw, 13rem) / 2); width: clamp(9rem, 38vw, 13rem); aspect-ratio: 1; margin-left: calc(clamp(9rem, 38vw, 13rem) / -2);
+  border-radius: 50%; background: radial-gradient(circle, var(--kk-gold-light) 0 36%, transparent 70%); opacity: .6;
+  -webkit-mask: linear-gradient(#000 50%, transparent 50%); mask: linear-gradient(#000 50%, transparent 50%); }
+.t-kerala-kasavu .kk-canopy::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: calc(42% - 5px); height: 5px;
+  border-top: 1.5px solid var(--kk-gold); border-bottom: 1px solid var(--kk-gold);
+  -webkit-mask: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent); mask: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent); }
+.t-kerala-kasavu .kk-hero-palm { position: absolute; top: -1.6rem; width: clamp(12rem, 60vw, 20rem); height: auto; }
+.t-kerala-kasavu .kk-hero-palm.is-l { left: -4.2rem; }
+.t-kerala-kasavu .kk-hero-palm.is-r { right: -4.2rem; transform: scaleX(-1); }
+.t-kerala-kasavu .kk-palm-crown { transform-box: view-box; transform-origin: 150px 60px; animation: kk-sway 7s ease-in-out infinite; }
+.t-kerala-kasavu .kk-hero-palm.is-r .kk-palm-crown { animation-delay: -3.2s; }
+@keyframes kk-sway { 50% { transform: rotate(2.4deg); } }
+.t-kerala-kasavu .kk-hero-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 0 2.4rem; }
+.t-kerala-kasavu .kk-greeting { font-style: italic; font-size: 1.2rem; color: var(--kk-muted); }
+.t-kerala-kasavu .kk-hero-title { margin-top: .5rem; font: 500 .86rem/1.4 var(--kk-serif); letter-spacing: .34em; text-transform: uppercase; color: var(--kk-label); }
+.t-kerala-kasavu .kk-names { width: 100%; margin-top: .6rem; display: flex; flex-direction: column; align-items: center; font: 400 clamp(3.2rem, 15vw, 6rem)/1 var(--kk-display); color: var(--kk-ink); }
+.t-kerala-kasavu .kk-names > span { display: block; max-width: 100%; white-space: nowrap; }
+.t-kerala-kasavu .kk-amp { font: italic 400 .4em/1.4 var(--kk-serif) !important; color: var(--kk-gold-deep); }
+.t-kerala-kasavu[data-palette="temple-night"] .kk-amp { color: var(--kk-gold); }
+.t-kerala-kasavu .kk-hero-rule { display: flex; align-items: center; gap: .7rem; width: min(17rem, 80%); margin: 1.2rem auto .6rem; }
+.t-kerala-kasavu .kk-hero-rule span { flex: 1; height: 5px; border-top: 1.5px solid var(--kk-gold); border-bottom: 1px solid var(--kk-gold); }
+.t-kerala-kasavu .kk-hero-lamp { width: 2.3rem; height: auto; overflow: visible; }
+.t-kerala-kasavu .kk-date { font: 400 1.35rem/1.3 var(--kk-display); letter-spacing: .08em; color: var(--kk-text); }
+
+.t-kerala-kasavu .kk-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; margin-top: 1.6rem; }
+.t-kerala-kasavu .kk-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.95rem; padding: .55rem 1.3rem;
+  border: 1.5px solid var(--kk-btn); border-radius: 6px; color: var(--kk-btn-text); background: var(--kk-btn); box-shadow: inset 0 -4px 0 var(--kk-gold);
+  font: 600 1rem/1.2 var(--kk-serif); letter-spacing: .02em; text-decoration: none; cursor: pointer; transition: transform .2s ease; }
+.t-kerala-kasavu[data-palette="temple-night"] .kk-button { box-shadow: inset 0 -4px 0 var(--kk-gold-deep); }
+.t-kerala-kasavu .kk-button:active { transform: translateY(1px); }
+.t-kerala-kasavu .kk-button.is-quiet { color: var(--kk-btn); background: transparent; box-shadow: none; }
+.t-kerala-kasavu[data-palette="temple-night"] .kk-button.is-quiet { color: var(--kk-gold-light); border-color: var(--kk-gold); }
+.t-kerala-kasavu .kk-button.is-small { min-height: 2.6rem; padding: .4rem .9rem; font-size: .95rem; }
+.t-kerala-kasavu :is(.kk-button, .kk-music, .kk-link, .kk-event-place a) svg { width: 1.1rem; height: 1.1rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-kerala-kasavu :is(.kk-button, .kk-music, .kk-chip, .kk-link, .kk-event-place a):focus-visible { outline: 2px solid var(--kk-gold-deep); outline-offset: 3px; }
+.t-kerala-kasavu[data-palette="temple-night"] :is(.kk-button, .kk-music, .kk-chip, .kk-link, .kk-event-place a):focus-visible { outline-color: var(--kk-gold-light); }
+
+/* Blessing */
+.t-kerala-kasavu .kk-symbols { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1.4rem; }
+.t-kerala-kasavu .kk-symbol { position: relative; display: grid; place-items: center; width: 3.9rem; height: 3.9rem; }
+.t-kerala-kasavu .kk-symbol.is-large { width: 5.2rem; height: 5.2rem; }
+.t-kerala-kasavu .kk-symbol-rim { position: absolute; inset: 0; width: 100%; height: 100%; }
+.t-kerala-kasavu .kk-symbol-glyph { position: relative; font: 600 1.7rem/1 var(--kk-deva); color: var(--kk-gold-deep); margin-top: .15em; }
+.t-kerala-kasavu[data-palette="temple-night"] .kk-symbol-glyph { color: var(--kk-gold); }
+.t-kerala-kasavu .kk-symbol.is-large .kk-symbol-glyph { font-size: 2.3rem; }
+.t-kerala-kasavu .kk-symbol-glyph.is-shri { font-size: 1.35rem; }
+.t-kerala-kasavu .kk-symbol.is-large .kk-symbol-glyph.is-shri { font-size: 1.8rem; }
+.t-kerala-kasavu .kk-symbol-glyph.is-mark { width: 42%; height: 42%; margin: 0; }
+.t-kerala-kasavu .kk-symbol-glyph.is-art { width: 58%; margin: 0; }
+.t-kerala-kasavu .kk-symbol-glyph.is-art svg { width: 100%; height: auto; }
+.t-kerala-kasavu .inv-event-icon { color: var(--kk-gold-deep); }
+.t-kerala-kasavu .inv-ic-a { fill: var(--kk-gold); fill-opacity: .35; }
+.t-kerala-kasavu .inv-ic-b { fill: var(--kk-thread); fill-opacity: .55; }
+.t-kerala-kasavu[data-palette="temple-night"] .inv-event-icon { color: var(--kk-gold); }
+.t-kerala-kasavu .kk-invocation { font: 600 1.3rem/1.5 var(--kk-deva); color: var(--kk-ink); }
+.t-kerala-kasavu .kk-shloka { display: flex; flex-direction: column; margin-top: .6rem; font: 500 1.06rem/1.85 var(--kk-deva); color: var(--kk-muted); }
+.t-kerala-kasavu .kk-blessed { margin-top: 1.4rem; }
+.t-kerala-kasavu .kk-deity { margin-top: .15rem; font: 400 1.5rem/1.3 var(--kk-display); letter-spacing: .04em; color: var(--kk-ink); }
+.t-kerala-kasavu .kk-elders { margin-top: .15rem; font: 500 1.2rem/1.4 var(--kk-serif); color: var(--kk-ink); }
+.t-kerala-kasavu .kk-note { margin-top: .2rem; font-size: .95rem; color: var(--kk-muted); }
+.t-kerala-kasavu .kk-photo { position: relative; width: min(100%, 22rem); margin: 2rem auto 0; padding: 10px; background: var(--kk-card);
+  box-shadow: inset 0 0 0 3px var(--kk-gold), inset 0 0 0 5px var(--kk-card), inset 0 0 0 6px var(--kk-gold), 0 18px 34px -24px var(--kk-shadow); }
+.t-kerala-kasavu .kk-photo img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+.t-kerala-kasavu .kk-intro { max-width: 30ch; margin: 1.6rem auto 0; font: italic 400 1.25rem/1.5 var(--kk-serif); color: var(--kk-text); text-wrap: balance; }
+
+/* Countdown */
+.t-kerala-kasavu .kk-count { display: grid; grid-template-columns: repeat(4, 1fr); max-width: 30rem; margin: 1.3rem auto 0; }
+.t-kerala-kasavu .kk-count-cell { position: relative; display: flex; flex-direction: column; align-items: center; padding: 0 .3rem; }
+.t-kerala-kasavu .kk-count-cell ~ .kk-count-cell::before { content: ""; position: absolute; left: 0; top: 2.4rem; bottom: .3rem; width: 3px;
+  border-left: 1.5px solid var(--kk-gold); border-right: 1px solid var(--kk-gold); opacity: .7; }
+.t-kerala-kasavu .kk-count-lamp { width: 2rem; height: auto; overflow: visible; }
+.t-kerala-kasavu .kk-count strong { margin-top: .3rem; font: 400 clamp(2rem, 9vw, 2.8rem)/1 var(--kk-display); color: var(--kk-ink); font-variant-numeric: tabular-nums; }
+.t-kerala-kasavu .kk-count span { margin-top: .35rem; font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--kk-label); }
+
+/* Folded cloth cards: a gold kara at the hem, with a row of temple points. */
+.t-kerala-kasavu .kk-fold { position: relative; padding: 1.4rem 1.2rem 2.2rem; background: var(--kk-card); border-radius: 3px; text-align: center;
+  box-shadow: 0 1px 0 var(--kk-line), 0 16px 30px -24px var(--kk-shadow); }
+.t-kerala-kasavu .kk-fold::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 20px; border-radius: 0 0 3px 3px;
+  background:
+    conic-gradient(at 50% 0, transparent 135deg, var(--kk-gold) 0 225deg, transparent 0) 0 0 / 9px 6px repeat-x,
+    linear-gradient(transparent 7px, var(--kk-gold-deep) 7px 8px, transparent 8px 10px,
+      var(--kk-gold) 10px 17px, transparent 17px 18px, var(--kk-gold-deep) 18px 19px, transparent 19px); }
+.t-kerala-kasavu .kk-fold h3 { font: 400 1.5rem/1.25 var(--kk-display); color: var(--kk-ink); }
+
+/* Couple */
+.t-kerala-kasavu .kk-pair { display: grid; gap: 1rem; justify-items: center; }
+.t-kerala-kasavu .kk-person { width: 100%; max-width: 24rem; padding-top: 1.7rem; padding-bottom: 2.6rem; }
+.t-kerala-kasavu .kk-person h3 { margin-top: .7rem; font-size: clamp(1.6rem, 6.6vw, 2rem); overflow-wrap: anywhere; }
+.t-kerala-kasavu .kk-honorific { margin-top: .9rem; font-style: italic; color: var(--kk-muted); }
+.t-kerala-kasavu .kk-person .kk-label { margin-top: 1rem; }
+.t-kerala-kasavu .kk-parents { margin-top: .2rem; font-size: 1.05rem; }
+.t-kerala-kasavu .kk-pair-amp { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; font: italic 400 1.5rem/1 var(--kk-serif);
+  color: var(--kk-btn-text); background: var(--kk-btn); box-shadow: 0 0 0 3px var(--kk-paper), 0 0 0 4.5px var(--kk-gold); }
+@media (min-width: 720px) {
+  .t-kerala-kasavu .kk-pair { grid-template-columns: 1fr auto 1fr; align-items: center; }
+  .t-kerala-kasavu .kk-person { height: 100%; }
+}
+
+/* Functions */
+.t-kerala-kasavu .kk-chip { display: inline-flex; align-items: center; gap: .5rem; max-width: 100%; margin: -.4rem auto 1.6rem; padding: .5rem 1rem;
+  border: 1px solid var(--kk-line); border-radius: 999px; background: var(--kk-card); color: var(--kk-text); font-size: .98rem; text-decoration: none; text-align: left; }
+.t-kerala-kasavu .kk-chip svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: var(--kk-gold-deep); stroke-width: 1.8; }
+.t-kerala-kasavu .kk-days { display: grid; gap: 2.2rem; }
+.t-kerala-kasavu .kk-day-band { position: relative; display: flex; flex-direction: column; align-items: center; gap: .1rem; margin: 0 0 1.2rem; padding: .7rem 1rem .95rem;
+  border-top: 3px double var(--kk-gold); }
+.t-kerala-kasavu .kk-day-band::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; opacity: .8;
+  background: conic-gradient(at 50% 0, transparent 135deg, var(--kk-gold) 0 225deg, transparent 0) 0 0 / 9px 5px repeat-x;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent); mask: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent); }
+.t-kerala-kasavu .kk-day-n { font: 500 .78rem/1.4 var(--kk-serif); letter-spacing: .3em; text-transform: uppercase; color: var(--kk-label); }
+.t-kerala-kasavu .kk-day-date { font: 400 1.3rem/1.3 var(--kk-display); color: var(--kk-ink); }
+.t-kerala-kasavu .kk-events { display: grid; gap: .9rem; }
+.t-kerala-kasavu .kk-event { display: grid; grid-template-columns: 3.6rem 1fr; align-items: start; gap: 1rem; padding: 1.15rem 1.1rem 2rem; text-align: left;
+  transition-delay: calc(var(--i, 0) * 90ms); }
+.t-kerala-kasavu .kk-event-icon { display: grid; place-items: center; width: 3.6rem; height: 3.6rem; border-radius: 50%; background: var(--kk-paper);
+  box-shadow: inset 0 0 0 1.5px var(--kk-gold), inset 0 0 0 4px var(--kk-paper), inset 0 0 0 5px var(--kk-line); }
+.t-kerala-kasavu .kk-event-icon .inv-event-icon { width: 2.4rem; height: 2.4rem; }
+.t-kerala-kasavu .kk-event h3 { font-size: 1.45rem; line-height: 1.2; }
+.t-kerala-kasavu .kk-event-sub { margin-top: .1rem; font-style: italic; color: var(--kk-muted); }
+.t-kerala-kasavu .kk-event-time { margin-top: .35rem; font: 600 .98rem/1.35 var(--kk-serif); letter-spacing: .04em; color: var(--kk-label); }
+.t-kerala-kasavu .kk-event-place { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .45rem; margin-top: .4rem; font-size: .95rem; color: var(--kk-muted); }
+.t-kerala-kasavu .kk-event-place > svg { width: 1rem; height: 1rem; fill: none; stroke: var(--kk-gold-deep); stroke-width: 1.8; }
+.t-kerala-kasavu .kk-event-place a { color: var(--kk-btn); font-weight: 600; }
+.t-kerala-kasavu[data-palette="temple-night"] .kk-event-place a { color: var(--kk-gold-light); }
+@media (min-width: 720px) {
+  .t-kerala-kasavu .kk-events { grid-template-columns: 1fr 1fr; }
+  .t-kerala-kasavu .kk-events > :last-child:nth-child(odd) { grid-column: 1 / -1; justify-self: center; width: calc(50% - .45rem); }
+}
+
+/* RSVP */
+.t-kerala-kasavu .kk-rsvp-body { max-width: 34rem; margin: 1.2rem auto 0; text-align: left; }
+.t-kerala-kasavu .invite-panel { position: relative; margin: 0; border: 0; border-radius: 3px; padding-bottom: 2.4rem; background: var(--kk-card); color: var(--kk-text);
+  box-shadow: inset 0 0 0 1px var(--kk-line), 0 16px 30px -24px var(--kk-shadow); }
+.t-kerala-kasavu .invite-panel::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 12px;
+  background: linear-gradient(transparent 0 1px, var(--kk-gold-deep) 1px 2px, transparent 2px 4px, var(--kk-gold) 4px 10px, transparent 10px 11px, var(--kk-gold-deep) 11px 12px); }
+.t-kerala-kasavu .invite-panel h2 { font: 400 clamp(1.45rem, 5vw, 1.8rem)/1.2 var(--kk-display); color: var(--kk-ink); }
+.t-kerala-kasavu .invite-panel button { border-radius: 6px; color: var(--kk-btn-text); background: var(--kk-btn); font-family: var(--kk-serif); font-weight: 600; }
+.t-kerala-kasavu .invite-panel .invite-secondary { color: var(--kk-btn); background: transparent; border-color: var(--kk-btn); }
+.t-kerala-kasavu .invite-panel .invite-secondary[aria-pressed="true"] { color: var(--kk-btn-text); background: var(--kk-btn); }
+.t-kerala-kasavu .invite-panel a { color: var(--kk-btn); }
+.t-kerala-kasavu[data-palette="temple-night"] .invite-panel a { color: var(--kk-gold-light); }
+.t-kerala-kasavu .invite-toolbar :is(select, input) { background: var(--kk-paper); color: var(--kk-text); }
+.t-kerala-kasavu .invite-feedback { background: var(--kk-card); }
+
+/* Family */
+.t-kerala-kasavu .kk-grid { display: grid; gap: 1rem; }
+@media (min-width: 720px) { .t-kerala-kasavu .kk-grid { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); } }
+.t-kerala-kasavu .kk-family h3 { font-size: 1.35rem; margin-bottom: .6rem; }
+.t-kerala-kasavu .kk-family-line ~ .kk-family-line { margin-top: .85rem; }
+.t-kerala-kasavu .kk-name { font-size: 1.08rem; }
+
+/* Venue */
+.t-kerala-kasavu .kk-shore { overflow: hidden; border-radius: 3px; background: var(--kk-card); box-shadow: 0 1px 0 var(--kk-line), 0 16px 30px -24px var(--kk-shadow); }
+.t-kerala-kasavu .kk-backwaters { width: 100%; height: auto; aspect-ratio: 360 / 150; max-height: 15rem; }
+.t-kerala-kasavu .kk-boat { animation: kk-bob 5s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 90%; }
+.t-kerala-kasavu .kk-ripples { animation: kk-drift 6s ease-in-out infinite; }
+@keyframes kk-bob { 50% { transform: translateY(2.5px) rotate(-1.2deg); } }
+@keyframes kk-drift { 50% { transform: translateX(8px); opacity: .6; } }
+.t-kerala-kasavu .kk-shore-body { padding: 1.2rem 1.2rem 1.8rem; }
+.t-kerala-kasavu .kk-place h3 { font: 400 1.45rem/1.25 var(--kk-display); color: var(--kk-ink); }
+.t-kerala-kasavu .kk-place ~ .kk-place { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--kk-line); }
+.t-kerala-kasavu .kk-address { margin-top: .3rem; color: var(--kk-muted); }
+.t-kerala-kasavu .kk-link { display: inline-flex; align-items: center; gap: .35rem; margin-top: .4rem; color: var(--kk-btn); font-weight: 600; }
+.t-kerala-kasavu[data-palette="temple-night"] .kk-link { color: var(--kk-gold-light); }
+
+/* Contacts */
+.t-kerala-kasavu .kk-contacts { display: grid; gap: .8rem; max-width: 36rem; margin: 0 auto; }
+.t-kerala-kasavu .kk-contact { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem 1rem; padding: 1rem 1.1rem;
+  background: var(--kk-card); border-left: 5px solid var(--kk-gold); border-radius: 3px; text-align: left; box-shadow: 0 14px 26px -22px var(--kk-shadow); }
+.t-kerala-kasavu .kk-contact h3 { font: 400 1.3rem/1.25 var(--kk-display); color: var(--kk-ink); }
+.t-kerala-kasavu .kk-contact-actions { display: flex; gap: .5rem; }
+
+/* Closing */
+.t-kerala-kasavu .kk-closing { padding-bottom: 2rem; }
+.t-kerala-kasavu .kk-closing-lamp { width: 3.2rem; height: auto; margin: 0 auto 1rem; overflow: visible; }
+.t-kerala-kasavu .kk-closing-line { max-width: 24ch; margin: 0 auto; font: italic 400 clamp(1.4rem, 5.4vw, 1.8rem)/1.4 var(--kk-serif); color: var(--kk-text); text-wrap: balance; }
+.t-kerala-kasavu .kk-closing-names { margin-top: 1rem; white-space: nowrap; font: 400 clamp(2.2rem, 10vw, 3.6rem)/1.15 var(--kk-display); color: var(--kk-ink); }
+.t-kerala-kasavu .kk-closing-names em { margin: 0 .25em; font: italic 400 .5em/1 var(--kk-serif); color: var(--kk-gold-deep); }
+.t-kerala-kasavu[data-palette="temple-night"] .kk-closing-names em { color: var(--kk-gold); }
+.t-kerala-kasavu .kk-hosts { margin-top: .2rem; font: 400 1.3rem/1.4 var(--kk-display); color: var(--kk-ink); }
+
+/* The hem of the cloth: a broad woven kara closes the page. */
+.t-kerala-kasavu .kk-main::after { content: ""; display: block; height: 44px; margin: 2.6rem calc(-1 * var(--kk-pad)) 0;
+  background:
+    conic-gradient(at 50% 0, transparent 135deg, var(--kk-gold) 0 225deg, transparent 0) 0 0 / 11px 8px repeat-x,
+    linear-gradient(transparent 10px, var(--kk-gold-deep) 10px 11.5px, transparent 11.5px 14px, var(--kk-gold) 14px 18px, transparent 18px 20px,
+      var(--kk-gold-deep) 20px 21px, var(--kk-gold-light) 21px 22px, var(--kk-gold) 22px 40px, var(--kk-gold-deep) 40px); }
+
+/* Music */
+.t-kerala-kasavu .kk-music { position: fixed; z-index: 50; right: max(2.4rem, calc(50% - 390px + 2.6rem)); bottom: 1.1rem; display: inline-flex; align-items: center; gap: .5rem;
+  min-height: 3.2rem; padding: .6rem 1.2rem; border: 1.5px solid var(--kk-gold); border-radius: 999px; color: var(--kk-btn-text); background: var(--kk-btn);
+  font: 600 1.05rem/1 var(--kk-serif); box-shadow: 0 10px 24px -12px var(--kk-shadow); cursor: pointer; }
+.t-kerala-kasavu .kk-music svg { width: 1.3rem; height: 1.3rem; }
+.t-kerala-kasavu .kk-music.is-pulse { animation: kk-attention 1.6s ease-in-out infinite; }
+@keyframes kk-attention { 50% { transform: scale(1.06); } }
+
+@media (max-width: 420px) {
+  .t-kerala-kasavu .kk-border { width: 24px; }
+  .t-kerala-kasavu .kk-border::before { left: 2px; }
+  .t-kerala-kasavu .kk-border-band { left: 5px; width: 9px; }
+  .t-kerala-kasavu .kk-border-teeth { left: 15px; width: 6px; background-size: 6px 9px; transform: translateX(calc(var(--kk-weave, 0) * 6.75px)); }
+  .t-kerala-kasavu .kk-event { grid-template-columns: 3rem 1fr; gap: .8rem; padding-inline: .9rem; }
+  .t-kerala-kasavu .kk-event-icon { width: 3rem; height: 3rem; }
+  .t-kerala-kasavu .kk-event-icon .inv-event-icon { width: 2rem; height: 2rem; }
+  .t-kerala-kasavu .kk-music { right: 2rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-kerala-kasavu *, .t-kerala-kasavu *::before, .t-kerala-kasavu *::after { animation: none !important; transition: none !important; }
+  .t-kerala-kasavu [data-reveal] { opacity: 1; transform: none; }
+  .t-kerala-kasavu .kk-border-band::after { display: none; }
+  .t-kerala-kasavu .kk-flame-body { transform: scale(1); opacity: 1; }
+}
