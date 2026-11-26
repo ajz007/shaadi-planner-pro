@@ -1,0 +1,73 @@
+{
+  "id": "bengal-alpona",
+  "version": 1,
+  "order": 8,
+  "name": "Alpona",
+  "description": "White alpona flows out from a lotus on a red floor and parts like a doorway, opening onto red-bordered white panels, shola crowns, shakha-pola bangles and a procession of functions.",
+  "premium": false,
+  "tags": {
+    "mood": [
+      "festive",
+      "heritage",
+      "romantic"
+    ],
+    "region": [
+      "east"
+    ],
+    "time": "any"
+  },
+  "sections": [
+    "hero",
+    "blessing",
+    "couple",
+    "countdown",
+    "events",
+    "rsvp",
+    "family",
+    "venue",
+    "contacts",
+    "closing"
+  ],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "laal-paar",
+      "choices": [
+        {
+          "value": "laal-paar",
+          "label": "Laal Paar",
+          "swatch": [
+            "#fbf5ec",
+            "#b5121b",
+            "#3f070c"
+          ]
+        },
+        {
+          "value": "shola",
+          "label": "Shola",
+          "swatch": [
+            "#f7efdf",
+            "#b0832c",
+            "#5e0c18"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "lotusLine",
+      "label": "Line under the lotus",
+      "type": "text",
+      "max": 90,
+      "default": "",
+      "help": "Leave empty for “Touch the lotus to draw the alpona for … wedding”."
+    },
+    {
+      "key": "drawIn",
+      "label": "Alpona draws itself in as each section appears",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
