@@ -1,0 +1,72 @@
+{
+  "id": "celestial-night",
+  "version": 1,
+  "order": 7,
+  "name": "Celestial Night",
+  "description": "Stars join into the couple's initials on a quiet night sky, then the invitation follows a moonlit path past waxing moons, with shooting stars wherever guests tap.",
+  "premium": false,
+  "tags": {
+    "mood": [
+      "romantic",
+      "serene"
+    ],
+    "region": [
+      "all-india"
+    ],
+    "time": "night"
+  },
+  "sections": [
+    "hero",
+    "blessing",
+    "countdown",
+    "couple",
+    "events",
+    "rsvp",
+    "family",
+    "venue",
+    "contacts",
+    "closing"
+  ],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "midnight",
+      "choices": [
+        {
+          "value": "midnight",
+          "label": "Midnight & Silver",
+          "swatch": [
+            "#0a1230",
+            "#c8d3ec",
+            "#f4f6fc"
+          ]
+        },
+        {
+          "value": "dusk",
+          "label": "Dusk Violet & Gold",
+          "swatch": [
+            "#1c1236",
+            "#e2b866",
+            "#fbf3e4"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "skyLine",
+      "label": "Line under the stars",
+      "type": "text",
+      "max": 90,
+      "default": "",
+      "help": "Leave empty for “Tap the brightest star to open your invitation to … wedding”."
+    },
+    {
+      "key": "shootingStars",
+      "label": "Shooting stars when guests tap the sky",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
