@@ -1,0 +1,73 @@
+{
+  "id": "kerala-kasavu",
+  "version": 1,
+  "order": 10,
+  "name": "Kasavu & Lamp",
+  "description": "A tall brass lamp lights wick by wick at dusk and its glow reveals an off-white invitation edged in gold kasavu, with palms, jasmine and a boat on the backwaters.",
+  "premium": false,
+  "tags": {
+    "mood": [
+      "serene",
+      "heritage",
+      "minimal"
+    ],
+    "region": [
+      "south"
+    ],
+    "time": "day"
+  },
+  "sections": [
+    "hero",
+    "blessing",
+    "countdown",
+    "couple",
+    "events",
+    "rsvp",
+    "family",
+    "venue",
+    "contacts",
+    "closing"
+  ],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "kasavu",
+      "choices": [
+        {
+          "value": "kasavu",
+          "label": "Kasavu",
+          "swatch": [
+            "#f7f1e3",
+            "#c79a2e",
+            "#1d3f2b"
+          ]
+        },
+        {
+          "value": "temple-night",
+          "label": "Temple Night (dark)",
+          "swatch": [
+            "#0f2b1f",
+            "#d8b357",
+            "#f6ecd0"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "lampLine",
+      "label": "Line under the lamp",
+      "type": "text",
+      "max": 100,
+      "default": "",
+      "help": "Leave empty for “Touch the lamp to light it for …”."
+    },
+    {
+      "key": "shimmer",
+      "label": "Gold border widens and shimmers while scrolling",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
