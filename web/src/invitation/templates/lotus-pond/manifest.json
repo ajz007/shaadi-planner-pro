@@ -1,0 +1,78 @@
+{
+  "id": "lotus-pond",
+  "version": 1,
+  "order": 11,
+  "name": "Lotus Pond",
+  "description": "A lotus bud on a still pond opens petal by petal and its ripples spread into a soft, water-coloured invitation where guests can touch the water to make it ripple.",
+  "premium": false,
+  "tags": {
+    "mood": [
+      "serene",
+      "romantic"
+    ],
+    "region": [
+      "all-india"
+    ],
+    "time": "day"
+  },
+  "sections": [
+    "blessing",
+    "hero",
+    "countdown",
+    "couple",
+    "events",
+    "rsvp",
+    "family",
+    "venue",
+    "contacts",
+    "closing"
+  ],
+  "options": [
+    {
+      "key": "palette",
+      "label": "Palette",
+      "type": "choice",
+      "default": "aqua-blush",
+      "choices": [
+        {
+          "value": "aqua-blush",
+          "label": "Aqua & Blush",
+          "swatch": [
+            "#eaf6f3",
+            "#e17f9c",
+            "#123f45"
+          ]
+        },
+        {
+          "value": "jade-pearl",
+          "label": "Jade & Pearl",
+          "swatch": [
+            "#f4f2ea",
+            "#2e8b6e",
+            "#123a30"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "bloomLine",
+      "label": "Line under the lotus bud",
+      "type": "text",
+      "max": 100,
+      "default": "",
+      "help": "Leave empty for “Touch the bud to let it bloom for …”."
+    },
+    {
+      "key": "ripples",
+      "label": "Guests can touch the water to make ripples",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "dragonflies",
+      "label": "Dragonflies drift across the page",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
