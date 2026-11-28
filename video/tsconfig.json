@@ -7,7 +7,14 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": []
+    "types": [],
+    "baseUrl": ".",
+    // The shared invitation files under ../web resolve React from this
+    // project, not web/node_modules (which CI doesn't install here).
+    "paths": {
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"]
+    }
   },
   "include": ["src"]
 }
