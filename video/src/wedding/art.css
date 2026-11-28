@@ -1,0 +1,16 @@
+/* Styles the shared invitation art (web/src/invitation/art.tsx) needs when it
+   is drawn into a video frame. Colours come from the palette's --inv-* tokens. */
+.inv-seal-art { width: 100%; height: 100%; }
+.inv-seal-letter { font: 600 34px var(--wv-serif); fill: #8a6125; }
+.inv-seal-amp { font: italic 500 16px var(--wv-serif); fill: #b98a3e; }
+.inv-medallion { width: 100%; height: auto; filter: drop-shadow(0 14px 22px rgb(120 70 20 / .35)); }
+.inv-glyph { font: 600 44px var(--wv-serif); fill: var(--inv-gold-deep); }
+.inv-glyph-shri { font-size: 30px; }
+.wv-royal .inv-glyph { fill: var(--inv-gold-light); }
+.inv-event-icon { width: 100%; height: auto; color: var(--inv-gold-deep); }
+.wv-royal .inv-event-icon { color: var(--inv-gold-light); }
+.inv-ic-a { fill: var(--inv-rose-light); fill-opacity: .85; }
+.inv-ic-b { fill: var(--inv-gold-light); fill-opacity: .9; }
+.inv-divider { width: 360px; height: auto; color: var(--inv-gold); }
+.inv-toran { display: flex; justify-content: center; overflow: hidden; }
+.inv-swag { flex: 0 0 auto; width: 150px; height: auto; }

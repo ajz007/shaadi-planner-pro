@@ -1,0 +1,26 @@
+{
+  "name": "shaadi-video",
+  "private": true,
+  "description": "Remotion video renderer: generic engine pieces plus the wedding video invitation compositions.",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "render": "node scripts/render.mjs"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.542",
+    "@remotion/google-fonts": "4.0.542",
+    "@remotion/renderer": "4.0.542",
+    "@remotion/bundler": "4.0.542",
+    "qrcode": "1.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.542"
+  },
+  "devDependencies": {
+    "@types/qrcode": "1.5.5",
+    "@types/react": "19.1.6",
+    "typescript": "5.9.2"
+  }
+}

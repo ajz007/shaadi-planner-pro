@@ -8,3 +8,11 @@
 .env.*
 /.local/
 /web/screenshots/
+/video/node_modules/
+/video/out/
+/video/public/local-*
+/video/*.jpg
+/video/*.jpeg
+/video/*.png
+/video/*.heic
+*:Zone.Identifier
