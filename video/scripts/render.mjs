@@ -37,7 +37,7 @@ for (const { id } of wanted) {
   const composition = await selectComposition({ serveUrl, id, inputProps: overrides })
   const inputProps = { ...composition.defaultProps, ...overrides }
   if (stills) {
-    const frames = id.startsWith('invite') ? [60, 250, 470, 690, 860] : [70, 230, 420]
+    const frames = id.includes('invite') ? [60, 250, 470, 690, 860] : [70, 230, 420]
     for (const frame of frames) {
       const output = `out/${id}-${frame}.png`
       await renderStill({ composition, serveUrl, output, frame, inputProps })

@@ -1,0 +1,91 @@
+name: Deploy WhatsApp video renderer
+
+# Publishes the Remotion video compositions (video/) to AWS Lambda with
+# video/scripts/deploy-lambda.mjs: deploys the render function (reused when
+# this Remotion version is already deployed) and uploads the compositions as
+# the "spp-video" site, so new designs go live without an app deploy. The
+# job summary prints the SHAADI_VIDEO_* values the app needs. All AWS resources
+# are named spp-video-*; see video/aws/README.md for the one-time IAM setup.
+#
+# Secrets: AWS_VIDEO_DEPLOY_ACCESS_KEY_ID, AWS_VIDEO_DEPLOY_SECRET_ACCESS_KEY
+# Variable: AWS_VIDEO_REGION (the shop bucket's region, e.g. us-west-1)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/video-lambda.yml'
+      - 'video/**'
+      - 'web/src/invitation/art.tsx'
+      - 'web/src/invitation/names.ts'
+      - 'web/src/invitation/model.ts'
+  pull_request:
+    paths:
+      - '.github/workflows/video-lambda.yml'
+      - 'video/**'
+      - 'web/src/invitation/art.tsx'
+      - 'web/src/invitation/names.ts'
+      - 'web/src/invitation/model.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: video-lambda-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: video
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: video/package-lock.json
+      - run: npm ci
+      - name: Typecheck the compositions
+        run: npx tsc --noEmit
+
+  deploy:
+    # Only main deploys; pull requests just run the check.
+    if: github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    defaults:
+      run:
+        working-directory: video
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: video/package-lock.json
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_VIDEO_DEPLOY_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_VIDEO_DEPLOY_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_VIDEO_REGION }}
+      - name: Deploy the function and upload the compositions
+        env:
+          AWS_VIDEO_REGION: ${{ vars.AWS_VIDEO_REGION }}
+        run: |
+          if [ -z "$AWS_VIDEO_REGION" ]; then
+            echo "Set the AWS_VIDEO_REGION repository variable (for example us-west-1)." >&2
+            exit 1
+          fi
+          node scripts/deploy-lambda.mjs

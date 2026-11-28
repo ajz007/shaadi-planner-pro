@@ -1,0 +1,14 @@
+[
+  {
+    "Sid": "StartWhatsAppVideoRenders",
+    "Effect": "Allow",
+    "Action": "lambda:InvokeFunction",
+    "Resource": "arn:aws:lambda:us-west-1:ACCOUNT_ID:function:spp-video-render-*"
+  },
+  {
+    "Sid": "ReadWhatsAppVideos",
+    "Effect": "Allow",
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::spp-video-ACCOUNT_ID-us-west-1/renders/*"
+  }
+]

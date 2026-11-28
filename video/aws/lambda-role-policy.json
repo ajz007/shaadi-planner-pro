@@ -1,0 +1,41 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BucketListing",
+      "Effect": "Allow",
+      "Action": "s3:ListAllMyBuckets",
+      "Resource": "*"
+    },
+    {
+      "Sid": "SppVideoBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::spp-video-ACCOUNT_ID-us-west-1",
+        "arn:aws:s3:::spp-video-ACCOUNT_ID-us-west-1/*"
+      ]
+    },
+    {
+      "Sid": "SplitRenderAcrossInvocations",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:us-west-1:ACCOUNT_ID:function:spp-video-render-*"
+    },
+    {
+      "Sid": "SppVideoLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-west-1:ACCOUNT_ID:log-group:/aws/lambda/spp-video-render-*:*"
+    }
+  ]
+}

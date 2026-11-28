@@ -78,6 +78,8 @@ type workspaceHTTP struct {
 	origin     string
 	localTest  bool
 	adminEmail string
+	// video renders WhatsApp videos; nil when they are not configured.
+	video videoRenderer
 }
 
 func workspaceSecret() string {

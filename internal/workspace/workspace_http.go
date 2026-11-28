@@ -72,8 +72,17 @@ func Configure(ctx context.Context, publicOrigin string) (*workspaceHTTP, error)
 			return nil, errors.New("Family Pass access requires a configured checkout mode")
 		}
 	}
+	renderer, err := newLambdaVideoRenderer(ctx)
+	if err != nil {
+		store.db.Close()
+		return nil, err
+	}
+	var video videoRenderer
+	if renderer != nil {
+		video = renderer
+	}
 	if localTest {
-		return &workspaceHTTP{store: store, origin: origin, localTest: true}, nil
+		return &workspaceHTTP{store: store, origin: origin, localTest: true, video: video}, nil
 	}
 	config := oauth2.Config{
 		ClientID: id, ClientSecret: secret, RedirectURL: origin + "/auth/google/callback",
@@ -83,7 +92,7 @@ func Configure(ctx context.Context, publicOrigin string) (*workspaceHTTP, error)
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 	}
-	return &workspaceHTTP{store: store, origin: origin, login: googleWorkspaceLogin{config: config}, adminEmail: adminEmail}, nil
+	return &workspaceHTTP{store: store, origin: origin, login: googleWorkspaceLogin{config: config}, adminEmail: adminEmail, video: video}, nil
 }
 
 func (a *workspaceHTTP) matchesHost(r *http.Request) bool {
@@ -194,6 +203,10 @@ func (a *workspaceHTTP) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/guest-rsvp/invitation/music", a.protected(a.invitationMusic))
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/guest-rsvp/invitation/music", a.protected(a.saveInvitationMusic))
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/guest-rsvp/invitation/publish", a.protected(a.publishInvitation))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/guest-rsvp/videos", a.protected(a.weddingVideos))
+	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/guest-rsvp/videos", a.protected(a.requestWeddingVideo))
+	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/guest-rsvp/videos/{kind}", a.protected(a.weddingVideoFile))
+	mux.HandleFunc("GET /api/video-photo/{token}", a.videoPhoto)
 	mux.HandleFunc("POST /api/guest-invitation-music", a.guestInvitationMusic)
 	mux.HandleFunc("GET /api/workspace/weddings/{wedding}/logistics/{section}", a.protected(a.logistics))
 	mux.HandleFunc("POST /api/workspace/weddings/{wedding}/logistics/{section}/{record}", a.protected(a.saveLogistics))

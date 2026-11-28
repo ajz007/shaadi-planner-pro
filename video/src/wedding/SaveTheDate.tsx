@@ -12,17 +12,21 @@ export const SAVE_THE_DATE_FRAMES = 450
 
 const center = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' } as const
 
+// The first frame is the thumbnail WhatsApp shows in a chat, so the title
+// card starts fully drawn (negative delays) instead of fading in.
+const drawn = -90
+
 function Title({ props }: { props: WeddingVideoProps }) {
-  const pop = useEnter(4, 12)
+  const pop = useEnter(drawn, 12)
   const palette = palettes[props.palette]
   return <Scene fadeIn={0} fadeOut={14} style={{ ...center, gap: 44 }}>
     <div style={{ width: 230, transform: `scale(${pop})` }}><Medallion symbol={props.symbol} large /></div>
-    <Rise delay={18}><Kicker style={{ color: palette.accent }} text={props.invocation} /></Rise>
+    <Rise delay={drawn}><Kicker style={{ color: palette.accent }} text={props.invocation} /></Rise>
     <div style={{ fontFamily: fonts.display, fontSize: 132, lineHeight: 1.05, color: palette.ink }}>
-      <LetterReveal text={props.labels.saveTheDate[0]} delay={26} /><br /><LetterReveal text={props.labels.saveTheDate[1]} delay={38} />
+      <LetterReveal text={props.labels.saveTheDate[0]} delay={drawn} /><br /><LetterReveal text={props.labels.saveTheDate[1]} delay={drawn} />
     </div>
-    <Rule delay={60} color={palette.accent} />
-    <LightSweep delay={70} duration={45} />
+    <Rule delay={drawn} color={palette.accent} />
+    <LightSweep delay={8} duration={45} />
   </Scene>
 }
 
