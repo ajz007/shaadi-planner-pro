@@ -15,17 +15,21 @@ const MAX_EVENTS = 5
 
 const center = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' } as const
 
+// The first frame is the thumbnail WhatsApp shows in a chat, so the opening
+// card starts fully drawn (negative delays) instead of fading in.
+const drawn = -90
+
 function Blessing({ props }: { props: WeddingVideoProps }) {
   const frame = useCurrentFrame()
-  const drop = interpolate(frame, [0, 26], [-220, 0], { extrapolateRight: 'clamp' })
-  const pop = useEnter(14, 12)
+  const sway = Math.sin(frame / 18) * 4
+  const pop = useEnter(drawn, 12)
   const palette = palettes[props.palette]
   return <Scene fadeIn={0} style={{ ...center, gap: 46, padding: '0 90px' }}>
-    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${drop}px)` }}><Toran /></div>
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${sway - 4}px)` }}><Toran /></div>
     <div style={{ width: 210, transform: `scale(${pop})` }}><Medallion symbol={props.symbol} large /></div>
-    <Rise delay={24}><Kicker style={{ color: palette.accent, letterSpacing: '.2em' }} text={props.invocation} /></Rise>
-    <Rise delay={40}><div style={{ fontFamily: fonts.italic, fontSize: 66, lineHeight: 1.3, color: palette.text }}>{props.intro}</div></Rise>
-    <LightSweep delay={50} duration={45} />
+    <Rise delay={drawn}><Kicker style={{ color: palette.accent, letterSpacing: '.2em' }} text={props.invocation} /></Rise>
+    <Rise delay={drawn}><div style={{ fontFamily: fonts.italic, fontSize: 66, lineHeight: 1.3, color: palette.text }}>{props.intro}</div></Rise>
+    <LightSweep delay={8} duration={45} />
   </Scene>
 }
 
@@ -75,7 +79,25 @@ function Hosts({ props }: { props: WeddingVideoProps }) {
   </Scene>
 }
 
+// One video goes to every guest, so without a shared RSVP URL the last screen
+// points guests to the personal link they were sent.
+function ReplyCard({ props }: { props: WeddingVideoProps }) {
+  const palette = palettes[props.palette]
+  const pop = useEnter(4, 14)
+  return <Scene fadeOut={0} style={{ ...center, gap: 44, padding: '0 90px' }}>
+    <div style={{ width: 170, transform: `scale(${pop})` }}><Medallion symbol={props.symbol} /></div>
+    <Rise delay={8}><div style={{ fontFamily: fonts.display, fontSize: 104, color: palette.ink }}>{props.labels.rsvpTitle}</div></Rise>
+    <Rule delay={16} color={palette.accent} />
+    <Rise delay={22}><div style={{ fontFamily: fonts.serif, fontWeight: 600, fontSize: 70, color: palette.ink }}>{dateLine(props)}</div></Rise>
+    {props.city && <Rise delay={28}><div style={{ fontFamily: fonts.italic, fontSize: 60, color: palette.text }}>{props.city}</div></Rise>}
+    <Rise delay={40}><div style={{ fontFamily: fonts.sans, fontSize: 42, lineHeight: 1.4, color: palette.text, marginTop: 30 }}>{props.labels.replyNote}</div></Rise>
+    {props.rsvpBy && <Rise delay={50}><Kicker style={{ color: palette.accent }} text={`${props.labels.replyBy} ${props.rsvpBy}`} /></Rise>}
+    <LightSweep delay={30} duration={40} />
+  </Scene>
+}
+
 function Rsvp({ props }: { props: WeddingVideoProps }) {
+  if (!props.rsvpUrl) return <ReplyCard props={props} />
   const palette = palettes[props.palette]
   const pop = useEnter(10, 14)
   return <Scene fadeOut={0} style={{ ...center, gap: 40 }}>

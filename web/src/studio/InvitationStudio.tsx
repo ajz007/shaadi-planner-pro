@@ -9,6 +9,7 @@ import type { PreviewDraft } from '../invitation/InvitationPreview'
 import { ContactEditor, DesignOptions, FamilyEditor, Field, PersonFields, timeFormat } from './fields'
 import { Gallery } from './Gallery'
 import { PreviewFrame } from './PreviewFrame'
+import { WhatsAppVideo } from './WhatsAppVideo'
 import './studio.css'
 
 type Status = { live: boolean; everPublished: boolean; publishedAt?: string; savedAt?: string; unpublishedChanges: boolean }
@@ -311,6 +312,7 @@ export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding
     </div>}
 
     {view === 'publish' && <div className="studio-publish">
+      <div className="studio-publish-main">
       <section className="focus-card">
         <h2>Publish to guests</h2>
         <p>Guests see the <strong>published</strong> version when they open their RSVP or schedule link, with their own RSVP inside.
@@ -341,6 +343,8 @@ export function InvitationStudio({ wedding, rsvpHref }: { wedding: Plan['wedding
           }}>Stop showing to guests</button>}
         </div>}
       </section>
+      <WhatsAppVideo path={path} publishedAt={settings.publishedAt} weddingName={wedding.name} photoHref={rsvpHref} />
+      </div>
       <div className="studio-preview-column"><PreviewFrame draft={draft} /></div>
     </div>}
   </div>

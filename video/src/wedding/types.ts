@@ -20,6 +20,8 @@ export type VideoLabels = {
   request: string
   rsvpTitle: string
   scan: string
+  // Shown instead of a QR code when one video goes to every guest.
+  replyNote: string
   replyBy: string
 }
 
@@ -39,7 +41,9 @@ export type WeddingVideoProps = {
   intro: string
   events: VideoEvent[]
   hosts: string
-  rsvpUrl: string
+  // With a URL the last screen shows a QR code; without one it asks guests
+  // to use the personal link they were sent.
+  rsvpUrl?: string
   rsvpBy: string
   palette: PaletteKey
   // BCP 47 locale for dates and month names, e.g. "en-IN", "hi-IN".

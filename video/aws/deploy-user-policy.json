@@ -1,0 +1,84 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SppVideoBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:PutBucketOwnershipControls",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketPolicy",
+        "s3:PutLifecycleConfiguration",
+        "s3:PutBucketTagging",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::spp-video-ACCOUNT_ID-us-west-1",
+        "arn:aws:s3:::spp-video-ACCOUNT_ID-us-west-1/*"
+      ]
+    },
+    {
+      "Sid": "BucketListing",
+      "Effect": "Allow",
+      "Action": "s3:ListAllMyBuckets",
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassSppVideoLambdaRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/spp-video-lambda-role"
+    },
+    {
+      "Sid": "FunctionListing",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:ListFunctions",
+        "lambda:GetFunction"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SppVideoFunctions",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:PutFunctionEventInvokeConfig",
+        "lambda:PutRuntimeManagementConfig",
+        "lambda:TagResource"
+      ],
+      "Resource": "arn:aws:lambda:us-west-1:ACCOUNT_ID:function:spp-video-render-*"
+    },
+    {
+      "Sid": "SppVideoLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:PutRetentionPolicy"
+      ],
+      "Resource": "arn:aws:logs:us-west-1:ACCOUNT_ID:log-group:/aws/lambda/spp-video-render-*"
+    },
+    {
+      "Sid": "RemotionBinaries",
+      "Effect": "Allow",
+      "Action": "lambda:GetLayerVersion",
+      "Resource": "arn:aws:lambda:*:678892195805:layer:remotion-binaries-*"
+    },
+    {
+      "Sid": "ReadLambdaQuotas",
+      "Effect": "Allow",
+      "Action": [
+        "servicequotas:GetServiceQuota",
+        "servicequotas:GetAWSDefaultServiceQuota"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

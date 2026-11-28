@@ -6,13 +6,17 @@
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "typecheck": "tsc --noEmit",
-    "render": "node scripts/render.mjs"
+    "render": "node scripts/render.mjs",
+    "deploy:lambda": "node scripts/deploy-lambda.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.986.0",
+    "@aws-sdk/client-sts": "3.986.0",
+    "@remotion/bundler": "4.0.542",
     "@remotion/cli": "4.0.542",
     "@remotion/google-fonts": "4.0.542",
+    "@remotion/lambda": "4.0.542",
     "@remotion/renderer": "4.0.542",
-    "@remotion/bundler": "4.0.542",
     "qrcode": "1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
